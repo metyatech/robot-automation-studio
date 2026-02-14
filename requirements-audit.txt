@@ -1,0 +1,5 @@
+robotframework>=7.0.0
+robotframework-unity-editor @ git+https://github.com/metyatech/robotframework-unity-editor.git@main
+pywinauto>=0.6.8
+pynput>=1.7.7
+Pillow>=11.0.0
