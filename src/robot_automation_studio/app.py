@@ -217,7 +217,10 @@ class StudioApp:
 
     def _render_robot_status(self) -> None:
         spinner = SPINNER_FRAMES[self._status_spinner_index]
-        self.robot_status_var.set(format_run_status(self._run_phase, spinner))
+        status_text = format_run_status(self._run_phase, spinner)
+        self.robot_status_var.set(status_text)
+        if self._overlay is not None:
+            self._overlay.set_progress_text(status_text)
 
     def _tick_robot_status(self) -> None:
         if self._run_phase == "idle":
@@ -310,6 +313,7 @@ class StudioApp:
                 stop_hotkey_label=STOP_HOTKEY_LABEL,
             )
             self._overlay.start()
+            self._overlay.set_progress_text(self.robot_status_var.get())
         except Exception as error:  # pragma: no cover - integration path
             self._overlay = None
             self.log(f"Failed to start overlay: {error}")

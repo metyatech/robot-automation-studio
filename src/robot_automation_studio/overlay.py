@@ -109,6 +109,11 @@ def compute_banner_rect(
     )
 
 
+def build_banner_text(progress_text: str, stop_hotkey_label: str) -> str:
+    normalized_progress = str(progress_text or "").strip() or "Running"
+    return f"{normalized_progress}  |  Press {stop_hotkey_label} to stop"
+
+
 class AutomationRunOverlay:
     """Darkens non-target screen areas and shows stop-hotkey guidance."""
 
@@ -116,9 +121,11 @@ class AutomationRunOverlay:
         self._root = root
         self._window_hint = window_hint
         self._stop_hotkey_label = stop_hotkey_label
+        self._progress_text = "Running"
         self._dim_windows: list[tk.Toplevel] = []
         self._border_windows: list[tk.Toplevel] = []
         self._banner_window: tk.Toplevel | None = None
+        self._banner_label: tk.Label | None = None
         self._running = False
         self._timer_id: str | None = None
 
@@ -143,21 +150,22 @@ class AutomationRunOverlay:
         self._dim_windows.clear()
         self._border_windows.clear()
         self._banner_window = None
+        self._banner_label = None
 
     def _create_windows(self) -> None:
         self._dim_windows = [self._new_overlay_window("#000000", 0.45) for _ in range(4)]
         self._border_windows = [self._new_overlay_window("#ff2b2b", 0.95) for _ in range(4)]
         self._banner_window = self._new_overlay_window("#1a1a1a", 0.9)
-        label = tk.Label(
+        self._banner_label = tk.Label(
             self._banner_window,
-            text=f"Auto-running... Press {self._stop_hotkey_label} to stop",
+            text=build_banner_text(self._progress_text, self._stop_hotkey_label),
             fg="#ffffff",
             bg="#1a1a1a",
             font=("Segoe UI", 11, "bold"),
             padx=18,
             pady=6,
         )
-        label.pack(fill=tk.BOTH, expand=True)
+        self._banner_label.pack(fill=tk.BOTH, expand=True)
 
     def _new_overlay_window(self, color: str, alpha: float) -> tk.Toplevel:
         window = tk.Toplevel(self._root)
@@ -171,6 +179,14 @@ class AutomationRunOverlay:
         width = max(1, rect.width)
         height = max(1, rect.height)
         window.geometry(f"{width}x{height}+{rect.left}+{rect.top}")
+
+    def set_progress_text(self, progress_text: str) -> None:
+        self._progress_text = str(progress_text or "").strip() or "Running"
+        if self._banner_label is None:
+            return
+        self._banner_label.configure(
+            text=build_banner_text(self._progress_text, self._stop_hotkey_label)
+        )
 
     def _update(self) -> None:
         if not self._running:
