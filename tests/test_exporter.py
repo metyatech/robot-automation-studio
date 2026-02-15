@@ -74,6 +74,16 @@ def test_generate_robot_suite_launch_mode_contains_start_and_stop() -> None:
     assert "unity_project_path is required when unity_mode is launch." in text
 
 
+def test_generate_robot_suite_with_project_path_ensures_unity_bridge_package() -> None:
+    scenario = build_scenario()
+    scenario.metadata[UNITY_PROJECT_PATH_KEY] = "D:/projects/avatar-work"
+
+    text = generate_robot_suite(scenario, suite_name="unity-editor-basic")
+
+    assert "IF    '${unity_project_path}' != ''" in text
+    assert "Ensure Unity Bridge UPM Package    ${unity_project_path}" in text
+
+
 def test_generate_robot_suite_uses_zero_delay_when_not_specified() -> None:
     scenario = Scenario(
         name="No Delay Scenario",

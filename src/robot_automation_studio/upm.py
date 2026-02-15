@@ -1,0 +1,55 @@
+"""Unity UPM manifest helpers for Studio."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+DEFAULT_UNITY_BRIDGE_PACKAGE_NAME = "com.metyatech.unity-automation-bridge"
+DEFAULT_UNITY_BRIDGE_PACKAGE_URL = (
+    "https://github.com/metyatech/robotframework-unity-editor.git?path=/unity-package#main"
+)
+
+
+def _ensure_dependency_in_manifest(
+    manifest: dict[str, Any],
+    package_name: str,
+    package_url: str,
+) -> bool:
+    dependencies = manifest.setdefault("dependencies", {})
+    if not isinstance(dependencies, dict):
+        raise ValueError("manifest.json dependencies must be a JSON object.")
+    current = str(dependencies.get(package_name) or "").strip()
+    if current == package_url:
+        return False
+    dependencies[package_name] = package_url
+    return True
+
+
+def ensure_unity_bridge_upm_dependency(
+    project_path: Path,
+    package_name: str = DEFAULT_UNITY_BRIDGE_PACKAGE_NAME,
+    package_url: str = DEFAULT_UNITY_BRIDGE_PACKAGE_URL,
+) -> bool:
+    manifest_path = Path(project_path).resolve() / "Packages" / "manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(
+            f"Unity manifest.json not found: {manifest_path}. "
+            "Set Unity Project Path to a valid Unity project."
+        )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8") or "{}")
+    if not isinstance(manifest, dict):
+        raise ValueError("manifest.json root must be a JSON object.")
+
+    changed = _ensure_dependency_in_manifest(
+        manifest,
+        package_name=package_name,
+        package_url=package_url,
+    )
+    if changed:
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    return changed

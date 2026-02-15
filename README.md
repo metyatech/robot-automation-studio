@@ -47,7 +47,9 @@ robot-automation-studio
 2. Select execution mode:
    - `attach`: run against an already opened Unity Editor.
    - `launch`: open a Unity project path and then run the scenario.
-3. If mode is `launch`, set `Unity Project Path`.
+3. Optionally set `Unity Project Path` (recommended for Unity Hierarchy bridge).
+   - When set, Studio auto-adds `com.metyatech.unity-automation-bridge` to `Packages/manifest.json` before recording and before `Run Robot`.
+   - This works for both `attach` and `launch`.
 4. Click `Start Recording`, perform operations in Unity Editor, then click `Stop Recording`.
    - Click/drag is recorded only when a UI Automation element selector is resolved.
    - If selector resolution fails, Studio logs a recording error and does not add the step.
@@ -65,6 +67,7 @@ robot-automation-studio
 - `attach` is the default and keeps scenarios reusable across projects.
 - `launch` is useful for document generation pipelines that should open a specific project automatically.
 - In `launch` mode, the generated `.robot` suite fails fast when project path is empty.
+- If `Unity Project Path` is set, exported `.robot` also ensures Unity bridge UPM dependency before attach/launch.
 
 ## Output Structure
 
@@ -75,9 +78,10 @@ robot-automation-studio
 ## Unity Hierarchy Bridge
 
 - Unity Hierarchy rows are custom-drawn and often appear as one generic UIA pane.
-- To record stable hierarchy clicks, install the Unity bridge script in your project:
-  - Run Robot keyword: `Install Unity Editor Bridge Script    <your-project-path>`
-  - Or copy bridge script from `robotframework-unity-editor` into `Assets/Editor`.
+- To record/replay stable hierarchy clicks, install Unity bridge as UPM dependency in each target project:
+  - `com.metyatech.unity-automation-bridge`
+  - `https://github.com/metyatech/robotframework-unity-editor.git?path=/unity-package#main`
+- Studio can auto-install this dependency when `Unity Project Path` is set.
 - Without the bridge, hierarchy row clicks cannot be resolved and recording logs an error.
 
 ## Verification
