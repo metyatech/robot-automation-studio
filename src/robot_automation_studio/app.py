@@ -23,6 +23,7 @@ from .models import (
 from .overlay import AutomationRunOverlay
 from .recorder import ScenarioRecorder, events_to_steps
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
+from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
 
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
@@ -52,7 +53,7 @@ class StudioApp:
         self.output_dir_var = tk.StringVar(value="artifacts/studio")
         self.export_name_var = tk.StringVar(value="unity-editor-generated")
         self.log_var = tk.StringVar(value="")
-        self.robot_status_var = tk.StringVar(value="Idle")
+        self.robot_status_var = tk.StringVar(value=format_run_status("idle", SPINNER_FRAMES[0]))
 
         self.selected_index: int | None = None
         self._run_thread: threading.Thread | None = None
@@ -61,6 +62,10 @@ class StudioApp:
         self._stop_requested = False
         self._stop_hotkey_listener: pynput_keyboard.GlobalHotKeys | None = None
         self._overlay: AutomationRunOverlay | None = None
+        self._run_phase = "idle"
+        self._status_spinner_index = 0
+        self._status_timer_id: str | None = None
+        self._phase_promotion_timer_id: str | None = None
 
         self._build_ui()
         self.refresh_steps()
@@ -210,18 +215,60 @@ class StudioApp:
     def _log_async(self, message: str) -> None:
         self.root.after(0, lambda: self.log(message))
 
-    def _set_robot_status(self, status: str) -> None:
-        self.robot_status_var.set(status)
+    def _render_robot_status(self) -> None:
+        spinner = SPINNER_FRAMES[self._status_spinner_index]
+        self.robot_status_var.set(format_run_status(self._run_phase, spinner))
+
+    def _tick_robot_status(self) -> None:
+        if self._run_phase == "idle":
+            self._status_timer_id = None
+            return
+        self._status_spinner_index = next_spinner_index(self._status_spinner_index)
+        self._render_robot_status()
+        self._status_timer_id = self.root.after(160, self._tick_robot_status)
+
+    def _set_run_phase(self, phase: str) -> None:
+        self._run_phase = phase
+        self._render_robot_status()
+        if phase == "idle":
+            if self._status_timer_id is not None:
+                self.root.after_cancel(self._status_timer_id)
+                self._status_timer_id = None
+            if self._phase_promotion_timer_id is not None:
+                self.root.after_cancel(self._phase_promotion_timer_id)
+                self._phase_promotion_timer_id = None
+            return
+        if self._status_timer_id is None:
+            self._status_timer_id = self.root.after(160, self._tick_robot_status)
+
+    def _set_run_phase_async(self, phase: str) -> None:
+        self.root.after(0, lambda: self._set_run_phase(phase))
+
+    def _schedule_phase_promotion(self, from_phase: str, to_phase: str, delay_ms: int) -> None:
+        if self._phase_promotion_timer_id is not None:
+            self.root.after_cancel(self._phase_promotion_timer_id)
+            self._phase_promotion_timer_id = None
+
+        def _promote() -> None:
+            self._phase_promotion_timer_id = None
+            if self._run_phase != from_phase:
+                return
+            self._set_run_phase(to_phase)
+
+        self._phase_promotion_timer_id = self.root.after(delay_ms, _promote)
 
     def _set_run_controls(self, running: bool, stopping: bool = False) -> None:
         if running:
             self.run_robot_button.configure(state="disabled")
             self.stop_robot_button.configure(state="normal")
-            self._set_robot_status("Stopping" if stopping else "Running")
+            if stopping:
+                self._set_run_phase("stopping")
+            elif self._run_phase == "idle":
+                self._set_run_phase("running")
             return
         self.run_robot_button.configure(state="normal")
         self.stop_robot_button.configure(state="disabled")
-        self._set_robot_status("Idle")
+        self._set_run_phase("idle")
 
     def _set_current_process(self, process: subprocess.Popen[str] | None) -> None:
         with self._run_lock:
@@ -451,12 +498,15 @@ class StudioApp:
             self.log("Robot suite is already running.")
             return
         self._sync_scenario_header()
+        self._set_run_phase("exporting")
+        self.log("Preparing scenario export...")
         output_dir = Path(self.output_dir_var.get()).resolve()
         suite_name = self.export_name_var.get().strip() or "scenario"
         result = export_all(self.scenario, output_dir=output_dir, suite_name=suite_name)
         artifacts_dir = output_dir / "run"
         variable_output = output_dir
         self._stop_requested = False
+        self._set_run_phase("starting_robot")
         self._set_run_controls(running=True)
         self._start_stop_hotkey()
         self._start_overlay()
@@ -466,12 +516,20 @@ class StudioApp:
             run_error: Exception | None = None
             try:
                 self._log_async("Running Robot suite...")
+                self._set_run_phase_async("starting_robot")
+                self._log_async("Starting Robot process...")
                 process = start_robot_process(
                     suite_path=result.robot_path,
                     output_dir=artifacts_dir,
                     variable_output_dir=variable_output,
                 )
                 self._set_current_process(process)
+                self._set_run_phase_async("attaching_unity")
+                self._log_async("Attaching to Unity and waiting for first actions...")
+                self.root.after(
+                    0,
+                    lambda: self._schedule_phase_promotion("attaching_unity", "running", 1800),
+                )
                 if self._stop_requested:
                     stop_robot_process(process)
                 run_result = wait_robot_process(process)
