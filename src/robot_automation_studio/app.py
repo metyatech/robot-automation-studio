@@ -291,14 +291,10 @@ class StudioApp:
         content.pack(fill=tk.X, padx=12, pady=(4, 0))
         return content
 
-    def _toolbar_group(
-        self, parent: tk.Misc, label: str, *, first: bool = False
-    ) -> ttk.Frame:
+    def _toolbar_group(self, parent: tk.Misc, label: str, *, first: bool = False) -> ttk.Frame:
         """Create a labeled toolbar button group and return the button container."""
         if not first:
-            ttk.Separator(parent, orient=tk.VERTICAL).pack(
-                side=tk.LEFT, fill=tk.Y, padx=6, pady=2
-            )
+            ttk.Separator(parent, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=6, pady=2)
         group = ttk.Frame(parent)
         group.pack(side=tk.LEFT, padx=(0, 6))
         ttk.Label(group, text=label, style="GroupLabel.TLabel").pack(anchor=tk.W)
