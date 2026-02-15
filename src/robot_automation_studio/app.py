@@ -31,6 +31,7 @@ from .upm import ensure_unity_bridge_upm_dependency
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
 BRIDGE_READY_TIMEOUT_SECONDS = 15.0
+BRIDGE_READY_CHECK_TIMEOUT_SECONDS = 3.0
 
 
 class StudioApp:
@@ -41,7 +42,7 @@ class StudioApp:
 
         self.scenario = Scenario(name="Unity Editor Flow")
         self.editor = ScenarioEditor(self.scenario)
-        self.unity_bridge = UnityBridgeClient(timeout_seconds=0.25)
+        self.unity_bridge = UnityBridgeClient(timeout_seconds=0.1)
         self.recorder = ScenarioRecorder(
             on_record_error=self._on_record_error,
             unity_bridge=self.unity_bridge,
@@ -592,43 +593,45 @@ class StudioApp:
                 project_path_raw = detected_path
                 self.log(f"Auto-detected Unity Project Path: {detected_path}")
 
-        if project_path_raw == "":
-            return True
+        changed = False
+        if project_path_raw != "":
+            self.log(f"Ensuring Unity bridge package for {purpose}: {project_path_raw}")
+            try:
+                changed = ensure_unity_bridge_upm_dependency(Path(project_path_raw))
+            except Exception as error:
+                self.log(f"Unity bridge package setup failed: {error}")
+                messagebox.showerror(
+                    "Unity Bridge Setup Error",
+                    (
+                        "Failed to prepare Unity bridge UPM dependency.\n"
+                        f"Path: {project_path_raw}\n"
+                        f"Error: {error}"
+                    ),
+                )
+                return False
+            if changed:
+                self.log("Unity bridge UPM dependency added/updated for this project.")
+            else:
+                self.log("Unity bridge UPM dependency already present.")
 
-        self.log(f"Ensuring Unity bridge package for {purpose}: {project_path_raw}")
-        try:
-            changed = ensure_unity_bridge_upm_dependency(Path(project_path_raw))
-        except Exception as error:
-            self.log(f"Unity bridge package setup failed: {error}")
-            messagebox.showerror(
-                "Unity Bridge Setup Error",
-                (
-                    "Failed to prepare Unity bridge UPM dependency.\n"
-                    f"Path: {project_path_raw}\n"
-                    f"Error: {error}"
-                ),
+        if purpose == "recording":
+            wait_timeout = (
+                BRIDGE_READY_TIMEOUT_SECONDS if changed else BRIDGE_READY_CHECK_TIMEOUT_SECONDS
             )
-            return False
-
-        if changed:
-            self.log("Unity bridge UPM dependency added to Packages/manifest.json.")
-            self.log("Waiting for Unity bridge readiness...")
-            if not self.unity_bridge.wait_until_available(
-                timeout_seconds=BRIDGE_READY_TIMEOUT_SECONDS
-            ):
+            self.log("Checking Unity bridge readiness...")
+            if not self.unity_bridge.wait_until_available(timeout_seconds=wait_timeout):
                 self.log("Unity bridge readiness check timed out.")
                 messagebox.showerror(
                     "Unity Bridge Not Ready",
                     (
                         "Unity bridge is not ready yet.\n"
                         "Unity may still be importing packages or compiling scripts.\n"
-                        "Please focus Unity Editor once and retry Start Recording."
+                        "Open/focus the target Unity Editor and retry Start Recording.\n"
+                        "If this persists, set Unity Project Path explicitly."
                     ),
                 )
                 return False
             self.log("Unity bridge is ready.")
-        else:
-            self.log("Unity bridge UPM dependency already present.")
         return True
 
     def browse_unity_project_path(self) -> None:

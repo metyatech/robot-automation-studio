@@ -54,7 +54,7 @@ robot-automation-studio
    - In `attach`, when empty, Studio auto-detects the attached Unity project's `-projectPath` from the running Unity process and then auto-adds the dependency.
 4. Click `Start Recording`, perform operations in Unity Editor, then click `Stop Recording`.
    - In `attach`, `Start Recording` fails immediately with an error dialog if no visible window matches `Window Hint`.
-   - If Unity bridge was just added or not ready, `Start Recording` waits for bridge readiness before starting recording.
+   - `Start Recording` validates Unity bridge readiness before starting recording.
    - While recording, overlay highlight is enabled (distinct "recording" style from run mode).
    - Click/drag is recorded only when a UI Automation element selector is resolved.
    - If selector resolution fails, Studio logs a recording error and does not add the step.

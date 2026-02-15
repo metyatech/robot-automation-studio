@@ -275,3 +275,39 @@ def test_recorder_retries_bridge_lookup_for_hierarchy_click() -> None:
 
     assert len(steps) == 1
     assert steps[0].params["hierarchy_path"] == "AvatarRoot/Hair/Tail"
+
+
+def test_recorder_reports_hierarchy_bridge_error_once_during_backoff() -> None:
+    class MissingBridge:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def get_selected_hierarchy_path(self) -> str | None:
+            self.calls += 1
+            return None
+
+    errors: list[str] = []
+    bridge = MissingBridge()
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "UnityEditor.SceneHierarchyWindow",
+            "class_name": "UnityGUIViewWndClass",
+            "control_type": "Pane",
+        },
+        unity_bridge=bridge,
+        on_record_error=errors.append,
+    )
+    recorder.start(window_hint="Unity")
+    for _ in range(3):
+        recorder._on_click(120, 180, None, True)
+        recorder._on_click(120, 180, None, False)
+    recorder.stop()
+
+    assert len(errors) == 1

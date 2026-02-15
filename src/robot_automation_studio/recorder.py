@@ -16,6 +16,7 @@ from .models import Step
 
 STOP_HOTKEY_MAIN_KEY = "F12"
 STOP_HOTKEY_REQUIRED_MODIFIERS = {"CTRL", "SHIFT"}
+HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS = 1.0
 
 
 @dataclass(slots=True)
@@ -160,6 +161,7 @@ class ScenarioRecorder:
         self._mouse_down_point: tuple[int, int] | None = None
         self._modifier_keys: set[str] = set()
         self._bridge_retry_backoff_until = 0.0
+        self._hierarchy_error_suppress_until = 0.0
 
     @property
     def is_recording(self) -> bool:
@@ -172,6 +174,7 @@ class ScenarioRecorder:
         self._mouse_down_point = None
         self._modifier_keys.clear()
         self._bridge_retry_backoff_until = 0.0
+        self._hierarchy_error_suppress_until = 0.0
         self._mouse_listener = mouse.Listener(on_click=self._on_click)
         self._keyboard_listener = keyboard.Listener(
             on_press=self._on_key_press, on_release=self._on_key_release
@@ -190,6 +193,7 @@ class ScenarioRecorder:
         self._mouse_down_point = None
         self._modifier_keys.clear()
         self._bridge_retry_backoff_until = 0.0
+        self._hierarchy_error_suppress_until = 0.0
         return list(self._events)
 
     def append(self, kind: str, payload: dict[str, Any]) -> None:
@@ -233,7 +237,7 @@ class ScenarioRecorder:
             normalized = str(path or "").strip().replace("\\", "/").strip("/")
             if normalized:
                 return normalized
-            time.sleep(0.03)
+            time.sleep(0.02)
         self._bridge_retry_backoff_until = time.monotonic() + 0.8
         return None
 
@@ -307,9 +311,14 @@ class ScenarioRecorder:
         if _is_generic_unity_hierarchy_pane(selector):
             hierarchy_path = self._resolve_hierarchy_path()
             if hierarchy_path is None:
-                self._report_record_error(
-                    "Could not resolve hierarchy path from Unity bridge for hierarchy click."
-                )
+                now = time.monotonic()
+                if now >= self._hierarchy_error_suppress_until:
+                    self._report_record_error(
+                        "Could not resolve hierarchy path from Unity bridge for hierarchy click."
+                    )
+                    self._hierarchy_error_suppress_until = (
+                        now + HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS
+                    )
                 return
             self.append(
                 "click",
