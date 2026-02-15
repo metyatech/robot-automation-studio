@@ -56,6 +56,12 @@ def test_generate_robot_suite_contains_expected_keywords() -> None:
     assert "Require Unity Project Path" in text
 
 
+def test_generate_robot_suite_does_not_force_focus_before_steps() -> None:
+    text = generate_robot_suite(build_scenario(), suite_name="unity-editor-basic")
+
+    assert "Focus Unity Window" not in text
+
+
 def test_generate_robot_suite_launch_mode_contains_start_and_stop() -> None:
     scenario = build_scenario()
     scenario.metadata[UNITY_EXECUTION_MODE_KEY] = "launch"

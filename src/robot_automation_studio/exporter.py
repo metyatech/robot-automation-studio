@@ -92,7 +92,6 @@ def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> s
         "        ELSE",
         "            Attach To Running Unity Editor    window_hint=${unity_window_hint}",
         "        END",
-        "        Focus Unity Window",
     ]
     for step in scenario.steps:
         lines.append(f"        # {step.title}")
