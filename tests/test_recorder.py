@@ -4,6 +4,7 @@ from robot_automation_studio.recorder import (
     ScenarioRecorder,
     WindowSnapshot,
     events_to_steps,
+    has_visible_window_with_hint,
 )
 
 
@@ -207,3 +208,17 @@ def test_recorder_uses_bridge_for_unity_hierarchy_pane() -> None:
     assert len(steps) == 1
     assert steps[0].action == "click"
     assert steps[0].params["hierarchy_path"] == "AvatarRoot/Hair/Tail"
+
+
+def test_has_visible_window_with_hint_true_when_matching_title_exists() -> None:
+    assert has_visible_window_with_hint(
+        "Unity",
+        window_titles=["Visual Studio Code", "Unity 2022.3 - Sample Project"],
+    )
+
+
+def test_has_visible_window_with_hint_false_when_no_match() -> None:
+    assert not has_visible_window_with_hint(
+        "Unity",
+        window_titles=["Visual Studio Code", "Terminal"],
+    )

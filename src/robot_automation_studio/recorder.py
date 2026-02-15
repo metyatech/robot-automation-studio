@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import platform
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -67,6 +67,39 @@ def _is_generic_unity_hierarchy_pane(selector: dict[str, Any]) -> bool:
     if control_type != "pane":
         return False
     return "scenehierarchywindow" in title or "hierarchy" in title
+
+
+def _title_matches_window_hint(title: str, window_hint: str) -> bool:
+    normalized_title = str(title or "").strip().lower()
+    if normalized_title == "":
+        return False
+    normalized_hint = str(window_hint or "").strip().lower()
+    if normalized_hint == "":
+        return True
+    return normalized_hint in normalized_title
+
+
+def list_visible_window_titles() -> list[str]:
+    titles: list[str] = []
+
+    def _callback(window_handle: int, _param: int) -> bool:
+        if not win32gui.IsWindowVisible(window_handle):
+            return True
+        title = str(win32gui.GetWindowText(window_handle) or "").strip()
+        if title != "":
+            titles.append(title)
+        return True
+
+    win32gui.EnumWindows(_callback, 0)
+    return titles
+
+
+def has_visible_window_with_hint(
+    window_hint: str,
+    window_titles: Sequence[str] | None = None,
+) -> bool:
+    titles = list(window_titles) if window_titles is not None else list_visible_window_titles()
+    return any(_title_matches_window_hint(str(title), window_hint) for title in titles)
 
 
 def get_foreground_window_snapshot() -> WindowSnapshot | None:
@@ -175,9 +208,7 @@ class ScenarioRecorder:
     def _window_matches(self, snapshot: WindowSnapshot | None) -> bool:
         if snapshot is None:
             return False
-        if not self._window_hint:
-            return True
-        return self._window_hint.lower() in snapshot.title.lower()
+        return _title_matches_window_hint(snapshot.title, self._window_hint)
 
     def _resolve_hierarchy_path(self) -> str | None:
         bridge = self._unity_bridge

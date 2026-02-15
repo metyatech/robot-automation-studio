@@ -21,7 +21,7 @@ from .models import (
     normalize_unity_execution_mode,
 )
 from .overlay import AutomationRunOverlay
-from .recorder import ScenarioRecorder, events_to_steps
+from .recorder import ScenarioRecorder, events_to_steps, has_visible_window_with_hint
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
 from .unity_bridge import UnityBridgeClient
@@ -623,12 +623,27 @@ class StudioApp:
         self.refresh_steps()
 
     def start_recording(self) -> None:
+        window_hint = self.window_hint_var.get().strip() or "Unity"
+        execution_mode = normalize_unity_execution_mode(self.execution_mode_var.get())
+        if execution_mode == "attach" and not has_visible_window_with_hint(window_hint):
+            self.log(
+                f"Recording start failed: attach target window not found. window_hint={window_hint}"
+            )
+            messagebox.showerror(
+                "Attach Target Not Found",
+                (
+                    "Could not find a visible target window for attach mode.\n"
+                    f"Window Hint: {window_hint}\n"
+                    "Open the target window and try Start Recording again."
+                ),
+            )
+            return
         if not self._ensure_unity_bridge_dependency_if_configured("recording"):
             return
-        self.recorder.start(window_hint=self.window_hint_var.get().strip() or "Unity")
+        self.recorder.start(window_hint=window_hint)
         self._rec_indicator.configure(text=" \u25cf REC ", bg=self._ACCENT_RED, fg="#1e1e2e")
         self.root.title("Robot Automation Studio [RECORDING]")
-        self.log(f"Recording started. window_hint={self.window_hint_var.get().strip() or 'Unity'}")
+        self.log(f"Recording started. window_hint={window_hint}")
 
     def stop_recording(self) -> None:
         events = self.recorder.stop()
