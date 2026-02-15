@@ -80,6 +80,35 @@ def _target_window_rect(window_hint: str) -> Rect | None:
     return Rect(left=int(left), top=int(top), right=int(right), bottom=int(bottom))
 
 
+def compute_banner_rect(
+    screen: Rect,
+    target: Rect | None,
+    banner_width: int,
+    banner_height: int,
+    margin_top: int = 16,
+) -> Rect:
+    anchor = target or screen
+    effective_width = max(1, min(banner_width, screen.width))
+    effective_height = max(1, min(banner_height, screen.height))
+
+    preferred_left = anchor.left + round(anchor.width / 2) - round(effective_width / 2)
+    min_left = screen.left
+    max_left = screen.right - effective_width
+    left = max(min_left, min(preferred_left, max_left))
+
+    preferred_top = anchor.top + margin_top
+    min_top = screen.top
+    max_top = screen.bottom - effective_height
+    top = max(min_top, min(preferred_top, max_top))
+
+    return Rect(
+        left=left,
+        top=top,
+        right=left + effective_width,
+        bottom=top + effective_height,
+    )
+
+
 class AutomationRunOverlay:
     """Darkens non-target screen areas and shows stop-hotkey guidance."""
 
@@ -198,13 +227,14 @@ class AutomationRunOverlay:
                 self._place(border_window, rect)
 
         if self._banner_window is not None:
-            banner_width = 520
-            banner_height = 44
-            center_x = screen.left + round(screen.width / 2) - round(banner_width / 2)
-            top_y = screen.top + 16
-            self._place(
-                self._banner_window,
-                Rect(center_x, top_y, center_x + banner_width, top_y + banner_height),
+            banner_rect = compute_banner_rect(
+                screen=screen,
+                target=target,
+                banner_width=520,
+                banner_height=44,
+                margin_top=16,
             )
+            self._place(self._banner_window, banner_rect)
+            self._banner_window.lift()
 
         self._timer_id = self._root.after(120, self._update)
