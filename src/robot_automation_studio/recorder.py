@@ -123,16 +123,37 @@ def events_to_steps(events: list[RecordedEvent]) -> list[Step]:
     steps: list[Step] = []
     for event in events:
         if event.kind == "click":
-            steps.append(Step(action="click", title="click", params=dict(event.payload)))
+            steps.append(
+                Step(kind="action", action="click", title="click", params=dict(event.payload))
+            )
             continue
         if event.kind == "drag":
-            steps.append(Step(action="drag", title="drag", params=dict(event.payload)))
+            steps.append(
+                Step(
+                    kind="action",
+                    action="drag_drop",
+                    title="drag_drop",
+                    params=dict(event.payload),
+                )
+            )
             continue
         if event.kind == "shortcut":
-            steps.append(Step(action="shortcut", title="shortcut", params=dict(event.payload)))
+            steps.append(
+                Step(
+                    kind="action",
+                    action="press_keys",
+                    title="press_keys",
+                    params=dict(event.payload),
+                )
+            )
             continue
         steps.append(
-            Step(action="unknown", title=f"unknown:{event.kind}", params=dict(event.payload))
+            Step(
+                kind="action",
+                action="unknown",
+                title=f"unknown:{event.kind}",
+                params=dict(event.payload),
+            )
         )
     return steps
 

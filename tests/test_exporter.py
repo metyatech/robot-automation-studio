@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from robot_automation_studio.exporter import export_all, generate_robot_suite
 from robot_automation_studio.models import (
     UNITY_EXECUTION_MODE_KEY,
@@ -10,9 +12,21 @@ from robot_automation_studio.models import (
 
 
 def build_scenario() -> Scenario:
-    return Scenario(
+    scenario = Scenario(
         name="Unity Editor Basic Flow",
         target_window_hint="Unity",
+        metadata={
+            UNITY_EXECUTION_MODE_KEY: "attach",
+        },
+        variables=[
+            {"id": "unity_window_hint", "type": "string", "default": "Unity"},
+            {"id": "unity_project_path", "type": "path", "default": ""},
+        ],
+        execution={
+            "mode": "attach",
+            "attach": {"window_hint_var": "unity_window_hint"},
+            "launch": {"unity_project_path_var": "unity_project_path"},
+        },
         steps=[
             Step(
                 action="click",
@@ -39,6 +53,7 @@ def build_scenario() -> Scenario:
             Step(action="shortcut", title="Save", params={"shortcut": "CTRL+S"}),
         ],
     )
+    return scenario
 
 
 def test_generate_robot_suite_contains_expected_keywords() -> None:
@@ -57,7 +72,6 @@ def test_generate_robot_suite_contains_expected_keywords() -> None:
 
 def test_generate_robot_suite_does_not_force_focus_before_steps() -> None:
     text = generate_robot_suite(build_scenario(), suite_name="unity-editor-basic")
-
     assert "Focus Unity Window" not in text
 
 
@@ -65,6 +79,7 @@ def test_generate_robot_suite_launch_mode_contains_start_and_stop() -> None:
     scenario = build_scenario()
     scenario.metadata[UNITY_EXECUTION_MODE_KEY] = "launch"
     scenario.metadata[UNITY_PROJECT_PATH_KEY] = "D:/projects/avatar-work"
+    scenario.execution["mode"] = "launch"
 
     text = generate_robot_suite(scenario, suite_name="unity-editor-basic")
 
@@ -78,6 +93,7 @@ def test_generate_robot_suite_with_project_path_ensures_unity_bridge_package() -
     scenario = build_scenario()
     scenario.metadata[UNITY_PROJECT_PATH_KEY] = "D:/projects/avatar-work"
     scenario.metadata[UNITY_EXECUTION_MODE_KEY] = "launch"
+    scenario.execution["mode"] = "launch"
 
     text = generate_robot_suite(scenario, suite_name="unity-editor-basic")
 
@@ -88,63 +104,12 @@ def test_generate_robot_suite_with_project_path_ensures_unity_bridge_package() -
 def test_generate_robot_suite_normalizes_windows_project_path_for_robot() -> None:
     scenario = build_scenario()
     scenario.metadata[UNITY_PROJECT_PATH_KEY] = r"D:\VRChatProjects\Ryuon"
+    scenario.metadata[UNITY_EXECUTION_MODE_KEY] = "launch"
+    scenario.execution["mode"] = "launch"
 
     text = generate_robot_suite(scenario, suite_name="unity-editor-basic")
 
     assert "${unity_project_path}=    Set Variable    D:/VRChatProjects/Ryuon" in text
-
-
-def test_generate_robot_suite_attach_mode_does_not_ensure_unity_bridge_package() -> None:
-    scenario = build_scenario()
-    scenario.metadata[UNITY_PROJECT_PATH_KEY] = "D:/projects/avatar-work"
-    scenario.metadata[UNITY_EXECUTION_MODE_KEY] = "attach"
-
-    text = generate_robot_suite(scenario, suite_name="unity-editor-basic")
-
-    launch_if_index = text.index("IF    '${unity_mode}' == 'launch'")
-    ensure_index = text.index("Ensure Unity Bridge UPM Package    ${unity_project_path}")
-    assert ensure_index > launch_if_index
-
-
-def test_generate_robot_suite_uses_zero_delay_when_not_specified() -> None:
-    scenario = Scenario(
-        name="No Delay Scenario",
-        target_window_hint="Unity",
-        steps=[
-            Step(
-                action="click",
-                title="Click",
-                params={
-                    "title": "Inspector",
-                    "automation_id": "Inspector",
-                },
-            ),
-            Step(
-                action="drag",
-                title="Drag",
-                params={
-                    "source_title": "TailLength",
-                    "target_title": "PreviewArea",
-                },
-            ),
-        ],
-    )
-
-    text = generate_robot_suite(scenario, suite_name="no-delay")
-
-    assert "Wait For Seconds    0.0" in text
-
-
-def test_generate_robot_suite_treats_unknown_action_as_unsupported() -> None:
-    scenario = Scenario(
-        name="Unsupported Action",
-        target_window_hint="Unity",
-        steps=[Step(action="unknown-action", title="Unknown", params={})],
-    )
-
-    text = generate_robot_suite(scenario, suite_name="unsupported-action")
-
-    assert "Unsupported action: unknown-action" in text
 
 
 def test_generate_robot_suite_handles_hierarchy_path_click() -> None:
@@ -167,6 +132,57 @@ def test_generate_robot_suite_handles_hierarchy_path_click() -> None:
         "    hierarchy_path=AvatarRoot/Hair/Tail    timeout_seconds=4.0"
     ) in text
     assert "Click Unity Element" not in text
+
+
+def test_generate_robot_suite_supports_coordinate_click() -> None:
+    scenario = Scenario(
+        name="Coordinate Click",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="click",
+                title="Click scene",
+                params={
+                    "target": {
+                        "strategy": "coordinate",
+                        "coordinate": {"x_ratio": 0.2, "y_ratio": 0.3},
+                    },
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="coordinate-click")
+    assert "Click Unity Relative    0.2    0.3" in text
+
+
+def test_generate_robot_suite_fails_fast_for_unknown_action() -> None:
+    scenario = Scenario(
+        name="Unsupported Action",
+        target_window_hint="Unity",
+        steps=[Step(action="unknown-action", title="Unknown", params={})],
+    )
+
+    with pytest.raises(ValueError, match="Unsupported action"):
+        generate_robot_suite(scenario, suite_name="unsupported-action")
+
+
+def test_generate_robot_suite_fails_fast_for_control_step() -> None:
+    scenario = Scenario(
+        name="Control Scenario",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                kind="control",
+                control="for_each",
+                title="Loop",
+                params={"items_expression": "${items}", "item_variable": "item", "steps": []},
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Unsupported control step"):
+        generate_robot_suite(scenario, suite_name="control-scenario")
 
 
 def test_export_all_writes_robot_and_json(tmp_path: Path) -> None:

@@ -21,8 +21,18 @@ def test_scenario_json_round_trip(tmp_path: Path) -> None:
             UNITY_EXECUTION_MODE_KEY: "launch",
             UNITY_PROJECT_PATH_KEY: "D:/projects/demo",
         },
+        variables=[
+            {"id": "unity_window_hint", "type": "string", "default": "Unity"},
+            {"id": "unity_project_path", "type": "path", "default": "D:/projects/demo"},
+        ],
+        execution={
+            "mode": "launch",
+            "attach": {"window_hint_var": "unity_window_hint"},
+            "launch": {"unity_project_path_var": "unity_project_path"},
+        },
         steps=[
             Step(
+                kind="action",
                 action="click",
                 title="Click menu",
                 params={
@@ -33,7 +43,8 @@ def test_scenario_json_round_trip(tmp_path: Path) -> None:
                 },
             ),
             Step(
-                action="drag",
+                kind="action",
+                action="drag_drop",
                 title="Drag control",
                 params={
                     "source_title": "TailLength",
@@ -55,18 +66,25 @@ def test_scenario_json_round_trip(tmp_path: Path) -> None:
     assert loaded.target_window_hint == "Unity"
     assert loaded.metadata[UNITY_EXECUTION_MODE_KEY] == "launch"
     assert loaded.metadata[UNITY_PROJECT_PATH_KEY] == "D:/projects/demo"
+    assert loaded.execution["mode"] == "launch"
+    assert loaded.variables[0]["id"] == "unity_window_hint"
     assert len(loaded.steps) == 2
     assert loaded.steps[0].params["automation_id"] == "MainMenuFile"
+    assert loaded.steps[1].action == "drag_drop"
 
     raw = scenario.to_dict()
     assert raw["schema_version"] == SCHEMA_VERSION
     assert raw["target"] == "unity"
     assert raw["metadata"][TARGET_WINDOW_HINT_KEY] == "Unity"
+    assert raw["steps"][0]["kind"] == "action"
+    assert raw["steps"][0]["action"] == "click"
+    assert raw["steps"][0]["target"]["strategy"] == "uia"
 
 
 def test_step_has_stable_default_title() -> None:
     step = Step(action="click", params={"title": "Inspector"})
     assert step.title == "click"
+    assert step.to_dict()["action"] == "click"
 
 
 def test_normalize_unity_execution_mode_defaults_to_attach() -> None:
@@ -82,6 +100,7 @@ def test_scenario_from_dict_rejects_unknown_schema_version() -> None:
         "scenario_id": "sample",
         "name": "Sample",
         "target": "unity",
+        "variables": [],
         "metadata": {},
         "steps": [],
     }
@@ -89,3 +108,31 @@ def test_scenario_from_dict_rejects_unknown_schema_version() -> None:
     with pytest.raises(ValueError) as error:
         Scenario.from_dict(payload)
     assert "Unsupported schema_version" in str(error.value)
+
+
+def test_step_legacy_aliases_are_converted_to_v2_actions() -> None:
+    drag_step = Step(
+        action="drag",
+        title="Drag",
+        params={
+            "source_title": "Source",
+            "source_automation_id": "Source",
+            "target_title": "Target",
+            "target_automation_id": "Target",
+        },
+    )
+    shortcut_step = Step(action="shortcut", title="Shortcut", params={"shortcut": "CTRL+S"})
+    type_step = Step(action="type", title="Type", params={"text": "abc"})
+    wait_step = Step(action="wait", title="Wait", params={"seconds": 1.2})
+
+    drag_payload = drag_step.to_dict()
+    shortcut_payload = shortcut_step.to_dict()
+    type_payload = type_step.to_dict()
+    wait_payload = wait_step.to_dict()
+
+    assert drag_payload["action"] == "drag_drop"
+    assert shortcut_payload["action"] == "press_keys"
+    assert shortcut_payload["input"]["shortcut"] == "CTRL+S"
+    assert type_payload["action"] == "type_text"
+    assert wait_payload["action"] == "wait_for"
+    assert wait_payload["input"]["seconds"] == 1.2

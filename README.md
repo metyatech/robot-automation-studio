@@ -5,10 +5,12 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 ## Features
 
 - Record desktop actions (click, drag, shortcut) with UI element selectors
-- Optional per-action delay via `wait_seconds`
 - Foreground window filtering during recording (for Unity-focused capture)
 - Unity hierarchy click recording via Unity bridge (`hierarchy_path`)
-- Edit recorded steps (add, delete, move, modify parameters)
+- v2 scenario editing support:
+  - step kind/action/control fields
+  - dedicated editors for `variables`, `profiles`, `execution`, `outputs`
+  - full scenario JSON editor for complete v2 coverage
 - Run Robot Framework suites directly from the app
 - Runtime safety controls for automation execution:
   - visible running status
@@ -18,6 +20,12 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - recording/run overlays use distinct style and banner text
 - Export both `.robot` suites and machine-readable scenario spec JSON files
 - Designed for Unity Editor and other desktop targets on Windows
+
+## Scenario Spec
+
+- The app now uses `automation-scenario-spec` `2.0.0` only.
+- `1.x` scenario compatibility is intentionally removed.
+- Exporter fails fast with explicit errors when a step kind/action is not executable by current Robot generation logic.
 
 ## Supported Environment
 
@@ -60,12 +68,18 @@ robot-automation-studio
    - If selector resolution fails, Studio logs a recording error and does not add the step.
    - For Unity Hierarchy pane clicks, Studio uses Unity bridge selection path when available.
 5. Fine-tune steps from the editor panel.
-6. Choose output directory and export name.
-7. Click `Export` to generate:
+   - update step kind/action/control and advanced params JSON.
+6. Open dedicated v2 editors when needed:
+   - `Variables`
+   - `Profiles`
+   - `Execution/Outputs`
+   - `{} Full JSON` (full scenario object)
+7. Choose output directory and export name.
+8. Click `Export` to generate:
    - `<name>.robot`
    - `<name>.scenario.json`
-8. Click `Run Robot` to execute the generated suite.
-9. While running, use `Stop Robot` or press `Ctrl+Shift+F12` to stop immediately.
+9. Click `Run Robot` to execute the generated suite.
+10. While running, use `Stop Robot` or press `Ctrl+Shift+F12` to stop immediately.
 
 ## Execution Mode Notes
 

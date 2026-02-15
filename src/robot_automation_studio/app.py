@@ -6,6 +6,7 @@ import json
 import subprocess
 import threading
 import tkinter as tk
+from copy import deepcopy
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
@@ -115,6 +116,9 @@ class StudioApp:
         self.current_path: Path | None = None
 
         self.name_var = tk.StringVar(value=self.scenario.name)
+        self.scenario_id_var = tk.StringVar(value=self.scenario.scenario_id)
+        self.target_var = tk.StringVar(value=self.scenario.target)
+        self.description_var = tk.StringVar(value=self.scenario.description)
         self.window_hint_var = tk.StringVar(value=self.scenario.target_window_hint)
         self.execution_mode_var = tk.StringVar(
             value=normalize_unity_execution_mode(
@@ -124,6 +128,13 @@ class StudioApp:
         self.unity_project_path_var = tk.StringVar(
             value=str(self.scenario.metadata.get(UNITY_PROJECT_PATH_KEY, ""))
         )
+        self.kind_var = tk.StringVar(value="action")
+        self.control_var = tk.StringVar(value="")
+        self.step_id_var = tk.StringVar(value="")
+        self.step_description_var = tk.StringVar(value="")
+        self.step_condition_var = tk.StringVar(value="")
+        self.step_disabled_var = tk.BooleanVar(value=False)
+        self.step_continue_on_error_var = tk.BooleanVar(value=False)
         self.output_dir_var = tk.StringVar(value="artifacts/studio")
         self.export_name_var = tk.StringVar(value="unity-editor-generated")
         self.log_var = tk.StringVar(value="")
@@ -321,14 +332,31 @@ class StudioApp:
         ttk.Entry(config_card, textvariable=self.name_var, width=40).grid(
             row=0, column=1, sticky=tk.W, padx=6, pady=(0, 4)
         )
-        ttk.Label(config_card, text="Window Hint", style="Card.TLabel").grid(
+        ttk.Label(config_card, text="Scenario ID", style="Card.TLabel").grid(
             row=0, column=2, sticky=tk.W, padx=(20, 0), pady=(0, 4)
         )
-        ttk.Entry(config_card, textvariable=self.window_hint_var, width=24).grid(
+        ttk.Entry(config_card, textvariable=self.scenario_id_var, width=24).grid(
             row=0, column=3, sticky=tk.W, padx=6, pady=(0, 4)
         )
-        ttk.Label(config_card, text="Execution Mode", style="Card.TLabel").grid(
+        ttk.Label(config_card, text="Target", style="Card.TLabel").grid(
             row=1, column=0, sticky=tk.W, pady=(4, 0)
+        )
+        target_combo = ttk.Combobox(
+            config_card,
+            textvariable=self.target_var,
+            values=("unity", "web", "desktop", "hybrid"),
+            state="readonly",
+            width=14,
+        )
+        target_combo.grid(row=1, column=1, sticky=tk.W, padx=6, pady=(4, 0))
+        ttk.Label(config_card, text="Window Hint", style="Card.TLabel").grid(
+            row=1, column=2, sticky=tk.W, padx=(20, 0), pady=(4, 0)
+        )
+        ttk.Entry(config_card, textvariable=self.window_hint_var, width=24).grid(
+            row=1, column=3, sticky=tk.W, padx=6, pady=(4, 0)
+        )
+        ttk.Label(config_card, text="Execution Mode", style="Card.TLabel").grid(
+            row=2, column=0, sticky=tk.W, pady=(4, 0)
         )
         mode_combo = ttk.Combobox(
             config_card,
@@ -337,19 +365,38 @@ class StudioApp:
             state="readonly",
             width=14,
         )
-        mode_combo.grid(row=1, column=1, sticky=tk.W, padx=6, pady=(4, 0))
+        mode_combo.grid(row=2, column=1, sticky=tk.W, padx=6, pady=(4, 0))
         mode_combo.bind("<<ComboboxSelected>>", self.on_execution_mode_changed)
         ttk.Label(config_card, text="Unity Project Path", style="Card.TLabel").grid(
-            row=1, column=2, sticky=tk.W, padx=(20, 0), pady=(4, 0)
+            row=2, column=2, sticky=tk.W, padx=(20, 0), pady=(4, 0)
         )
         self.project_path_entry = ttk.Entry(
             config_card, textvariable=self.unity_project_path_var, width=44
         )
-        self.project_path_entry.grid(row=1, column=3, sticky=tk.W, padx=6, pady=(4, 0))
+        self.project_path_entry.grid(row=2, column=3, sticky=tk.W, padx=6, pady=(4, 0))
         self.project_path_browse_button = ttk.Button(
             config_card, text="Browse", command=self.browse_unity_project_path
         )
-        self.project_path_browse_button.grid(row=1, column=4, sticky=tk.W, pady=(4, 0))
+        self.project_path_browse_button.grid(row=2, column=4, sticky=tk.W, pady=(4, 0))
+        ttk.Label(config_card, text="Description", style="Card.TLabel").grid(
+            row=3, column=0, sticky=tk.W, pady=(4, 0)
+        )
+        ttk.Entry(config_card, textvariable=self.description_var, width=82).grid(
+            row=3, column=1, columnspan=3, sticky=tk.W, padx=6, pady=(4, 0)
+        )
+        config_tools = ttk.Frame(config_card, style="Card.TFrame")
+        config_tools.grid(row=4, column=0, columnspan=5, sticky=tk.W, pady=(8, 0))
+        ttk.Button(config_tools, text="Variables", command=self.open_variables_editor).pack(
+            side=tk.LEFT, padx=(0, 6)
+        )
+        ttk.Button(config_tools, text="Profiles", command=self.open_profiles_editor).pack(
+            side=tk.LEFT, padx=(0, 6)
+        )
+        ttk.Button(
+            config_tools,
+            text="Execution/Outputs",
+            command=self.open_execution_outputs_editor,
+        ).pack(side=tk.LEFT, padx=(0, 6))
 
         # ── B. Toolbar ─────────────────────────────────────────────────────
         toolbar_outer = ttk.Frame(self.root)
@@ -382,6 +429,8 @@ class StudioApp:
             ("\u2328 Shortcut", "Add a keyboard shortcut step", self.add_shortcut),
             ("\u2261 Menu", "Add a menu navigation step", self.add_menu),
             ("\u270e Type", "Add a text typing step", self.add_type),
+            ("IF", "Add a control step", self.add_control),
+            ("[] Group", "Add a group step", self.add_group),
         ]:
             btn = ttk.Button(add_group, text=label, command=cmd, style="Add.TButton")
             btn.pack(side=tk.LEFT, padx=2)
@@ -412,6 +461,9 @@ class StudioApp:
         btn = ttk.Button(file_group, text="\U0001f4c2 Load", command=self.load_json)
         btn.pack(side=tk.LEFT, padx=2)
         _ToolTip(btn, "Load scenario from JSON")
+        btn = ttk.Button(file_group, text="{} Full JSON", command=self.open_full_json_editor)
+        btn.pack(side=tk.LEFT, padx=2)
+        _ToolTip(btn, "Edit full v2 scenario JSON")
 
         # REC indicator (right-aligned)
         self._rec_indicator = tk.Label(
@@ -479,29 +531,86 @@ class StudioApp:
 
         edit_row = ttk.Frame(card, style="Card.TFrame")
         edit_row.pack(fill=tk.X)
-        ttk.Label(edit_row, text="Title", style="Card.TLabel").grid(
+        ttk.Label(edit_row, text="Step ID", style="Card.TLabel").grid(
             row=0, column=0, sticky=tk.W, pady=(0, 8)
+        )
+        ttk.Entry(edit_row, textvariable=self.step_id_var, width=32).grid(
+            row=0, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
+        )
+        ttk.Label(edit_row, text="Title", style="Card.TLabel").grid(
+            row=1, column=0, sticky=tk.W, pady=(0, 8)
         )
         self.title_var = tk.StringVar(value="")
         ttk.Entry(edit_row, textvariable=self.title_var, width=32).grid(
-            row=0, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
+            row=1, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
         )
-
+        ttk.Label(edit_row, text="Kind", style="Card.TLabel").grid(
+            row=2, column=0, sticky=tk.W, pady=(0, 8)
+        )
+        ttk.Combobox(
+            edit_row,
+            textvariable=self.kind_var,
+            values=("action", "control", "group"),
+            state="readonly",
+            width=29,
+        ).grid(row=2, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8))
         ttk.Label(edit_row, text="Action", style="Card.TLabel").grid(
-            row=1, column=0, sticky=tk.W, pady=(0, 8)
+            row=3, column=0, sticky=tk.W, pady=(0, 8)
         )
         self.action_var = tk.StringVar(value="")
         ttk.Entry(edit_row, textvariable=self.action_var, width=32).grid(
-            row=1, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
+            row=3, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
         )
-
+        ttk.Label(edit_row, text="Control", style="Card.TLabel").grid(
+            row=4, column=0, sticky=tk.W, pady=(0, 8)
+        )
+        ttk.Entry(edit_row, textvariable=self.control_var, width=32).grid(
+            row=4, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
+        )
+        ttk.Label(edit_row, text="Description", style="Card.TLabel").grid(
+            row=5, column=0, sticky=tk.W, pady=(0, 8)
+        )
+        ttk.Entry(edit_row, textvariable=self.step_description_var, width=32).grid(
+            row=5, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
+        )
+        ttk.Label(edit_row, text="Condition", style="Card.TLabel").grid(
+            row=6, column=0, sticky=tk.W, pady=(0, 8)
+        )
+        ttk.Entry(edit_row, textvariable=self.step_condition_var, width=32).grid(
+            row=6, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
+        )
+        ttk.Checkbutton(
+            edit_row,
+            text="Disabled",
+            variable=self.step_disabled_var,
+        ).grid(row=7, column=0, sticky=tk.W, pady=(0, 8))
+        ttk.Checkbutton(
+            edit_row,
+            text="Continue On Error",
+            variable=self.step_continue_on_error_var,
+        ).grid(row=7, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8))
+        ttk.Label(edit_row, text="Annotations (JSON)", style="Card.TLabel").grid(
+            row=8, column=0, sticky=tk.NW, pady=(0, 8)
+        )
+        self.annotations_text = tk.Text(
+            edit_row,
+            width=42,
+            height=4,
+            bg=self._BG_LIGHT,
+            fg=self._FG,
+            insertbackground=self._FG,
+            font=self._FONT_MONO_SM,
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        self.annotations_text.grid(row=8, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8))
         ttk.Label(edit_row, text="Params (JSON)", style="Card.TLabel").grid(
-            row=2, column=0, sticky=tk.NW, pady=(0, 8)
+            row=9, column=0, sticky=tk.NW, pady=(0, 8)
         )
         self.params_text = tk.Text(
             edit_row,
             width=42,
-            height=16,
+            height=8,
             bg=self._BG_LIGHT,
             fg=self._FG,
             insertbackground=self._FG,
@@ -509,7 +618,7 @@ class StudioApp:
             borderwidth=0,
             highlightthickness=0,
         )
-        self.params_text.grid(row=2, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8))
+        self.params_text.grid(row=9, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8))
 
         ttk.Button(
             card, text="Apply Step Changes", command=self.apply_step_changes, style="Apply.TButton"
@@ -600,15 +709,17 @@ class StudioApp:
 
     def _sync_scenario_header(self) -> None:
         self.scenario.name = self.name_var.get().strip() or "Scenario"
+        self.scenario.scenario_id = self.scenario_id_var.get().strip() or self.scenario.scenario_id
+        self.scenario.target = self.target_var.get().strip() or "unity"
+        self.scenario.description = self.description_var.get().strip()
         self.scenario.target_window_hint = self.window_hint_var.get().strip() or "Unity"
         execution_mode = normalize_unity_execution_mode(self.execution_mode_var.get())
         self.execution_mode_var.set(execution_mode)
-        self.scenario.metadata[UNITY_EXECUTION_MODE_KEY] = execution_mode
         unity_project_path = self.unity_project_path_var.get().strip()
-        if unity_project_path:
-            self.scenario.metadata[UNITY_PROJECT_PATH_KEY] = unity_project_path
-        else:
-            self.scenario.metadata.pop(UNITY_PROJECT_PATH_KEY, None)
+        self.scenario.sync_runtime_metadata(
+            execution_mode=execution_mode,
+            unity_project_path=unity_project_path,
+        )
 
     def _on_record_error(self, message: str) -> None:
         self.root.after(0, lambda: self.log(f"Record error: {message}"))
@@ -760,18 +871,47 @@ class StudioApp:
     def refresh_steps(self) -> None:
         self.step_list.delete(0, tk.END)
         for idx, step in enumerate(self.scenario.steps):
-            self.step_list.insert(tk.END, f"{idx + 1}. {step.action} - {step.title}")
+            label = (
+                step.action
+                if step.kind == "action"
+                else step.control
+                if step.kind == "control"
+                else "group"
+            )
+            self.step_list.insert(tk.END, f"{idx + 1}. [{step.kind}] {label} - {step.title}")
 
     def on_select_step(self, _event: Any = None) -> None:
         selection = self.step_list.curselection()
         if not selection:
             self.selected_index = None
+            self.step_id_var.set("")
+            self.title_var.set("")
+            self.kind_var.set("action")
+            self.action_var.set("")
+            self.control_var.set("")
+            self.step_description_var.set("")
+            self.step_condition_var.set("")
+            self.step_disabled_var.set(False)
+            self.step_continue_on_error_var.set(False)
+            self.annotations_text.delete("1.0", tk.END)
+            self.params_text.delete("1.0", tk.END)
             return
         index = int(selection[0])
         self.selected_index = index
         step = self.scenario.steps[index]
+        self.step_id_var.set(step.id)
         self.title_var.set(step.title)
+        self.kind_var.set(step.kind)
         self.action_var.set(step.action)
+        self.control_var.set(step.control)
+        self.step_description_var.set(step.description)
+        self.step_condition_var.set(step.condition)
+        self.step_disabled_var.set(step.disabled)
+        self.step_continue_on_error_var.set(step.continue_on_error)
+        self.annotations_text.delete("1.0", tk.END)
+        self.annotations_text.insert(
+            "1.0", json.dumps(step.annotations, ensure_ascii=False, indent=2)
+        )
         self.params_text.delete("1.0", tk.END)
         self.params_text.insert("1.0", json.dumps(step.params, ensure_ascii=False, indent=2))
 
@@ -967,14 +1107,42 @@ class StudioApp:
         try:
             params = json.loads(self.params_text.get("1.0", tk.END).strip() or "{}")
         except json.JSONDecodeError as error:
-            messagebox.showerror("Invalid JSON", str(error))
+            messagebox.showerror("Invalid Params JSON", str(error))
             return
+        try:
+            annotations = json.loads(self.annotations_text.get("1.0", tk.END).strip() or "[]")
+        except json.JSONDecodeError as error:
+            messagebox.showerror("Invalid Annotations JSON", str(error))
+            return
+        if not isinstance(params, dict):
+            messagebox.showerror("Invalid Params JSON", "Params must be a JSON object.")
+            return
+        if not isinstance(annotations, list):
+            messagebox.showerror("Invalid Annotations JSON", "Annotations must be a JSON array.")
+            return
+        kind = self.kind_var.get().strip().lower() or "action"
+        action = self.action_var.get().strip()
+        control = self.control_var.get().strip()
+        if kind == "action" and action == "":
+            action = self.scenario.steps[self.selected_index].action or "click"
+        if kind == "control" and control == "":
+            control = self.scenario.steps[self.selected_index].control or "if"
         self.editor.update_step(
             self.selected_index,
             title=self.title_var.get().strip(),
-            action=self.action_var.get().strip(),
+            kind=kind,
+            action=action if kind == "action" else None,
+            control=control if kind == "control" else None,
+            description=self.step_description_var.get().strip(),
+            condition=self.step_condition_var.get().strip(),
+            disabled=self.step_disabled_var.get(),
+            continue_on_error=self.step_continue_on_error_var.get(),
+            annotations=[dict(item) for item in annotations if isinstance(item, dict)],
             params=params,
         )
+        step_id = self.step_id_var.get().strip()
+        if step_id != "":
+            self.scenario.steps[self.selected_index].id = step_id
         self.refresh_steps()
 
     def start_recording(self) -> None:
@@ -1037,8 +1205,8 @@ class StudioApp:
 
     def add_drag(self) -> None:
         self.editor.add_step(
-            "drag",
-            "drag",
+            "drag_drop",
+            "drag_drop",
             {
                 "source_title": "Source",
                 "source_automation_id": "Source",
@@ -1050,15 +1218,35 @@ class StudioApp:
         self.refresh_steps()
 
     def add_shortcut(self) -> None:
-        self.editor.add_step("shortcut", "shortcut", {"shortcut": "CTRL+S"})
+        self.editor.add_step("press_keys", "press_keys", {"shortcut": "CTRL+S"})
         self.refresh_steps()
 
     def add_menu(self) -> None:
-        self.editor.add_step("menu", "menu", {"menu_path": "File>Save"})
+        self.editor.add_step("open_menu", "open_menu", {"menu_path": "File>Save"})
         self.refresh_steps()
 
     def add_type(self) -> None:
-        self.editor.add_step("type", "type", {"text": "sample"})
+        self.editor.add_step("type_text", "type_text", {"text": "sample"})
+        self.refresh_steps()
+
+    def add_control(self) -> None:
+        self.editor.add_control_step(
+            "if",
+            "if",
+            {
+                "expression": "True",
+                "steps": [],
+            },
+        )
+        self.refresh_steps()
+
+    def add_group(self) -> None:
+        self.editor.add_group_step(
+            title="group",
+            params={
+                "steps": [],
+            },
+        )
         self.refresh_steps()
 
     def delete_selected(self) -> None:
@@ -1109,25 +1297,528 @@ class StudioApp:
         )
         if not path:
             return
-        loaded = Scenario.load_json(Path(path))
+        try:
+            loaded = Scenario.load_json(Path(path))
+        except Exception as error:
+            messagebox.showerror("Load Error", str(error))
+            self.log(f"Load failed: {error}")
+            return
+        self._apply_loaded_scenario(loaded)
+        self.current_path = Path(path)
+        self.log(f"Loaded scenario: {path}")
+
+    def _apply_loaded_scenario(self, loaded: Scenario) -> None:
         self.scenario = loaded
         self.editor = ScenarioEditor(self.scenario)
+        self.selected_index = None
         self.name_var.set(loaded.name)
+        self.scenario_id_var.set(loaded.scenario_id)
+        self.target_var.set(loaded.target)
+        self.description_var.set(loaded.description)
         self.window_hint_var.set(loaded.target_window_hint)
         self.execution_mode_var.set(
             normalize_unity_execution_mode(loaded.metadata.get(UNITY_EXECUTION_MODE_KEY, "attach"))
         )
         self.unity_project_path_var.set(str(loaded.metadata.get(UNITY_PROJECT_PATH_KEY, "")))
         self.on_execution_mode_changed()
-        self.current_path = Path(path)
         self.refresh_steps()
-        self.log(f"Loaded scenario: {path}")
+        self.on_select_step()
+
+    def open_full_json_editor(self) -> None:
+        self._sync_scenario_header()
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Full Scenario JSON (v2)")
+        dialog.geometry("960x720")
+        dialog.transient(self.root)
+
+        top_row = ttk.Frame(dialog, padding=8)
+        top_row.pack(fill=tk.X)
+        body = ttk.Frame(dialog, padding=(8, 0, 8, 8))
+        body.pack(fill=tk.BOTH, expand=True)
+        text = tk.Text(
+            body,
+            bg=self._LOG_BG,
+            fg=self._FG,
+            insertbackground=self._FG,
+            font=self._FONT_MONO_SM,
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        scroll = ttk.Scrollbar(body, orient=tk.VERTICAL, command=text.yview)
+        text.configure(yscrollcommand=scroll.set)
+        text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        text.insert("1.0", json.dumps(self.scenario.to_dict(), ensure_ascii=False, indent=2))
+
+        def _format_json() -> None:
+            try:
+                payload = json.loads(text.get("1.0", tk.END).strip() or "{}")
+            except json.JSONDecodeError as error:
+                messagebox.showerror("Invalid JSON", str(error), parent=dialog)
+                return
+            text.delete("1.0", tk.END)
+            text.insert("1.0", json.dumps(payload, ensure_ascii=False, indent=2))
+
+        def _reload_model() -> None:
+            self._sync_scenario_header()
+            text.delete("1.0", tk.END)
+            text.insert("1.0", json.dumps(self.scenario.to_dict(), ensure_ascii=False, indent=2))
+
+        def _apply_json() -> None:
+            try:
+                payload = json.loads(text.get("1.0", tk.END).strip() or "{}")
+            except json.JSONDecodeError as error:
+                messagebox.showerror("Invalid JSON", str(error), parent=dialog)
+                return
+            try:
+                loaded = Scenario.from_dict(payload)
+            except Exception as error:
+                messagebox.showerror("Validation Error", str(error), parent=dialog)
+                return
+            self._apply_loaded_scenario(loaded)
+            self.log("Applied full scenario JSON editor changes.")
+            dialog.destroy()
+
+        ttk.Button(top_row, text="Format", command=_format_json).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(top_row, text="Reload Model", command=_reload_model).pack(
+            side=tk.LEFT, padx=(0, 6)
+        )
+        ttk.Button(top_row, text="Apply", command=_apply_json, style="Apply.TButton").pack(
+            side=tk.RIGHT,
+            padx=(6, 0),
+        )
+        ttk.Button(top_row, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
+
+    def open_variables_editor(self) -> None:
+        self._sync_scenario_header()
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Variables Editor")
+        dialog.geometry("980x620")
+        dialog.transient(self.root)
+
+        variables = [deepcopy(item) for item in self.scenario.variables if isinstance(item, dict)]
+        body = ttk.Frame(dialog, padding=8)
+        body.pack(fill=tk.BOTH, expand=True)
+        left = ttk.Frame(body)
+        left.pack(side=tk.LEFT, fill=tk.Y)
+        right = ttk.Frame(body)
+        right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0))
+
+        listbox = tk.Listbox(left, width=36, height=24, bg=self._BG_MID, fg=self._FG)
+        listbox.pack(fill=tk.Y, expand=True)
+
+        text = tk.Text(
+            right,
+            bg=self._LOG_BG,
+            fg=self._FG,
+            insertbackground=self._FG,
+            font=self._FONT_MONO_SM,
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        scroll = ttk.Scrollbar(right, orient=tk.VERTICAL, command=text.yview)
+        text.configure(yscrollcommand=scroll.set)
+        text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        def _refresh_list() -> None:
+            listbox.delete(0, tk.END)
+            for index, variable in enumerate(variables):
+                variable_id = str(variable.get("id") or f"var-{index + 1}")
+                variable_type = str(variable.get("type") or "string")
+                listbox.insert(tk.END, f"{index + 1}. {variable_id} ({variable_type})")
+
+        def _select(index: int) -> None:
+            if index < 0 or index >= len(variables):
+                return
+            listbox.selection_clear(0, tk.END)
+            listbox.selection_set(index)
+            listbox.activate(index)
+            text.delete("1.0", tk.END)
+            text.insert("1.0", json.dumps(variables[index], ensure_ascii=False, indent=2))
+
+        def _on_select(_event: Any = None) -> None:
+            selected = listbox.curselection()
+            if not selected:
+                return
+            _select(int(selected[0]))
+
+        def _apply_current() -> bool:
+            selected = listbox.curselection()
+            if not selected:
+                return True
+            index = int(selected[0])
+            try:
+                payload = json.loads(text.get("1.0", tk.END).strip() or "{}")
+            except json.JSONDecodeError as error:
+                messagebox.showerror("Invalid Variable JSON", str(error), parent=dialog)
+                return False
+            if not isinstance(payload, dict):
+                messagebox.showerror(
+                    "Invalid Variable JSON",
+                    "Variable must be a JSON object.",
+                    parent=dialog,
+                )
+                return False
+            if str(payload.get("id") or "").strip() == "":
+                messagebox.showerror(
+                    "Invalid Variable JSON",
+                    "Variable id is required.",
+                    parent=dialog,
+                )
+                return False
+            if str(payload.get("type") or "").strip() == "":
+                messagebox.showerror(
+                    "Invalid Variable JSON",
+                    "Variable type is required.",
+                    parent=dialog,
+                )
+                return False
+            variables[index] = payload
+            _refresh_list()
+            _select(index)
+            return True
+
+        def _add_variable() -> None:
+            if not _apply_current():
+                return
+            next_index = len(variables) + 1
+            variables.append(
+                {
+                    "id": f"var_{next_index}",
+                    "type": "string",
+                    "required": False,
+                    "default": "",
+                }
+            )
+            _refresh_list()
+            _select(len(variables) - 1)
+
+        def _delete_variable() -> None:
+            selected = listbox.curselection()
+            if not selected:
+                return
+            index = int(selected[0])
+            variables.pop(index)
+            _refresh_list()
+            if variables:
+                _select(min(index, len(variables) - 1))
+            else:
+                text.delete("1.0", tk.END)
+
+        def _save_and_close() -> None:
+            if not _apply_current():
+                return
+            self.scenario.variables = variables
+            self.log("Updated variables from Variables Editor.")
+            dialog.destroy()
+
+        footer = ttk.Frame(dialog, padding=8)
+        footer.pack(fill=tk.X)
+        ttk.Button(footer, text="Add", command=_add_variable).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(footer, text="Delete", command=_delete_variable).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(
+            footer,
+            text="Apply Current",
+            command=_apply_current,
+            style="Apply.TButton",
+        ).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(footer, text="Save", command=_save_and_close, style="Apply.TButton").pack(
+            side=tk.RIGHT,
+            padx=(6, 0),
+        )
+        ttk.Button(footer, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
+
+        listbox.bind("<<ListboxSelect>>", _on_select)
+        _refresh_list()
+        if variables:
+            _select(0)
+
+    def open_profiles_editor(self) -> None:
+        self._sync_scenario_header()
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Profiles Editor")
+        dialog.geometry("980x620")
+        dialog.transient(self.root)
+
+        profiles = dict(self.scenario.profiles or {})
+        profile_names = sorted(profiles.keys())
+        body = ttk.Frame(dialog, padding=8)
+        body.pack(fill=tk.BOTH, expand=True)
+        left = ttk.Frame(body)
+        left.pack(side=tk.LEFT, fill=tk.Y)
+        right = ttk.Frame(body)
+        right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0))
+
+        listbox = tk.Listbox(left, width=36, height=24, bg=self._BG_MID, fg=self._FG)
+        listbox.pack(fill=tk.Y, expand=True)
+
+        text = tk.Text(
+            right,
+            bg=self._LOG_BG,
+            fg=self._FG,
+            insertbackground=self._FG,
+            font=self._FONT_MONO_SM,
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        scroll = ttk.Scrollbar(right, orient=tk.VERTICAL, command=text.yview)
+        text.configure(yscrollcommand=scroll.set)
+        text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        def _refresh_list() -> None:
+            listbox.delete(0, tk.END)
+            for index, name in enumerate(profile_names):
+                listbox.insert(tk.END, f"{index + 1}. {name}")
+
+        def _select(index: int) -> None:
+            if index < 0 or index >= len(profile_names):
+                return
+            name = profile_names[index]
+            payload = deepcopy(profiles.get(name, {}))
+            profile_payload = {"name": name, "profile": payload}
+            listbox.selection_clear(0, tk.END)
+            listbox.selection_set(index)
+            listbox.activate(index)
+            text.delete("1.0", tk.END)
+            text.insert("1.0", json.dumps(profile_payload, ensure_ascii=False, indent=2))
+
+        def _on_select(_event: Any = None) -> None:
+            selected = listbox.curselection()
+            if not selected:
+                return
+            _select(int(selected[0]))
+
+        def _apply_current() -> bool:
+            selected = listbox.curselection()
+            if not selected:
+                return True
+            current_index = int(selected[0])
+            current_name = profile_names[current_index]
+            try:
+                payload = json.loads(text.get("1.0", tk.END).strip() or "{}")
+            except json.JSONDecodeError as error:
+                messagebox.showerror("Invalid Profile JSON", str(error), parent=dialog)
+                return False
+            if not isinstance(payload, dict):
+                messagebox.showerror(
+                    "Invalid Profile JSON",
+                    "Profile payload must be a JSON object.",
+                    parent=dialog,
+                )
+                return False
+            name = str(payload.get("name") or "").strip()
+            profile = payload.get("profile")
+            if name == "":
+                messagebox.showerror(
+                    "Invalid Profile JSON", "Profile name is required.", parent=dialog
+                )
+                return False
+            if not isinstance(profile, dict):
+                messagebox.showerror(
+                    "Invalid Profile JSON",
+                    "profile field must be a JSON object.",
+                    parent=dialog,
+                )
+                return False
+            profiles.pop(current_name, None)
+            profiles[name] = profile
+            profile_names[:] = sorted(profiles.keys())
+            _refresh_list()
+            _select(profile_names.index(name))
+            return True
+
+        def _add_profile() -> None:
+            if not _apply_current():
+                return
+            next_index = len(profile_names) + 1
+            name = f"profile-{next_index}"
+            profiles[name] = {"description": "", "variables": {}}
+            profile_names[:] = sorted(profiles.keys())
+            _refresh_list()
+            _select(profile_names.index(name))
+
+        def _delete_profile() -> None:
+            selected = listbox.curselection()
+            if not selected:
+                return
+            index = int(selected[0])
+            name = profile_names[index]
+            profiles.pop(name, None)
+            profile_names[:] = sorted(profiles.keys())
+            _refresh_list()
+            if profile_names:
+                _select(min(index, len(profile_names) - 1))
+            else:
+                text.delete("1.0", tk.END)
+
+        def _save_and_close() -> None:
+            if not _apply_current():
+                return
+            self.scenario.profiles = profiles
+            self.log("Updated profiles from Profiles Editor.")
+            dialog.destroy()
+
+        footer = ttk.Frame(dialog, padding=8)
+        footer.pack(fill=tk.X)
+        ttk.Button(footer, text="Add", command=_add_profile).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(footer, text="Delete", command=_delete_profile).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(
+            footer,
+            text="Apply Current",
+            command=_apply_current,
+            style="Apply.TButton",
+        ).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(footer, text="Save", command=_save_and_close, style="Apply.TButton").pack(
+            side=tk.RIGHT,
+            padx=(6, 0),
+        )
+        ttk.Button(footer, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
+
+        listbox.bind("<<ListboxSelect>>", _on_select)
+        _refresh_list()
+        if profile_names:
+            _select(0)
+
+    def open_execution_outputs_editor(self) -> None:
+        self._sync_scenario_header()
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Execution / Outputs Editor")
+        dialog.geometry("980x720")
+        dialog.transient(self.root)
+
+        container = ttk.Frame(dialog, padding=8)
+        container.pack(fill=tk.BOTH, expand=True)
+        top = ttk.Frame(container)
+        top.pack(fill=tk.X, pady=(0, 8))
+        ttk.Label(top, text="Execution / Outputs JSON", style="CardHeader.TLabel").pack(
+            side=tk.LEFT
+        )
+
+        splitter = ttk.Panedwindow(container, orient=tk.HORIZONTAL)
+        splitter.pack(fill=tk.BOTH, expand=True)
+        execution_frame = ttk.Frame(splitter)
+        outputs_frame = ttk.Frame(splitter)
+        splitter.add(execution_frame, weight=1)
+        splitter.add(outputs_frame, weight=1)
+
+        ttk.Label(execution_frame, text="execution", style="Card.TLabel").pack(anchor=tk.W)
+        execution_text = tk.Text(
+            execution_frame,
+            bg=self._LOG_BG,
+            fg=self._FG,
+            insertbackground=self._FG,
+            font=self._FONT_MONO_SM,
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        execution_scroll = ttk.Scrollbar(
+            execution_frame, orient=tk.VERTICAL, command=execution_text.yview
+        )
+        execution_text.configure(yscrollcommand=execution_scroll.set)
+        execution_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        execution_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        ttk.Label(outputs_frame, text="outputs", style="Card.TLabel").pack(anchor=tk.W)
+        outputs_text = tk.Text(
+            outputs_frame,
+            bg=self._LOG_BG,
+            fg=self._FG,
+            insertbackground=self._FG,
+            font=self._FONT_MONO_SM,
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        outputs_scroll = ttk.Scrollbar(
+            outputs_frame, orient=tk.VERTICAL, command=outputs_text.yview
+        )
+        outputs_text.configure(yscrollcommand=outputs_scroll.set)
+        outputs_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        outputs_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        execution_text.insert(
+            "1.0", json.dumps(self.scenario.execution, ensure_ascii=False, indent=2)
+        )
+        outputs_text.insert("1.0", json.dumps(self.scenario.outputs, ensure_ascii=False, indent=2))
+
+        def _apply() -> bool:
+            try:
+                execution_payload = json.loads(execution_text.get("1.0", tk.END).strip() or "{}")
+            except json.JSONDecodeError as error:
+                messagebox.showerror("Invalid execution JSON", str(error), parent=dialog)
+                return False
+            try:
+                outputs_payload = json.loads(outputs_text.get("1.0", tk.END).strip() or "{}")
+            except json.JSONDecodeError as error:
+                messagebox.showerror("Invalid outputs JSON", str(error), parent=dialog)
+                return False
+            if not isinstance(execution_payload, dict):
+                messagebox.showerror(
+                    "Invalid execution JSON", "execution must be object.", parent=dialog
+                )
+                return False
+            if not isinstance(outputs_payload, dict):
+                messagebox.showerror(
+                    "Invalid outputs JSON", "outputs must be object.", parent=dialog
+                )
+                return False
+            self.scenario.execution = execution_payload
+            self.scenario.outputs = outputs_payload
+            mode = str(execution_payload.get("mode") or "").strip().lower()
+            if mode in {"attach", "launch"}:
+                self.execution_mode_var.set(mode)
+            self.log("Updated execution/outputs from editor.")
+            return True
+
+        def _format() -> None:
+            try:
+                execution_payload = json.loads(execution_text.get("1.0", tk.END).strip() or "{}")
+                outputs_payload = json.loads(outputs_text.get("1.0", tk.END).strip() or "{}")
+            except json.JSONDecodeError as error:
+                messagebox.showerror("Invalid JSON", str(error), parent=dialog)
+                return
+            execution_text.delete("1.0", tk.END)
+            execution_text.insert(
+                "1.0",
+                json.dumps(execution_payload, ensure_ascii=False, indent=2),
+            )
+            outputs_text.delete("1.0", tk.END)
+            outputs_text.insert(
+                "1.0",
+                json.dumps(outputs_payload, ensure_ascii=False, indent=2),
+            )
+
+        footer = ttk.Frame(dialog, padding=8)
+        footer.pack(fill=tk.X)
+        ttk.Button(footer, text="Format", command=_format).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(footer, text="Apply", command=_apply, style="Apply.TButton").pack(
+            side=tk.RIGHT,
+            padx=(6, 0),
+        )
+
+        def _save_and_close() -> None:
+            if _apply():
+                dialog.destroy()
+
+        ttk.Button(
+            footer,
+            text="Save",
+            command=_save_and_close,
+            style="Apply.TButton",
+        ).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(footer, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
 
     def export_scenario(self) -> None:
         self._sync_scenario_header()
         output_dir = Path(self.output_dir_var.get()).resolve()
         suite_name = self.export_name_var.get().strip() or "scenario"
-        result = export_all(self.scenario, output_dir=output_dir, suite_name=suite_name)
+        try:
+            result = export_all(self.scenario, output_dir=output_dir, suite_name=suite_name)
+        except Exception as error:
+            self.log(f"Export failed: {error}")
+            messagebox.showerror("Export Error", str(error))
+            return
         self.log(f"Exported robot: {result.robot_path}")
         self.log(f"Exported json: {result.json_path}")
 
@@ -1152,7 +1843,13 @@ class StudioApp:
         self.log("Preparing scenario export...")
         output_dir = Path(self.output_dir_var.get()).resolve()
         suite_name = self.export_name_var.get().strip() or "scenario"
-        result = export_all(self.scenario, output_dir=output_dir, suite_name=suite_name)
+        try:
+            result = export_all(self.scenario, output_dir=output_dir, suite_name=suite_name)
+        except Exception as error:
+            self.log(f"Run export failed: {error}")
+            messagebox.showerror("Run Error", str(error))
+            self._set_run_phase("idle")
+            return
         artifacts_dir = output_dir / "run"
         variable_output = output_dir
         self._stop_requested = False

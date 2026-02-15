@@ -40,7 +40,8 @@ def test_events_to_steps_maps_mouse_and_keyboard_events() -> None:
     assert len(steps) == 3
     assert isinstance(steps[0], Step)
     assert steps[0].action == "click"
-    assert steps[1].action == "drag"
+    assert steps[1].action == "drag_drop"
+    assert steps[2].action == "press_keys"
     assert steps[2].params["shortcut"] == "CTRL+S"
 
 
@@ -102,7 +103,7 @@ def test_recorder_click_and_drag_record_element_selectors() -> None:
     events = recorder.stop()
 
     steps = events_to_steps(events)
-    assert [step.action for step in steps] == ["click", "drag"]
+    assert [step.action for step in steps] == ["click", "drag_drop"]
     assert steps[0].params["automation_id"] == "MainMenuFile"
     assert steps[1].params["source_automation_id"] == "Source"
     assert steps[1].params["target_automation_id"] == "Target"
