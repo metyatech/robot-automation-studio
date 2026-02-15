@@ -1,3 +1,5 @@
+from pynput import keyboard
+
 from robot_automation_studio.models import Step
 from robot_automation_studio.recorder import (
     RecordedEvent,
@@ -222,3 +224,54 @@ def test_has_visible_window_with_hint_false_when_no_match() -> None:
         "Unity",
         window_titles=["Visual Studio Code", "Terminal"],
     )
+
+
+def test_recorder_does_not_record_stop_hotkey_shortcut() -> None:
+    recorder = ScenarioRecorder()
+    recorder.start(window_hint="Unity")
+    recorder._on_key_press(keyboard.Key.ctrl_l)
+    recorder._on_key_press(keyboard.Key.shift)
+    recorder._on_key_press(keyboard.Key.f12)
+    recorder._on_key_release(keyboard.Key.f12)
+    recorder._on_key_release(keyboard.Key.shift)
+    recorder._on_key_release(keyboard.Key.ctrl_l)
+
+    steps = events_to_steps(recorder.stop())
+
+    assert steps == []
+
+
+def test_recorder_retries_bridge_lookup_for_hierarchy_click() -> None:
+    class FlakyBridge:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def get_selected_hierarchy_path(self) -> str | None:
+            self.calls += 1
+            if self.calls == 1:
+                return None
+            return "AvatarRoot/Hair/Tail"
+
+    bridge = FlakyBridge()
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "UnityEditor.SceneHierarchyWindow",
+            "class_name": "UnityGUIViewWndClass",
+            "control_type": "Pane",
+        },
+        unity_bridge=bridge,
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(120, 180, None, True)
+    recorder._on_click(120, 180, None, False)
+    steps = events_to_steps(recorder.stop())
+
+    assert len(steps) == 1
+    assert steps[0].params["hierarchy_path"] == "AvatarRoot/Hair/Tail"

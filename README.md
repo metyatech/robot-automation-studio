@@ -88,6 +88,7 @@ robot-automation-studio
   - `com.metyatech.unity-automation-bridge`
   - `https://github.com/metyatech/robotframework-unity-editor.git?path=/unity-package#main`
 - Studio can auto-install this dependency when `Unity Project Path` is set.
+- During auto-install, Studio also removes legacy `Assets/Editor/RobotFrameworkUnityBridge.cs` if present.
 - Without the bridge, hierarchy row clicks cannot be resolved and recording logs an error.
 
 ## Verification

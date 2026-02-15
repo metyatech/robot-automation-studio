@@ -14,6 +14,9 @@ from pywinauto import Desktop
 
 from .models import Step
 
+STOP_HOTKEY_MAIN_KEY = "F12"
+STOP_HOTKEY_REQUIRED_MODIFIERS = {"CTRL", "SHIFT"}
+
 
 @dataclass(slots=True)
 class WindowSnapshot:
@@ -156,6 +159,7 @@ class ScenarioRecorder:
         self._keyboard_listener: keyboard.Listener | None = None
         self._mouse_down_point: tuple[int, int] | None = None
         self._modifier_keys: set[str] = set()
+        self._bridge_retry_backoff_until = 0.0
 
     @property
     def is_recording(self) -> bool:
@@ -167,6 +171,7 @@ class ScenarioRecorder:
         self._window_hint = window_hint
         self._mouse_down_point = None
         self._modifier_keys.clear()
+        self._bridge_retry_backoff_until = 0.0
         self._mouse_listener = mouse.Listener(on_click=self._on_click)
         self._keyboard_listener = keyboard.Listener(
             on_press=self._on_key_press, on_release=self._on_key_release
@@ -184,6 +189,7 @@ class ScenarioRecorder:
         self._keyboard_listener = None
         self._mouse_down_point = None
         self._modifier_keys.clear()
+        self._bridge_retry_backoff_until = 0.0
         return list(self._events)
 
     def append(self, kind: str, payload: dict[str, Any]) -> None:
@@ -211,18 +217,25 @@ class ScenarioRecorder:
         return _title_matches_window_hint(snapshot.title, self._window_hint)
 
     def _resolve_hierarchy_path(self) -> str | None:
+        if time.monotonic() < self._bridge_retry_backoff_until:
+            return None
         bridge = self._unity_bridge
         if bridge is None:
             return None
         getter = getattr(bridge, "get_selected_hierarchy_path", None)
         if getter is None:
             return None
-        try:
-            path = getter()
-        except Exception:
-            return None
-        normalized = str(path or "").strip().replace("\\", "/").strip("/")
-        return normalized or None
+        for _ in range(4):
+            try:
+                path = getter()
+            except Exception:
+                path = None
+            normalized = str(path or "").strip().replace("\\", "/").strip("/")
+            if normalized:
+                return normalized
+            time.sleep(0.03)
+        self._bridge_retry_backoff_until = time.monotonic() + 0.8
+        return None
 
     def _on_click(self, x: int, y: int, _button: Any, pressed: bool) -> None:
         if not self._recording:
@@ -316,6 +329,11 @@ class ScenarioRecorder:
         name = self._key_to_name(key)
         if name in {"CTRL", "ALT", "SHIFT"}:
             self._modifier_keys.add(name)
+            return
+
+        if name == STOP_HOTKEY_MAIN_KEY and STOP_HOTKEY_REQUIRED_MODIFIERS.issubset(
+            self._modifier_keys
+        ):
             return
 
         if "CTRL" in self._modifier_keys:

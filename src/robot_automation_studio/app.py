@@ -41,7 +41,7 @@ class StudioApp:
 
         self.scenario = Scenario(name="Unity Editor Flow")
         self.editor = ScenarioEditor(self.scenario)
-        self.unity_bridge = UnityBridgeClient()
+        self.unity_bridge = UnityBridgeClient(timeout_seconds=0.25)
         self.recorder = ScenarioRecorder(
             on_record_error=self._on_record_error,
             unity_bridge=self.unity_bridge,
