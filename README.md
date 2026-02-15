@@ -13,7 +13,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - stop button
   - global emergency stop hotkey (`Ctrl+Shift+F12`)
   - dark overlay outside the active automation window with shortcut banner
-- Export both `.robot` suites and machine-readable JSON scenario files
+- Export both `.robot` suites and machine-readable scenario spec JSON files
 - Designed for Unity Editor and other desktop targets on Windows
 
 ## Supported Environment
@@ -51,7 +51,7 @@ robot-automation-studio
 6. Choose output directory and export name.
 7. Click `Export` to generate:
    - `<name>.robot`
-   - `<name>.json`
+   - `<name>.scenario.json`
 8. Click `Run Robot` to execute the generated suite.
 9. While running, use `Stop Robot` or press `Ctrl+Shift+F12` to stop immediately.
 
@@ -64,7 +64,7 @@ robot-automation-studio
 ## Output Structure
 
 - `<output>/<name>.robot`: Robot Framework suite
-- `<output>/<name>.json`: machine-readable scenario
+- `<output>/<name>.scenario.json`: machine-readable scenario (automation-scenario-spec)
 - `<output>/run/robot/output.xml`: Robot run output (when running from app)
 
 ## Verification

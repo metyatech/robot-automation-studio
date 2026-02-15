@@ -79,4 +79,5 @@ def test_export_all_writes_robot_and_json(tmp_path: Path) -> None:
 
     assert out.robot_path.exists()
     assert out.json_path.exists()
+    assert out.json_path.name.endswith(".scenario.json")
     assert "Click Unity Relative" in out.robot_path.read_text(encoding="utf-8")

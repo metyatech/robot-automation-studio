@@ -127,7 +127,7 @@ def export_all(scenario: Scenario, output_dir: Path, suite_name: str | None = No
     output_dir.mkdir(parents=True, exist_ok=True)
     safe_name = suite_name or _safe_suite_name(scenario.name)
     robot_path = output_dir / f"{safe_name}.robot"
-    json_path = output_dir / f"{safe_name}.json"
+    json_path = output_dir / f"{safe_name}.scenario.json"
 
     robot_path.write_text(generate_robot_suite(scenario, suite_name=safe_name), encoding="utf-8")
     scenario.save_json(json_path)

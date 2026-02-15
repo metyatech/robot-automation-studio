@@ -410,7 +410,8 @@ class StudioApp:
     def save_json(self) -> None:
         self._sync_scenario_header()
         path = filedialog.asksaveasfilename(
-            defaultextension=".json", filetypes=[("JSON", "*.json")]
+            defaultextension=".scenario.json",
+            filetypes=[("Scenario JSON", "*.scenario.json"), ("JSON", "*.json")],
         )
         if not path:
             return
@@ -420,7 +421,9 @@ class StudioApp:
         self.log(f"Saved scenario: {target}")
 
     def load_json(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[("JSON", "*.json")])
+        path = filedialog.askopenfilename(
+            filetypes=[("Scenario JSON", "*.scenario.json"), ("JSON", "*.json")]
+        )
         if not path:
             return
         loaded = Scenario.load_json(Path(path))

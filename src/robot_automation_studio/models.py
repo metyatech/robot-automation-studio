@@ -11,11 +11,17 @@ from typing import Any
 
 UNITY_EXECUTION_MODE_KEY = "unity_execution_mode"
 UNITY_PROJECT_PATH_KEY = "unity_project_path"
+TARGET_WINDOW_HINT_KEY = "target_window_hint"
+SCHEMA_VERSION = "1.0.0"
 VALID_UNITY_EXECUTION_MODES = {"attach", "launch"}
 
 
 def _new_step_id() -> str:
     return uuid.uuid4().hex[:10]
+
+
+def _new_scenario_id() -> str:
+    return f"scenario-{uuid.uuid4().hex[:8]}"
 
 
 def normalize_unity_execution_mode(value: Any) -> str:
@@ -52,27 +58,40 @@ class Step:
 @dataclass(slots=True)
 class Scenario:
     name: str
+    scenario_id: str = field(default_factory=_new_scenario_id)
+    target: str = "unity"
     steps: list[Step] = field(default_factory=list)
     target_window_hint: str = "Unity"
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        metadata = dict(self.metadata)
+        metadata[TARGET_WINDOW_HINT_KEY] = self.target_window_hint
         return {
+            "schema_version": SCHEMA_VERSION,
+            "scenario_id": self.scenario_id,
             "name": self.name,
-            "target_window_hint": self.target_window_hint,
+            "target": self.target if self.target in {"unity", "web"} else "unity",
             "created_at": self.created_at,
-            "metadata": self.metadata,
+            "metadata": metadata,
             "steps": [step.to_dict() for step in self.steps],
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Scenario:
+        schema_version = str(data.get("schema_version") or "")
+        if schema_version != SCHEMA_VERSION:
+            raise ValueError(f"Unsupported schema_version: {schema_version}")
+
+        metadata = dict(data.get("metadata") or {})
         return cls(
+            scenario_id=str(data.get("scenario_id") or _new_scenario_id()),
+            target=str(data.get("target") or "unity"),
             name=str(data["name"]),
-            target_window_hint=str(data.get("target_window_hint") or "Unity"),
+            target_window_hint=str(metadata.get(TARGET_WINDOW_HINT_KEY) or "Unity"),
             created_at=str(data.get("created_at") or datetime.now(UTC).isoformat()),
-            metadata=dict(data.get("metadata") or {}),
+            metadata=metadata,
             steps=[Step.from_dict(item) for item in list(data.get("steps") or [])],
         )
 
