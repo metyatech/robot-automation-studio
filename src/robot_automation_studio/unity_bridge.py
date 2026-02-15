@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from typing import Any
 
 
@@ -22,6 +24,31 @@ class UnityBridgeClient:
     @property
     def endpoint(self) -> str:
         return f"http://{self.host}:{self.port}"
+
+    def is_available(self) -> bool:
+        try:
+            payload = self._request("GET", "/v1/selection")
+        except Exception:
+            return False
+        return bool(payload.get("ok", False))
+
+    def wait_until_available(
+        self,
+        timeout_seconds: float = 12.0,
+        poll_interval_seconds: float = 0.25,
+        now_func: Callable[[], float] = time.monotonic,
+        sleep_func: Callable[[float], None] = time.sleep,
+    ) -> bool:
+        timeout = max(0.0, float(timeout_seconds))
+        poll_interval = max(0.05, float(poll_interval_seconds))
+        deadline = now_func() + timeout
+        while True:
+            if self.is_available():
+                return True
+            now = now_func()
+            if now >= deadline:
+                return False
+            sleep_func(min(poll_interval, deadline - now))
 
     def get_selected_hierarchy_path(self) -> str | None:
         try:

@@ -30,6 +30,7 @@ from .upm import ensure_unity_bridge_upm_dependency
 
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
+BRIDGE_READY_TIMEOUT_SECONDS = 15.0
 
 
 class StudioApp:
@@ -598,6 +599,23 @@ class StudioApp:
             self.log("Unity bridge UPM dependency added to Packages/manifest.json.")
         else:
             self.log("Unity bridge UPM dependency already present.")
+
+        if purpose == "recording":
+            self.log("Waiting for Unity bridge readiness...")
+            if not self.unity_bridge.wait_until_available(
+                timeout_seconds=BRIDGE_READY_TIMEOUT_SECONDS
+            ):
+                self.log("Unity bridge readiness check timed out.")
+                messagebox.showerror(
+                    "Unity Bridge Not Ready",
+                    (
+                        "Unity bridge is not ready yet.\n"
+                        "Unity may still be importing packages or compiling scripts.\n"
+                        "Please focus Unity Editor once and retry Start Recording."
+                    ),
+                )
+                return False
+            self.log("Unity bridge is ready.")
         return True
 
     def browse_unity_project_path(self) -> None:
