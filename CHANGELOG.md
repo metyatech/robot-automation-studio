@@ -11,6 +11,10 @@
   - execution/outputs
   - full scenario JSON
 - Expanded tests for v2 model/editor/exporter/recorder behavior.
+- Added universal in-app GUI guidance:
+  - context help bar that updates from hovered/focused components
+  - searchable full help dialog (`Open Guide (F1)`)
+  - centralized help catalog with fallback descriptions for all GUI components
 
 ## 0.1.0
 

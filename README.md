@@ -18,6 +18,10 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - global emergency stop hotkey (`Ctrl+Shift+F12`)
   - dark overlay outside the active automation window with shortcut banner
   - recording/run overlays use distinct style and banner text
+- In-app universal help system:
+  - context help bar for the currently hovered/focused UI component
+  - `Open Guide (F1)` searchable GUI help dialog
+  - auto-generated explanations for all visible UI components (including editor dialogs)
 - Export both `.robot` suites and machine-readable scenario spec JSON files
 - Designed for Unity Editor and other desktop targets on Windows
 
@@ -80,6 +84,9 @@ robot-automation-studio
    - `<name>.scenario.json`
 9. Click `Run Robot` to execute the generated suite.
 10. While running, use `Stop Robot` or press `Ctrl+Shift+F12` to stop immediately.
+11. Use in-app help:
+   - hover/focus any UI component to read context help in the `Context Help` bar
+   - press `F1` (or click `Open Guide`) to open searchable full GUI help
 
 ## Execution Mode Notes
 

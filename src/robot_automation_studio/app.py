@@ -26,6 +26,7 @@ from .overlay import AutomationRunOverlay, OverlayMode
 from .recorder import ScenarioRecorder, events_to_steps, has_visible_window_with_hint
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
+from .ui_help import HelpEntry, build_help_entry, filter_help_entries
 from .unity_bridge import UnityBridgeClient
 from .unity_diagnostics import get_recent_unity_compile_errors
 from .unity_project import resolve_attached_unity_project_path
@@ -139,6 +140,11 @@ class StudioApp:
         self.export_name_var = tk.StringVar(value="unity-editor-generated")
         self.log_var = tk.StringVar(value="")
         self.robot_status_var = tk.StringVar(value=format_run_status("idle", SPINNER_FRAMES[0]))
+        self.help_status_var = tk.StringVar(
+            value=(
+                "Hover or focus any UI component to view its explanation. Press F1 for full guide."
+            )
+        )
 
         self.selected_index: int | None = None
         self._run_thread: threading.Thread | None = None
@@ -152,9 +158,14 @@ class StudioApp:
         self._status_spinner_index = 0
         self._status_timer_id: str | None = None
         self._phase_promotion_timer_id: str | None = None
+        self._help_entries_by_widget: dict[tk.Widget, HelpEntry] = {}
+        self._help_entries_by_id: dict[str, HelpEntry] = {}
+        self._help_dialog: tk.Toplevel | None = None
 
         self._configure_theme()
         self._build_ui()
+        self._register_help_for_widget_tree(self.root)
+        self.root.bind("<F1>", self._on_help_hotkey, add=True)
         self.refresh_steps()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -313,6 +324,216 @@ class StudioApp:
         btn_row.pack()
         return btn_row
 
+    def _on_help_hotkey(self, _event: Any = None) -> str:
+        self.open_help_guide()
+        return "break"
+
+    def _set_help_status(self, message: str) -> None:
+        text = str(message).strip()
+        if text == "":
+            text = (
+                "Hover or focus any UI component to view its explanation. Press F1 for full guide."
+            )
+        self.help_status_var.set(text)
+
+    def _widget_text(self, widget: tk.Widget) -> str:
+        try:
+            value = widget.cget("text")
+            if isinstance(value, str) and value.strip() != "":
+                return value.strip()
+        except tk.TclError:
+            pass
+
+        try:
+            value = widget.cget("label")
+            if isinstance(value, str) and value.strip() != "":
+                return value.strip()
+        except tk.TclError:
+            pass
+
+        return ""
+
+    def _widget_help_id(self, widget: tk.Widget) -> str:
+        return str(widget)
+
+    def _register_help_for_widget(
+        self,
+        widget: tk.Widget,
+        *,
+        widget_id: str | None = None,
+        explicit_summary: str | None = None,
+        explicit_detail: str | None = None,
+    ) -> None:
+        if widget in self._help_entries_by_widget:
+            return
+
+        actual_widget_id = widget_id or self._widget_help_id(widget)
+        entry = build_help_entry(
+            widget_id=actual_widget_id,
+            widget_class=widget.winfo_class(),
+            widget_text=self._widget_text(widget),
+            explicit_summary=explicit_summary,
+            explicit_detail=explicit_detail,
+        )
+        self._help_entries_by_widget[widget] = entry
+        self._help_entries_by_id[entry.widget_id] = entry
+
+        widget.bind(
+            "<Enter>",
+            lambda _event, summary=entry.summary: self._set_help_status(summary),
+            add=True,
+        )
+        widget.bind(
+            "<FocusIn>",
+            lambda _event, summary=entry.summary: self._set_help_status(summary),
+            add=True,
+        )
+
+    def _iter_widgets(self, root_widget: tk.Misc) -> list[tk.Widget]:
+        widgets: list[tk.Widget] = []
+        stack = [root_widget]
+        while stack:
+            current = stack.pop(0)
+            if isinstance(current, tk.Widget):
+                widgets.append(current)
+            for child in current.winfo_children():
+                stack.append(child)
+        return widgets
+
+    def _register_help_for_widget_tree(self, root_widget: tk.Misc) -> None:
+        for widget in self._iter_widgets(root_widget):
+            self._register_help_for_widget(widget)
+
+    def _sorted_help_entries(self) -> list[HelpEntry]:
+        return sorted(
+            self._help_entries_by_id.values(),
+            key=lambda item: (item.title.lower(), item.widget_class.lower(), item.widget_id),
+        )
+
+    def open_help_guide(self) -> None:
+        if self._help_dialog is not None and self._help_dialog.winfo_exists():
+            self._help_dialog.lift()
+            self._help_dialog.focus_force()
+            return
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("GUI Help Guide")
+        dialog.geometry("980x640")
+        dialog.transient(self.root)
+        self._help_dialog = dialog
+
+        container = ttk.Frame(dialog, padding=8)
+        container.pack(fill=tk.BOTH, expand=True)
+
+        top = ttk.Frame(container)
+        top.pack(fill=tk.X, pady=(0, 8))
+        ttk.Label(top, text="Search", style="Card.TLabel").pack(side=tk.LEFT)
+        search_var = tk.StringVar(value="")
+        search_entry = ttk.Entry(top, textvariable=search_var, width=48)
+        search_entry.pack(side=tk.LEFT, padx=(8, 8))
+
+        summary_var = tk.StringVar(
+            value=f"{len(self._help_entries_by_id)} UI components are documented."
+        )
+        ttk.Label(top, textvariable=summary_var, style="Card.TLabel").pack(side=tk.LEFT)
+
+        body = ttk.Panedwindow(container, orient=tk.HORIZONTAL)
+        body.pack(fill=tk.BOTH, expand=True)
+        left = ttk.Frame(body)
+        right = ttk.Frame(body)
+        body.add(left, weight=2)
+        body.add(right, weight=3)
+
+        listbox = tk.Listbox(
+            left,
+            bg=self._BG_MID,
+            fg=self._FG,
+            selectbackground=self._ACCENT_BLUE,
+            selectforeground=self._BG,
+            font=self._FONT,
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        list_scroll = ttk.Scrollbar(left, orient=tk.VERTICAL, command=listbox.yview)
+        list_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        listbox.configure(yscrollcommand=list_scroll.set)
+
+        detail_text = tk.Text(
+            right,
+            bg=self._LOG_BG,
+            fg=self._FG,
+            insertbackground=self._FG,
+            font=self._FONT_MONO_SM,
+            borderwidth=0,
+            highlightthickness=0,
+            wrap=tk.WORD,
+        )
+        detail_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        detail_scroll = ttk.Scrollbar(right, orient=tk.VERTICAL, command=detail_text.yview)
+        detail_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        detail_text.configure(yscrollcommand=detail_scroll.set)
+
+        visible_entries: list[HelpEntry] = []
+
+        def _render_details(entry: HelpEntry) -> None:
+            detail_text.delete("1.0", tk.END)
+            detail_text.insert(
+                "1.0",
+                (
+                    f"Title: {entry.title}\n"
+                    f"Widget Class: {entry.widget_class}\n"
+                    f"Widget ID: {entry.widget_id}\n\n"
+                    f"Summary:\n{entry.summary}\n\n"
+                    f"Details:\n{entry.detail}\n"
+                ),
+            )
+
+        def _refresh_list() -> None:
+            visible_entries.clear()
+            listbox.delete(0, tk.END)
+            filtered = filter_help_entries(self._sorted_help_entries(), search_var.get())
+            for entry in filtered:
+                visible_entries.append(entry)
+                listbox.insert(tk.END, f"{entry.title} [{entry.widget_class}]")
+            summary_var.set(f"{len(filtered)} / {len(self._help_entries_by_id)} components shown.")
+            if visible_entries:
+                listbox.selection_set(0)
+                listbox.activate(0)
+                _render_details(visible_entries[0])
+            else:
+                detail_text.delete("1.0", tk.END)
+                detail_text.insert("1.0", "No matching components.")
+
+        def _on_select(_event: Any = None) -> None:
+            selected = listbox.curselection()
+            if not selected:
+                return
+            index = int(selected[0])
+            if index < 0 or index >= len(visible_entries):
+                return
+            _render_details(visible_entries[index])
+
+        footer = ttk.Frame(container)
+        footer.pack(fill=tk.X, pady=(8, 0))
+        ttk.Button(footer, text="Close", command=self._close_help_dialog).pack(side=tk.RIGHT)
+
+        search_var.trace_add("write", lambda *_args: _refresh_list())
+        listbox.bind("<<ListboxSelect>>", _on_select)
+        dialog.bind("<Escape>", lambda _event: self._close_help_dialog())
+        dialog.protocol("WM_DELETE_WINDOW", lambda: self._close_help_dialog())
+
+        self._register_help_for_widget_tree(dialog)
+        _refresh_list()
+        search_entry.focus_set()
+
+    def _close_help_dialog(self) -> None:
+        if self._help_dialog is None:
+            return
+        if self._help_dialog.winfo_exists():
+            self._help_dialog.destroy()
+        self._help_dialog = None
+
     def _build_ui(self) -> None:
         # ── A. Scenario Configuration ──────────────────────────────────────
         config_header_row = ttk.Frame(self.root)
@@ -323,6 +544,12 @@ class StudioApp:
         ttk.Separator(config_header_row, orient=tk.HORIZONTAL).pack(
             side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0), pady=1
         )
+        self.open_guide_button = ttk.Button(
+            config_header_row,
+            text="Open Guide (F1)",
+            command=self.open_help_guide,
+        )
+        self.open_guide_button.pack(side=tk.RIGHT)
         config_card = ttk.Frame(self.root, style="Card.TFrame", padding=12)
         config_card.pack(fill=tk.X, padx=12, pady=(4, 0))
 
@@ -397,6 +624,16 @@ class StudioApp:
             text="Execution/Outputs",
             command=self.open_execution_outputs_editor,
         ).pack(side=tk.LEFT, padx=(0, 6))
+
+        help_card = ttk.Frame(self.root, style="Card.TFrame", padding=8)
+        help_card.pack(fill=tk.X, padx=12, pady=(8, 0))
+        ttk.Label(help_card, text="Context Help", style="CardHeader.TLabel").pack(side=tk.LEFT)
+        self.help_status_label = ttk.Label(
+            help_card,
+            textvariable=self.help_status_var,
+            style="Card.TLabel",
+        )
+        self.help_status_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(10, 0))
 
         # ── B. Toolbar ─────────────────────────────────────────────────────
         toolbar_outer = ttk.Frame(self.root)
@@ -1388,6 +1625,7 @@ class StudioApp:
             padx=(6, 0),
         )
         ttk.Button(top_row, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
+        self._register_help_for_widget_tree(dialog)
 
     def open_variables_editor(self) -> None:
         self._sync_scenario_header()
@@ -1533,6 +1771,7 @@ class StudioApp:
         _refresh_list()
         if variables:
             _select(0)
+        self._register_help_for_widget_tree(dialog)
 
     def open_profiles_editor(self) -> None:
         self._sync_scenario_header()
@@ -1680,6 +1919,7 @@ class StudioApp:
         _refresh_list()
         if profile_names:
             _select(0)
+        self._register_help_for_widget_tree(dialog)
 
     def open_execution_outputs_editor(self) -> None:
         self._sync_scenario_header()
@@ -1808,6 +2048,7 @@ class StudioApp:
             style="Apply.TButton",
         ).pack(side=tk.RIGHT, padx=(6, 0))
         ttk.Button(footer, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
+        self._register_help_for_widget_tree(dialog)
 
     def export_scenario(self) -> None:
         self._sync_scenario_header()
@@ -1930,6 +2171,7 @@ class StudioApp:
             return
         self._stop_overlay()
         self._stop_stop_hotkey()
+        self._close_help_dialog()
         self.root.destroy()
 
 
