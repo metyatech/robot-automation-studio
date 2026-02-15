@@ -6,11 +6,20 @@ import json
 from pathlib import Path
 from typing import Any
 
+from robotframework_unity_editor.bridge_script import UNITY_EDITOR_BRIDGE_SCRIPT
+
 DEFAULT_UNITY_BRIDGE_PACKAGE_NAME = "com.metyatech.unity-automation-bridge"
 DEFAULT_UNITY_BRIDGE_PACKAGE_URL = (
     "https://github.com/metyatech/robotframework-unity-editor.git?path=/unity-package#main"
 )
 LEGACY_UNITY_BRIDGE_SCRIPT_RELATIVE_PATH = Path("Assets/Editor/RobotFrameworkUnityBridge.cs")
+UNITY_BRIDGE_PACKAGE_META_GLOB = (
+    "Library/PackageCache/com.metyatech.unity-automation-bridge@*/Editor/"
+    "RobotFrameworkUnityBridge.cs.meta"
+)
+UNITY_BRIDGE_EMBEDDED_META_PATH = Path(
+    "Packages/com.metyatech.unity-automation-bridge/Editor/RobotFrameworkUnityBridge.cs.meta"
+)
 
 
 def _remove_legacy_bridge_script(project_root: Path) -> bool:
@@ -22,6 +31,25 @@ def _remove_legacy_bridge_script(project_root: Path) -> bool:
         path.unlink()
         changed = True
     return changed
+
+
+def has_unity_bridge_package_script_meta(project_path: Path) -> bool:
+    project_root = Path(project_path).resolve()
+    if (project_root / UNITY_BRIDGE_EMBEDDED_META_PATH).exists():
+        return True
+    return any(project_root.glob(UNITY_BRIDGE_PACKAGE_META_GLOB))
+
+
+def install_legacy_unity_bridge_script(project_path: Path) -> bool:
+    project_root = Path(project_path).resolve()
+    script_path = project_root / LEGACY_UNITY_BRIDGE_SCRIPT_RELATIVE_PATH
+    script_path.parent.mkdir(parents=True, exist_ok=True)
+    desired = UNITY_EDITOR_BRIDGE_SCRIPT
+    current = script_path.read_text(encoding="utf-8") if script_path.exists() else ""
+    if current == desired:
+        return False
+    script_path.write_text(desired, encoding="utf-8")
+    return True
 
 
 def _ensure_dependency_in_manifest(

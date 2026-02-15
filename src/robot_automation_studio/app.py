@@ -27,13 +27,18 @@ from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
 from .unity_bridge import UnityBridgeClient
 from .unity_diagnostics import get_recent_unity_compile_errors
 from .unity_project import resolve_attached_unity_project_path
-from .upm import ensure_unity_bridge_upm_dependency
+from .upm import (
+    ensure_unity_bridge_upm_dependency,
+    has_unity_bridge_package_script_meta,
+    install_legacy_unity_bridge_script,
+)
 
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
 BRIDGE_READY_TIMEOUT_SECONDS = 15.0
 BRIDGE_READY_CHECK_TIMEOUT_SECONDS = 3.0
 BRIDGE_READY_REQUEST_TIMEOUT_SECONDS = 0.8
+BRIDGE_FALLBACK_READY_TIMEOUT_SECONDS = 25.0
 
 
 class StudioApp:
@@ -626,6 +631,31 @@ class StudioApp:
                 request_timeout_seconds=BRIDGE_READY_REQUEST_TIMEOUT_SECONDS,
             ):
                 self.log("Unity bridge readiness check timed out.")
+                if project_path_raw != "":
+                    project_root = Path(project_path_raw)
+                    if not has_unity_bridge_package_script_meta(project_root):
+                        self.log(
+                            "Unity bridge package script meta is missing in PackageCache. "
+                            "Installing legacy fallback bridge script..."
+                        )
+                        try:
+                            fallback_changed = install_legacy_unity_bridge_script(project_root)
+                            if fallback_changed:
+                                self.log(
+                                    "Installed fallback bridge script: "
+                                    "Assets/Editor/RobotFrameworkUnityBridge.cs"
+                                )
+                            else:
+                                self.log("Fallback bridge script already exists.")
+                            self.log("Waiting for fallback bridge readiness...")
+                            if self.unity_bridge.wait_until_available(
+                                timeout_seconds=BRIDGE_FALLBACK_READY_TIMEOUT_SECONDS,
+                                request_timeout_seconds=BRIDGE_READY_REQUEST_TIMEOUT_SECONDS,
+                            ):
+                                self.log("Unity bridge is ready (fallback bridge).")
+                                return True
+                        except Exception as error:
+                            self.log(f"Fallback bridge installation failed: {error}")
                 compile_errors = get_recent_unity_compile_errors(limit=3)
                 compile_error_hint = ""
                 if compile_errors:
