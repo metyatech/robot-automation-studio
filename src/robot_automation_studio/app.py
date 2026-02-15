@@ -25,6 +25,7 @@ from .recorder import ScenarioRecorder, events_to_steps
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
 from .unity_bridge import UnityBridgeClient
+from .upm import ensure_unity_bridge_upm_dependency
 
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
@@ -72,25 +73,108 @@ class StudioApp:
         self._status_timer_id: str | None = None
         self._phase_promotion_timer_id: str | None = None
 
+        self._configure_theme()
         self._build_ui()
         self.refresh_steps()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-    def _build_ui(self) -> None:
-        top = ttk.Frame(self.root)
-        top.pack(fill=tk.X, padx=8, pady=8)
+    # -- Dark-theme palette (Catppuccin Mocha) --------------------------------
+    _BG = "#1e1e2e"
+    _BG_MID = "#282840"
+    _BG_LIGHT = "#313150"
+    _FG = "#cdd6f4"
+    _FG_DIM = "#a6adc8"
+    _ACCENT_BLUE = "#89b4fa"
+    _ACCENT_GREEN = "#a6e3a1"
+    _ACCENT_RED = "#f38ba8"
+    _ACCENT_YELLOW = "#f9e2af"
+    _BTN_BG = "#45475a"
+    _BTN_HOVER = "#585b70"
+    _LOG_BG = "#1a1a2e"
+    _FONT = ("Segoe UI", 10)
+    _FONT_MONO = ("Consolas", 10)
+    _FONT_MONO_SM = ("Consolas", 9)
 
-        ttk.Label(top, text="Scenario Name").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(top, textvariable=self.name_var, width=40).grid(
+    def _configure_theme(self) -> None:
+        style = ttk.Style(self.root)
+        style.theme_use("clam")
+
+        # Global defaults
+        style.configure(".", background=self._BG, foreground=self._FG, font=self._FONT)
+        style.configure("TFrame", background=self._BG)
+        style.configure("TLabel", background=self._BG, foreground=self._FG, font=self._FONT)
+        style.configure(
+            "TLabelframe", background=self._BG, foreground=self._ACCENT_BLUE, font=self._FONT
+        )
+        style.configure("TLabelframe.Label", background=self._BG, foreground=self._ACCENT_BLUE)
+        style.configure(
+            "TEntry",
+            fieldbackground=self._BG_MID,
+            foreground=self._FG,
+            insertcolor=self._FG,
+            borderwidth=1,
+        )
+        style.configure(
+            "TCombobox",
+            fieldbackground=self._BG_MID,
+            foreground=self._FG,
+            background=self._BTN_BG,
+            arrowcolor=self._FG,
+        )
+        style.configure(
+            "TButton",
+            background=self._BTN_BG,
+            foreground=self._FG,
+            borderwidth=0,
+            padding=(8, 4),
+        )
+        style.map(
+            "TButton",
+            background=[("active", self._BTN_HOVER), ("disabled", self._BG_LIGHT)],
+            foreground=[("disabled", self._FG_DIM)],
+        )
+        style.configure("TSeparator", background=self._BG_LIGHT)
+        style.configure(
+            "TPanedwindow",
+            background=self._BG,
+        )
+        style.configure("Sash", sashthickness=6, background=self._BG_LIGHT)
+        style.configure("Vertical.TScrollbar", background=self._BTN_BG, troughcolor=self._BG_MID)
+
+        # Colored button styles
+        style.configure("Record.TButton", background="#2d5a2d", foreground=self._ACCENT_GREEN)
+        style.map(
+            "Record.TButton", background=[("active", "#3a7a3a"), ("disabled", self._BG_LIGHT)]
+        )
+        style.configure("Stop.TButton", background="#5a2d2d", foreground=self._ACCENT_RED)
+        style.map("Stop.TButton", background=[("active", "#7a3a3a"), ("disabled", self._BG_LIGHT)])
+        style.configure("Add.TButton", background="#2d3d5a", foreground=self._ACCENT_BLUE)
+        style.map("Add.TButton", background=[("active", "#3a4d7a"), ("disabled", self._BG_LIGHT)])
+        style.configure("Danger.TButton", background="#5a2d2d", foreground=self._ACCENT_RED)
+        style.map(
+            "Danger.TButton", background=[("active", "#7a3a3a"), ("disabled", self._BG_LIGHT)]
+        )
+
+        self.root.configure(bg=self._BG)
+
+    def _build_ui(self) -> None:
+        # ── A. Scenario Configuration ──────────────────────────────────────
+        config_frame = ttk.LabelFrame(self.root, text="Scenario Configuration", padding=8)
+        config_frame.pack(fill=tk.X, padx=8, pady=(8, 4))
+
+        ttk.Label(config_frame, text="Scenario Name").grid(row=0, column=0, sticky=tk.W)
+        ttk.Entry(config_frame, textvariable=self.name_var, width=40).grid(
             row=0, column=1, sticky=tk.W, padx=6
         )
-        ttk.Label(top, text="Window Hint").grid(row=0, column=2, sticky=tk.W, padx=(20, 0))
-        ttk.Entry(top, textvariable=self.window_hint_var, width=24).grid(
+        ttk.Label(config_frame, text="Window Hint").grid(row=0, column=2, sticky=tk.W, padx=(20, 0))
+        ttk.Entry(config_frame, textvariable=self.window_hint_var, width=24).grid(
             row=0, column=3, sticky=tk.W, padx=6
         )
-        ttk.Label(top, text="Execution Mode").grid(row=1, column=0, sticky=tk.W, pady=(6, 0))
+        ttk.Label(config_frame, text="Execution Mode").grid(
+            row=1, column=0, sticky=tk.W, pady=(6, 0)
+        )
         mode_combo = ttk.Combobox(
-            top,
+            config_frame,
             textvariable=self.execution_mode_var,
             values=("attach", "launch"),
             state="readonly",
@@ -98,54 +182,126 @@ class StudioApp:
         )
         mode_combo.grid(row=1, column=1, sticky=tk.W, padx=6, pady=(6, 0))
         mode_combo.bind("<<ComboboxSelected>>", self.on_execution_mode_changed)
-        ttk.Label(top, text="Unity Project Path").grid(
+        ttk.Label(config_frame, text="Unity Project Path").grid(
             row=1, column=2, sticky=tk.W, padx=(20, 0), pady=(6, 0)
         )
-        self.project_path_entry = ttk.Entry(top, textvariable=self.unity_project_path_var, width=44)
+        self.project_path_entry = ttk.Entry(
+            config_frame, textvariable=self.unity_project_path_var, width=44
+        )
         self.project_path_entry.grid(row=1, column=3, sticky=tk.W, padx=6, pady=(6, 0))
         self.project_path_browse_button = ttk.Button(
-            top, text="Browse", command=self.browse_unity_project_path
+            config_frame, text="Browse", command=self.browse_unity_project_path
         )
         self.project_path_browse_button.grid(row=1, column=4, sticky=tk.W, pady=(6, 0))
 
-        controls = ttk.Frame(self.root)
-        controls.pack(fill=tk.X, padx=8, pady=(0, 8))
-        ttk.Button(controls, text="Start Recording", command=self.start_recording).pack(
-            side=tk.LEFT, padx=4
-        )
-        ttk.Button(controls, text="Stop Recording", command=self.stop_recording).pack(
-            side=tk.LEFT, padx=4
-        )
-        ttk.Button(controls, text="Add Click", command=self.add_click).pack(side=tk.LEFT, padx=4)
-        ttk.Button(controls, text="Add Drag", command=self.add_drag).pack(side=tk.LEFT, padx=4)
-        ttk.Button(controls, text="Add Shortcut", command=self.add_shortcut).pack(
-            side=tk.LEFT, padx=4
-        )
-        ttk.Button(controls, text="Add Menu", command=self.add_menu).pack(side=tk.LEFT, padx=4)
-        ttk.Button(controls, text="Add Type", command=self.add_type).pack(side=tk.LEFT, padx=4)
-        ttk.Button(controls, text="Delete Step", command=self.delete_selected).pack(
-            side=tk.LEFT, padx=4
-        )
-        ttk.Button(controls, text="Move Up", command=self.move_up).pack(side=tk.LEFT, padx=4)
-        ttk.Button(controls, text="Move Down", command=self.move_down).pack(side=tk.LEFT, padx=4)
-        ttk.Button(controls, text="Duplicate", command=self.duplicate_selected).pack(
-            side=tk.LEFT, padx=4
-        )
-        ttk.Button(controls, text="Save JSON", command=self.save_json).pack(side=tk.LEFT, padx=12)
-        ttk.Button(controls, text="Load JSON", command=self.load_json).pack(side=tk.LEFT, padx=4)
+        # ── B. Toolbar ─────────────────────────────────────────────────────
+        toolbar_frame = ttk.LabelFrame(self.root, text="Toolbar", padding=(8, 4))
+        toolbar_frame.pack(fill=tk.X, padx=8, pady=4)
 
-        body = ttk.Panedwindow(self.root, orient=tk.HORIZONTAL)
-        body.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+        # Recording group
+        ttk.Button(
+            toolbar_frame,
+            text="\u25cf Start Recording",
+            command=self.start_recording,
+            style="Record.TButton",
+        ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(
+            toolbar_frame,
+            text="\u25a0 Stop Recording",
+            command=self.stop_recording,
+            style="Stop.TButton",
+        ).pack(side=tk.LEFT, padx=2)
+
+        ttk.Separator(toolbar_frame, orient=tk.VERTICAL).pack(
+            side=tk.LEFT, fill=tk.Y, padx=6, pady=2
+        )
+
+        # Add steps group
+        for label, cmd in [
+            ("+ Click", self.add_click),
+            ("+ Drag", self.add_drag),
+            ("+ Shortcut", self.add_shortcut),
+            ("+ Menu", self.add_menu),
+            ("+ Type", self.add_type),
+        ]:
+            ttk.Button(toolbar_frame, text=label, command=cmd, style="Add.TButton").pack(
+                side=tk.LEFT, padx=2
+            )
+
+        ttk.Separator(toolbar_frame, orient=tk.VERTICAL).pack(
+            side=tk.LEFT, fill=tk.Y, padx=6, pady=2
+        )
+
+        # Edit steps group
+        ttk.Button(
+            toolbar_frame, text="Delete", command=self.delete_selected, style="Danger.TButton"
+        ).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar_frame, text="\u25b2 Up", command=self.move_up).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar_frame, text="\u25bc Down", command=self.move_down).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(toolbar_frame, text="Duplicate", command=self.duplicate_selected).pack(
+            side=tk.LEFT, padx=2
+        )
+
+        ttk.Separator(toolbar_frame, orient=tk.VERTICAL).pack(
+            side=tk.LEFT, fill=tk.Y, padx=6, pady=2
+        )
+
+        # File group
+        ttk.Button(toolbar_frame, text="Save JSON", command=self.save_json).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Button(toolbar_frame, text="Load JSON", command=self.load_json).pack(
+            side=tk.LEFT, padx=2
+        )
+
+        # REC indicator (right-aligned)
+        self._rec_indicator = tk.Label(
+            toolbar_frame,
+            text=" IDLE ",
+            font=("Segoe UI", 9, "bold"),
+            bg=self._BG_LIGHT,
+            fg=self._FG_DIM,
+            padx=8,
+            pady=2,
+        )
+        self._rec_indicator.pack(side=tk.RIGHT, padx=4)
+
+        # ── C. Steps & Editor ──────────────────────────────────────────────
+        steps_frame = ttk.LabelFrame(self.root, text="Steps & Editor", padding=4)
+        steps_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
+
+        body = ttk.Panedwindow(steps_frame, orient=tk.HORIZONTAL)
+        body.pack(fill=tk.BOTH, expand=True)
 
         left = ttk.Frame(body)
         right = ttk.Frame(body)
         body.add(left, weight=3)
         body.add(right, weight=2)
 
-        self.step_list = tk.Listbox(left, height=20)
+        # Step list with scrollbar
+        list_frame = ttk.Frame(left)
+        list_frame.pack(fill=tk.BOTH, expand=True)
+        step_scroll = ttk.Scrollbar(list_frame, orient=tk.VERTICAL)
+        step_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.step_list = tk.Listbox(
+            list_frame,
+            height=18,
+            bg=self._BG_MID,
+            fg=self._FG,
+            selectbackground=self._ACCENT_BLUE,
+            selectforeground=self._BG,
+            font=self._FONT_MONO,
+            borderwidth=0,
+            highlightthickness=0,
+            yscrollcommand=step_scroll.set,
+        )
         self.step_list.pack(fill=tk.BOTH, expand=True)
+        step_scroll.configure(command=self.step_list.yview)
         self.step_list.bind("<<ListboxSelect>>", self.on_select_step)
 
+        # Step editor (right pane)
         edit_row = ttk.Frame(right)
         edit_row.pack(fill=tk.X, pady=(0, 8))
         ttk.Label(edit_row, text="Title").grid(row=0, column=0, sticky=tk.W)
@@ -161,44 +317,83 @@ class StudioApp:
         )
 
         ttk.Label(edit_row, text="Params (JSON)").grid(row=2, column=0, sticky=tk.NW)
-        self.params_text = tk.Text(edit_row, width=42, height=18)
+        self.params_text = tk.Text(
+            edit_row,
+            width=42,
+            height=16,
+            bg=self._BG_MID,
+            fg=self._FG,
+            insertbackground=self._FG,
+            font=self._FONT_MONO,
+            borderwidth=0,
+            highlightthickness=0,
+        )
         self.params_text.grid(row=2, column=1, sticky=tk.W)
 
         ttk.Button(right, text="Apply Step Changes", command=self.apply_step_changes).pack(
             anchor=tk.W
         )
 
-        bottom = ttk.Frame(self.root)
-        bottom.pack(fill=tk.X, padx=8, pady=(0, 8))
-        ttk.Label(bottom, text="Output Dir").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(bottom, textvariable=self.output_dir_var, width=48).grid(
+        # ── D. Export & Run ────────────────────────────────────────────────
+        run_frame = ttk.LabelFrame(self.root, text="Export & Run", padding=8)
+        run_frame.pack(fill=tk.X, padx=8, pady=4)
+
+        ttk.Label(run_frame, text="Output Dir").grid(row=0, column=0, sticky=tk.W)
+        ttk.Entry(run_frame, textvariable=self.output_dir_var, width=48).grid(
             row=0, column=1, sticky=tk.W
         )
-        ttk.Label(bottom, text="Export Name").grid(row=0, column=2, sticky=tk.W, padx=(12, 0))
-        ttk.Entry(bottom, textvariable=self.export_name_var, width=24).grid(
+        ttk.Label(run_frame, text="Export Name").grid(row=0, column=2, sticky=tk.W, padx=(12, 0))
+        ttk.Entry(run_frame, textvariable=self.export_name_var, width=24).grid(
             row=0, column=3, sticky=tk.W
         )
-        ttk.Button(bottom, text="Export", command=self.export_scenario).grid(
+        ttk.Button(run_frame, text="Export", command=self.export_scenario).grid(
             row=0, column=4, padx=8
         )
-        self.run_robot_button = ttk.Button(bottom, text="Run Robot", command=self.run_robot_suite)
+        self.run_robot_button = ttk.Button(
+            run_frame, text="Run Robot", command=self.run_robot_suite, style="Record.TButton"
+        )
         self.run_robot_button.grid(row=0, column=5, padx=4)
         self.stop_robot_button = ttk.Button(
-            bottom,
+            run_frame,
             text=f"Stop Robot ({STOP_HOTKEY_LABEL})",
             command=self.stop_robot_suite,
             state="disabled",
+            style="Stop.TButton",
         )
         self.stop_robot_button.grid(row=0, column=6, padx=4)
-        ttk.Label(bottom, text="Status").grid(row=1, column=0, sticky=tk.W, pady=(8, 0))
+
+        # Status row with color bar
+        self._status_bar = tk.Frame(run_frame, width=6, height=18, bg=self._FG_DIM)
+        self._status_bar.grid(row=1, column=0, sticky=tk.W, pady=(8, 0), padx=(0, 4))
+        ttk.Label(run_frame, text="Status").grid(
+            row=1, column=0, sticky=tk.W, pady=(8, 0), padx=(14, 0)
+        )
         ttk.Label(
-            bottom,
+            run_frame,
             textvariable=self.robot_status_var,
             font=("Segoe UI", 10, "bold"),
         ).grid(row=1, column=1, sticky=tk.W, pady=(8, 0))
 
-        self.log_text = tk.Text(self.root, height=10)
-        self.log_text.pack(fill=tk.BOTH, padx=8, pady=(0, 8))
+        # ── E. Output Log ──────────────────────────────────────────────────
+        log_frame = ttk.LabelFrame(self.root, text="Output Log", padding=4)
+        log_frame.pack(fill=tk.BOTH, padx=8, pady=(4, 8))
+
+        log_scroll = ttk.Scrollbar(log_frame, orient=tk.VERTICAL)
+        log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.log_text = tk.Text(
+            log_frame,
+            height=8,
+            bg=self._LOG_BG,
+            fg=self._FG,
+            insertbackground=self._FG,
+            font=self._FONT_MONO_SM,
+            borderwidth=0,
+            highlightthickness=0,
+            yscrollcommand=log_scroll.set,
+        )
+        self.log_text.pack(fill=tk.BOTH, expand=True)
+        log_scroll.configure(command=self.log_text.yview)
+
         self.on_execution_mode_changed()
 
     def _sync_scenario_header(self) -> None:
@@ -223,10 +418,21 @@ class StudioApp:
     def _log_async(self, message: str) -> None:
         self.root.after(0, lambda: self.log(message))
 
+    def _update_status_bar_color(self) -> None:
+        phase = self._run_phase
+        if phase == "idle":
+            color = self._FG_DIM
+        elif phase == "stopping":
+            color = self._ACCENT_RED
+        else:
+            color = self._ACCENT_YELLOW
+        self._status_bar.configure(bg=color)
+
     def _render_robot_status(self) -> None:
         spinner = SPINNER_FRAMES[self._status_spinner_index]
         status_text = format_run_status(self._run_phase, spinner)
         self.robot_status_var.set(status_text)
+        self._update_status_bar_color()
         if self._overlay is not None:
             self._overlay.set_progress_text(status_text)
 
@@ -352,11 +558,35 @@ class StudioApp:
 
     def on_execution_mode_changed(self, _event: Any = None) -> None:
         execution_mode = normalize_unity_execution_mode(self.execution_mode_var.get())
-        is_launch_mode = execution_mode == "launch"
         self.execution_mode_var.set(execution_mode)
-        next_state = "normal" if is_launch_mode else "disabled"
-        self.project_path_entry.configure(state=next_state)
-        self.project_path_browse_button.configure(state=next_state)
+        self.project_path_entry.configure(state="normal")
+        self.project_path_browse_button.configure(state="normal")
+
+    def _ensure_unity_bridge_dependency_if_configured(self, purpose: str) -> bool:
+        project_path_raw = self.unity_project_path_var.get().strip()
+        if project_path_raw == "":
+            return True
+
+        self.log(f"Ensuring Unity bridge package for {purpose}: {project_path_raw}")
+        try:
+            changed = ensure_unity_bridge_upm_dependency(Path(project_path_raw))
+        except Exception as error:
+            self.log(f"Unity bridge package setup failed: {error}")
+            messagebox.showerror(
+                "Unity Bridge Setup Error",
+                (
+                    "Failed to prepare Unity bridge UPM dependency.\n"
+                    f"Path: {project_path_raw}\n"
+                    f"Error: {error}"
+                ),
+            )
+            return False
+
+        if changed:
+            self.log("Unity bridge UPM dependency added to Packages/manifest.json.")
+        else:
+            self.log("Unity bridge UPM dependency already present.")
+        return True
 
     def browse_unity_project_path(self) -> None:
         selected = filedialog.askdirectory()
@@ -381,7 +611,11 @@ class StudioApp:
         self.refresh_steps()
 
     def start_recording(self) -> None:
+        if not self._ensure_unity_bridge_dependency_if_configured("recording"):
+            return
         self.recorder.start(window_hint=self.window_hint_var.get().strip() or "Unity")
+        self._rec_indicator.configure(text=" \u25cf REC ", bg=self._ACCENT_RED, fg="#1e1e2e")
+        self.root.title("Robot Automation Studio [RECORDING]")
         self.log(f"Recording started. window_hint={self.window_hint_var.get().strip() or 'Unity'}")
 
     def stop_recording(self) -> None:
@@ -390,6 +624,8 @@ class StudioApp:
         for step in steps:
             self.scenario.steps.append(step)
         self.refresh_steps()
+        self._rec_indicator.configure(text=" IDLE ", bg=self._BG_LIGHT, fg=self._FG_DIM)
+        self.root.title("Robot Automation Studio")
         self.log(f"Recording stopped. Added {len(steps)} steps.")
 
     def add_click(self) -> None:
@@ -510,6 +746,8 @@ class StudioApp:
             self.log("Robot suite is already running.")
             return
         self._sync_scenario_header()
+        if not self._ensure_unity_bridge_dependency_if_configured("run"):
+            return
         self._set_run_phase("exporting")
         self.log("Preparing scenario export...")
         output_dir = Path(self.output_dir_var.get()).resolve()
