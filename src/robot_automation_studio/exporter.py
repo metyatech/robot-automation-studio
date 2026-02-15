@@ -5,7 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from .models import Scenario, Step
+from .models import (
+    UNITY_EXECUTION_MODE_KEY,
+    UNITY_PROJECT_PATH_KEY,
+    Scenario,
+    Step,
+    normalize_unity_execution_mode,
+)
 
 
 @dataclass(slots=True)
@@ -16,6 +22,14 @@ class ExportResult:
 
 def _safe_suite_name(name: str) -> str:
     return name.strip().replace(" ", "-").lower()
+
+
+def _scenario_execution_mode(scenario: Scenario) -> str:
+    return normalize_unity_execution_mode(scenario.metadata.get(UNITY_EXECUTION_MODE_KEY))
+
+
+def _scenario_project_path(scenario: Scenario) -> str:
+    return str(scenario.metadata.get(UNITY_PROJECT_PATH_KEY) or "").strip()
 
 
 def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
@@ -57,6 +71,9 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
 
 def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> str:
     test_case_name = suite_name or scenario.name
+    execution_mode = _scenario_execution_mode(scenario)
+    unity_project_path = _scenario_project_path(scenario)
+    window_hint = scenario.target_window_hint.strip() or "Unity"
     lines = [
         "*** Settings ***",
         "Library    Collections",
@@ -65,9 +82,16 @@ def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> s
         "*** Test Cases ***",
         test_case_name,
         "    Set Unity Output Directory    ${OUTPUT DIR}",
-        "    ${project_path}=    Set Variable    ${OUTPUT DIR}${/}unity-sample-project",
+        f"    ${{unity_mode}}=    Set Variable    {execution_mode}",
+        f"    ${{unity_project_path}}=    Set Variable    {unity_project_path}",
+        f"    ${{unity_window_hint}}=    Set Variable    {window_hint}",
         "    TRY",
-        "        Start Unity Editor    project_path=${project_path}",
+        "        IF    '${unity_mode}' == 'launch'",
+        "            Require Unity Project Path    ${unity_project_path}",
+        "            Start Unity Editor    project_path=${unity_project_path}",
+        "        ELSE",
+        "            Attach To Running Unity Editor    window_hint=${unity_window_hint}",
+        "        END",
         "        Focus Unity Window",
     ]
     for step in scenario.steps:
@@ -76,7 +100,9 @@ def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> s
     lines.extend(
         [
             "    FINALLY",
-            "        Stop Unity Editor",
+            "        IF    '${unity_mode}' == 'launch'",
+            "            Stop Unity Editor",
+            "        END",
             "    END",
             "",
             "*** Keywords ***",
@@ -84,6 +110,13 @@ def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> s
             "    [Arguments]    ${annotation}",
             "    ${metadata}=    Create Dictionary    annotation=${annotation}",
             "    Emit DOCMETA    ${metadata}",
+            "",
+            "Require Unity Project Path",
+            "    [Arguments]    ${project_path}",
+            "    ${normalized}=    Evaluate    str($project_path).strip()",
+            "    IF    '${normalized}' == ''",
+            "        Fail    unity_project_path is required when unity_mode is launch.",
+            "    END",
             "",
         ]
     )

@@ -11,7 +11,12 @@ from typing import Any
 
 from .editor import ScenarioEditor
 from .exporter import export_all
-from .models import Scenario
+from .models import (
+    UNITY_EXECUTION_MODE_KEY,
+    UNITY_PROJECT_PATH_KEY,
+    Scenario,
+    normalize_unity_execution_mode,
+)
 from .recorder import ScenarioRecorder, events_to_steps
 from .runner import run_robot
 
@@ -29,6 +34,14 @@ class StudioApp:
 
         self.name_var = tk.StringVar(value=self.scenario.name)
         self.window_hint_var = tk.StringVar(value=self.scenario.target_window_hint)
+        self.execution_mode_var = tk.StringVar(
+            value=normalize_unity_execution_mode(
+                self.scenario.metadata.get(UNITY_EXECUTION_MODE_KEY, "attach")
+            )
+        )
+        self.unity_project_path_var = tk.StringVar(
+            value=str(self.scenario.metadata.get(UNITY_PROJECT_PATH_KEY, ""))
+        )
         self.output_dir_var = tk.StringVar(value="artifacts/studio")
         self.export_name_var = tk.StringVar(value="unity-editor-generated")
         self.log_var = tk.StringVar(value="")
@@ -50,6 +63,25 @@ class StudioApp:
         ttk.Entry(top, textvariable=self.window_hint_var, width=24).grid(
             row=0, column=3, sticky=tk.W, padx=6
         )
+        ttk.Label(top, text="Execution Mode").grid(row=1, column=0, sticky=tk.W, pady=(6, 0))
+        mode_combo = ttk.Combobox(
+            top,
+            textvariable=self.execution_mode_var,
+            values=("attach", "launch"),
+            state="readonly",
+            width=14,
+        )
+        mode_combo.grid(row=1, column=1, sticky=tk.W, padx=6, pady=(6, 0))
+        mode_combo.bind("<<ComboboxSelected>>", self.on_execution_mode_changed)
+        ttk.Label(top, text="Unity Project Path").grid(
+            row=1, column=2, sticky=tk.W, padx=(20, 0), pady=(6, 0)
+        )
+        self.project_path_entry = ttk.Entry(top, textvariable=self.unity_project_path_var, width=44)
+        self.project_path_entry.grid(row=1, column=3, sticky=tk.W, padx=6, pady=(6, 0))
+        self.project_path_browse_button = ttk.Button(
+            top, text="Browse", command=self.browse_unity_project_path
+        )
+        self.project_path_browse_button.grid(row=1, column=4, sticky=tk.W, pady=(6, 0))
 
         controls = ttk.Frame(self.root)
         controls.pack(fill=tk.X, padx=8, pady=(0, 8))
@@ -131,10 +163,19 @@ class StudioApp:
 
         self.log_text = tk.Text(self.root, height=10)
         self.log_text.pack(fill=tk.BOTH, padx=8, pady=(0, 8))
+        self.on_execution_mode_changed()
 
     def _sync_scenario_header(self) -> None:
         self.scenario.name = self.name_var.get().strip() or "Scenario"
         self.scenario.target_window_hint = self.window_hint_var.get().strip() or "Unity"
+        execution_mode = normalize_unity_execution_mode(self.execution_mode_var.get())
+        self.execution_mode_var.set(execution_mode)
+        self.scenario.metadata[UNITY_EXECUTION_MODE_KEY] = execution_mode
+        unity_project_path = self.unity_project_path_var.get().strip()
+        if unity_project_path:
+            self.scenario.metadata[UNITY_PROJECT_PATH_KEY] = unity_project_path
+        else:
+            self.scenario.metadata.pop(UNITY_PROJECT_PATH_KEY, None)
 
     def log(self, message: str) -> None:
         self.log_text.insert(tk.END, f"{message}\n")
@@ -157,6 +198,20 @@ class StudioApp:
         self.action_var.set(step.action)
         self.params_text.delete("1.0", tk.END)
         self.params_text.insert("1.0", json.dumps(step.params, ensure_ascii=False, indent=2))
+
+    def on_execution_mode_changed(self, _event: Any = None) -> None:
+        execution_mode = normalize_unity_execution_mode(self.execution_mode_var.get())
+        is_launch_mode = execution_mode == "launch"
+        self.execution_mode_var.set(execution_mode)
+        next_state = "normal" if is_launch_mode else "disabled"
+        self.project_path_entry.configure(state=next_state)
+        self.project_path_browse_button.configure(state=next_state)
+
+    def browse_unity_project_path(self) -> None:
+        selected = filedialog.askdirectory()
+        if not selected:
+            return
+        self.unity_project_path_var.set(selected)
 
     def apply_step_changes(self) -> None:
         if self.selected_index is None:
@@ -280,6 +335,11 @@ class StudioApp:
         self.editor = ScenarioEditor(self.scenario)
         self.name_var.set(loaded.name)
         self.window_hint_var.set(loaded.target_window_hint)
+        self.execution_mode_var.set(
+            normalize_unity_execution_mode(loaded.metadata.get(UNITY_EXECUTION_MODE_KEY, "attach"))
+        )
+        self.unity_project_path_var.set(str(loaded.metadata.get(UNITY_PROJECT_PATH_KEY, "")))
+        self.on_execution_mode_changed()
         self.current_path = Path(path)
         self.refresh_steps()
         self.log(f"Loaded scenario: {path}")

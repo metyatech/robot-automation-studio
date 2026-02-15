@@ -9,9 +9,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+UNITY_EXECUTION_MODE_KEY = "unity_execution_mode"
+UNITY_PROJECT_PATH_KEY = "unity_project_path"
+VALID_UNITY_EXECUTION_MODES = {"attach", "launch"}
+
 
 def _new_step_id() -> str:
     return uuid.uuid4().hex[:10]
+
+
+def normalize_unity_execution_mode(value: Any) -> str:
+    normalized = str(value or "attach").strip().lower()
+    if normalized in VALID_UNITY_EXECUTION_MODES:
+        return normalized
+    return "attach"
 
 
 @dataclass(slots=True)

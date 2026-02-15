@@ -37,13 +37,23 @@ robot-automation-studio
 ## End-to-End Workflow
 
 1. Set scenario name and window hint (for example `Unity`).
-2. Click `Start Recording`, perform operations in Unity Editor, then click `Stop Recording`.
-3. Fine-tune steps from the editor panel.
-4. Choose output directory and export name.
-5. Click `Export` to generate:
+2. Select execution mode:
+   - `attach`: run against an already opened Unity Editor.
+   - `launch`: open a Unity project path and then run the scenario.
+3. If mode is `launch`, set `Unity Project Path`.
+4. Click `Start Recording`, perform operations in Unity Editor, then click `Stop Recording`.
+5. Fine-tune steps from the editor panel.
+6. Choose output directory and export name.
+7. Click `Export` to generate:
    - `<name>.robot`
    - `<name>.json`
-6. Click `Run Robot` to execute the generated suite.
+8. Click `Run Robot` to execute the generated suite.
+
+## Execution Mode Notes
+
+- `attach` is the default and keeps scenarios reusable across projects.
+- `launch` is useful for document generation pipelines that should open a specific project automatically.
+- In `launch` mode, the generated `.robot` suite fails fast when project path is empty.
 
 ## Output Structure
 
