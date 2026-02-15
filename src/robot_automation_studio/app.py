@@ -37,7 +37,7 @@ class StudioApp:
 
         self.scenario = Scenario(name="Unity Editor Flow")
         self.editor = ScenarioEditor(self.scenario)
-        self.recorder = ScenarioRecorder()
+        self.recorder = ScenarioRecorder(on_record_error=self._on_record_error)
         self.current_path: Path | None = None
 
         self.name_var = tk.StringVar(value=self.scenario.name)
@@ -207,6 +207,9 @@ class StudioApp:
             self.scenario.metadata[UNITY_PROJECT_PATH_KEY] = unity_project_path
         else:
             self.scenario.metadata.pop(UNITY_PROJECT_PATH_KEY, None)
+
+    def _on_record_error(self, message: str) -> None:
+        self.root.after(0, lambda: self.log(f"Record error: {message}"))
 
     def log(self, message: str) -> None:
         self.log_text.insert(tk.END, f"{message}\n")
@@ -389,10 +392,10 @@ class StudioApp:
             "click",
             "click",
             {
-                "x_ratio": 0.5,
-                "y_ratio": 0.5,
-                "box_width": 180,
-                "box_height": 48,
+                "title": "Inspector",
+                "automation_id": "Inspector",
+                "class_name": "Pane",
+                "control_type": "Pane",
                 "wait_seconds": 0.0,
             },
         )
@@ -403,10 +406,10 @@ class StudioApp:
             "drag",
             "drag",
             {
-                "from_x_ratio": 0.25,
-                "from_y_ratio": 0.5,
-                "to_x_ratio": 0.7,
-                "to_y_ratio": 0.5,
+                "source_title": "Source",
+                "source_automation_id": "Source",
+                "target_title": "Target",
+                "target_automation_id": "Target",
                 "wait_seconds": 0.0,
             },
         )

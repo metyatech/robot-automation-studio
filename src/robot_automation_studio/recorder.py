@@ -10,6 +10,7 @@ from typing import Any
 
 import win32gui  # type: ignore[import-not-found]
 from pynput import keyboard, mouse
+from pywinauto import Desktop
 
 from .models import Step
 
@@ -30,12 +31,31 @@ class RecordedEvent:
     timestamp_ms: int
 
 
-def normalize_point(x: int, y: int, window: WindowSnapshot) -> tuple[float, float]:
-    if window.width <= 0 or window.height <= 0:
-        return (0.5, 0.5)
-    x_ratio = (x - window.left) / window.width
-    y_ratio = (y - window.top) / window.height
-    return (max(0.0, min(1.0, x_ratio)), max(0.0, min(1.0, y_ratio)))
+def resolve_selector_from_point(x: int, y: int) -> dict[str, Any] | None:
+    try:
+        wrapper = Desktop(backend="uia").from_point(x, y)
+    except Exception:
+        return None
+    info = getattr(wrapper, "element_info", None)
+    if info is None:
+        return None
+
+    selector: dict[str, Any] = {}
+    title = str(getattr(info, "name", "") or "").strip()
+    automation_id = str(getattr(info, "automation_id", "") or "").strip()
+    class_name = str(getattr(info, "class_name", "") or "").strip()
+    control_type = str(getattr(info, "control_type", "") or "").strip()
+
+    if title:
+        selector["title"] = title
+    if automation_id:
+        selector["automation_id"] = automation_id
+    if class_name:
+        selector["class_name"] = class_name
+    if control_type:
+        selector["control_type"] = control_type
+
+    return selector or None
 
 
 def get_foreground_window_snapshot() -> WindowSnapshot | None:
@@ -75,12 +95,16 @@ class ScenarioRecorder:
     def __init__(
         self,
         window_provider: Callable[[], WindowSnapshot | None] = get_foreground_window_snapshot,
+        element_resolver: Callable[[int, int], dict[str, Any] | None] = resolve_selector_from_point,
+        on_record_error: Callable[[str], None] | None = None,
     ) -> None:
         if platform.system().lower() != "windows":
             raise RuntimeError("ScenarioRecorder supports Windows only.")
         self._events: list[RecordedEvent] = []
         self._recording = False
         self._window_provider = window_provider
+        self._element_resolver = element_resolver
+        self._on_record_error = on_record_error
         self._window_hint = "Unity"
         self._mouse_listener: mouse.Listener | None = None
         self._keyboard_listener: keyboard.Listener | None = None
@@ -130,6 +154,11 @@ class ScenarioRecorder:
             RecordedEvent(kind=kind, payload=dict(payload), timestamp_ms=timestamp_ms)
         )
 
+    def _report_record_error(self, message: str) -> None:
+        if self._on_record_error is None:
+            return
+        self._on_record_error(message)
+
     def _window_matches(self, snapshot: WindowSnapshot | None) -> bool:
         if snapshot is None:
             return False
@@ -155,29 +184,51 @@ class ScenarioRecorder:
         assert snapshot is not None
 
         start_x, start_y = start_point
-        from_x_ratio, from_y_ratio = normalize_point(start_x, start_y, snapshot)
-        to_x_ratio, to_y_ratio = normalize_point(x, y, snapshot)
         distance = abs(start_x - x) + abs(start_y - y)
         if distance >= 10:
+            source_selector = self._element_resolver(start_x, start_y)
+            target_selector = self._element_resolver(x, y)
+            if source_selector is None or target_selector is None:
+                self._report_record_error(
+                    "Could not resolve UI element selector for drag source/target."
+                )
+                return
+            if not (source_selector.get("title") or source_selector.get("automation_id")):
+                self._report_record_error(
+                    "Drag source element needs title or automation_id for reliable execution."
+                )
+                return
+            if not (target_selector.get("title") or target_selector.get("automation_id")):
+                self._report_record_error(
+                    "Drag target element needs title or automation_id for reliable execution."
+                )
+                return
+            payload: dict[str, Any] = {}
+            source_title = str(source_selector.get("title") or "").strip()
+            if source_title:
+                payload["source_title"] = source_title
+            source_automation_id = str(source_selector.get("automation_id") or "").strip()
+            if source_automation_id:
+                payload["source_automation_id"] = source_automation_id
+            target_title = str(target_selector.get("title") or "").strip()
+            if target_title:
+                payload["target_title"] = target_title
+            target_automation_id = str(target_selector.get("automation_id") or "").strip()
+            if target_automation_id:
+                payload["target_automation_id"] = target_automation_id
             self.append(
                 "drag",
-                {
-                    "from_x_ratio": round(from_x_ratio, 4),
-                    "from_y_ratio": round(from_y_ratio, 4),
-                    "to_x_ratio": round(to_x_ratio, 4),
-                    "to_y_ratio": round(to_y_ratio, 4),
-                },
+                payload,
             )
             return
 
+        selector = self._element_resolver(x, y)
+        if selector is None:
+            self._report_record_error("Could not resolve UI element selector for click.")
+            return
         self.append(
             "click",
-            {
-                "x_ratio": round(to_x_ratio, 4),
-                "y_ratio": round(to_y_ratio, 4),
-                "box_width": 180,
-                "box_height": 48,
-            },
+            dict(selector),
         )
 
     def _on_key_press(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:

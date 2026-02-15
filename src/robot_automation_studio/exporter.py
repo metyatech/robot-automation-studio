@@ -32,24 +32,50 @@ def _scenario_project_path(scenario: Scenario) -> str:
     return str(scenario.metadata.get(UNITY_PROJECT_PATH_KEY) or "").strip()
 
 
+def _robot_named_args(params: dict[str, object], keys: tuple[str, ...]) -> str:
+    parts: list[str] = []
+    for key in keys:
+        value = params.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text == "":
+            continue
+        parts.append(f"{key}={text}")
+    if not parts:
+        return ""
+    return "    " + "    ".join(parts)
+
+
 def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
     params = step.params
     lines: list[str]
     if step.action == "click":
+        selector_args = _robot_named_args(
+            params,
+            ("title", "automation_id", "class_name", "control_type", "index"),
+        )
+        if selector_args == "":
+            return [
+                f"{indent}Fail    click step requires selector params "
+                "(title/automation_id/class_name/control_type)."
+            ]
         lines = [
-            f"{indent}${{annotation}}=    Click Unity Relative"
-            f"    {params.get('x_ratio', 0.5)}    {params.get('y_ratio', 0.5)}"
-            f"    box_width={params.get('box_width', 180)}"
-            f"    box_height={params.get('box_height', 48)}",
+            f"{indent}${{annotation}}=    Click Unity Element{selector_args}",
             f"{indent}Wait For Seconds    {params.get('wait_seconds', 0.0)}",
             f"{indent}Emit Annotation Metadata    ${{annotation}}",
         ]
         return lines
     if step.action == "drag":
+        source_args = _robot_named_args(params, ("source_title", "source_automation_id"))
+        target_args = _robot_named_args(params, ("target_title", "target_automation_id"))
+        if source_args == "" or target_args == "":
+            return [
+                f"{indent}Fail    drag step requires source and target selectors "
+                "(source_title/source_automation_id + target_title/target_automation_id)."
+            ]
         lines = [
-            f"{indent}${{annotation}}=    Drag Unity Relative"
-            f"    {params.get('from_x_ratio', 0.2)}    {params.get('from_y_ratio', 0.4)}"
-            f"    {params.get('to_x_ratio', 0.7)}    {params.get('to_y_ratio', 0.4)}",
+            f"{indent}${{annotation}}=    Drag Unity Element To Element{source_args}{target_args}",
             f"{indent}Wait For Seconds    {params.get('wait_seconds', 0.0)}",
             f"{indent}Emit Annotation Metadata    ${{annotation}}",
         ]

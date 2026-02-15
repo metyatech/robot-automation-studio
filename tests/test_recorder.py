@@ -4,20 +4,28 @@ from robot_automation_studio.recorder import (
     ScenarioRecorder,
     WindowSnapshot,
     events_to_steps,
-    normalize_point,
 )
 
 
 def test_events_to_steps_maps_mouse_and_keyboard_events() -> None:
     events = [
-        RecordedEvent(kind="click", payload={"x_ratio": 0.1, "y_ratio": 0.2}, timestamp_ms=1000),
+        RecordedEvent(
+            kind="click",
+            payload={
+                "title": "Inspector",
+                "automation_id": "Inspector",
+                "class_name": "Pane",
+                "control_type": "Pane",
+            },
+            timestamp_ms=1000,
+        ),
         RecordedEvent(
             kind="drag",
             payload={
-                "from_x_ratio": 0.2,
-                "from_y_ratio": 0.3,
-                "to_x_ratio": 0.5,
-                "to_y_ratio": 0.6,
+                "source_title": "TailLength",
+                "source_automation_id": "TailLength",
+                "target_title": "PreviewArea",
+                "target_automation_id": "PreviewArea",
             },
             timestamp_ms=1500,
         ),
@@ -33,25 +41,46 @@ def test_events_to_steps_maps_mouse_and_keyboard_events() -> None:
     assert steps[2].params["shortcut"] == "CTRL+S"
 
 
-def test_normalize_point_uses_window_rect() -> None:
-    window = WindowSnapshot(title="Unity", left=100, top=200, width=1000, height=800)
-    x_ratio, y_ratio = normalize_point(600, 600, window)
-    assert round(x_ratio, 2) == 0.5
-    assert round(y_ratio, 2) == 0.5
-
-
 def test_recorder_does_not_insert_implicit_step_between_actions() -> None:
     recorder = ScenarioRecorder()
     recorder.start()
-    recorder.append_with_timestamp("click", {"x_ratio": 0.1, "y_ratio": 0.2}, timestamp_ms=1000)
-    recorder.append_with_timestamp("click", {"x_ratio": 0.2, "y_ratio": 0.3}, timestamp_ms=2800)
+    recorder.append_with_timestamp(
+        "click",
+        {"title": "A", "automation_id": "A", "class_name": "Button", "control_type": "Button"},
+        timestamp_ms=1000,
+    )
+    recorder.append_with_timestamp(
+        "click",
+        {"title": "B", "automation_id": "B", "class_name": "Button", "control_type": "Button"},
+        timestamp_ms=2800,
+    )
     events = recorder.stop()
     steps = events_to_steps(events)
 
     assert [step.action for step in steps] == ["click", "click"]
 
 
-def test_recorder_click_and_drag_do_not_add_fixed_delay_seconds() -> None:
+def test_recorder_click_and_drag_record_element_selectors() -> None:
+    selector_by_point = {
+        (100, 120): {
+            "title": "File",
+            "automation_id": "MainMenuFile",
+            "class_name": "MenuItem",
+            "control_type": "MenuItem",
+        },
+        (200, 220): {
+            "title": "Source",
+            "automation_id": "Source",
+            "class_name": "Slider",
+            "control_type": "Slider",
+        },
+        (450, 470): {
+            "title": "Target",
+            "automation_id": "Target",
+            "class_name": "Pane",
+            "control_type": "Pane",
+        },
+    }
     recorder = ScenarioRecorder(
         window_provider=lambda: WindowSnapshot(
             title="Unity",
@@ -59,7 +88,8 @@ def test_recorder_click_and_drag_do_not_add_fixed_delay_seconds() -> None:
             top=0,
             width=1000,
             height=800,
-        )
+        ),
+        element_resolver=lambda x, y: dict(selector_by_point[(x, y)]),
     )
     recorder.start(window_hint="Unity")
     recorder._on_click(100, 120, None, True)
@@ -70,8 +100,9 @@ def test_recorder_click_and_drag_do_not_add_fixed_delay_seconds() -> None:
 
     steps = events_to_steps(events)
     assert [step.action for step in steps] == ["click", "drag"]
-    assert "wait_seconds" not in steps[0].params
-    assert "wait_seconds" not in steps[1].params
+    assert steps[0].params["automation_id"] == "MainMenuFile"
+    assert steps[1].params["source_automation_id"] == "Source"
+    assert steps[1].params["target_automation_id"] == "Target"
 
 
 def test_click_is_recorded_when_press_unfocused_and_release_focused() -> None:
@@ -80,7 +111,15 @@ def test_click_is_recorded_when_press_unfocused_and_release_focused() -> None:
             WindowSnapshot(title="Unity", left=0, top=0, width=1000, height=800),
         ]
     )
-    recorder = ScenarioRecorder(window_provider=lambda: next(snapshots))
+    recorder = ScenarioRecorder(
+        window_provider=lambda: next(snapshots),
+        element_resolver=lambda _x, _y: {
+            "title": "Inspector",
+            "automation_id": "Inspector",
+            "class_name": "Pane",
+            "control_type": "Pane",
+        },
+    )
     recorder.start(window_hint="Unity")
     recorder._on_click(300, 200, None, True)
     recorder._on_click(300, 200, None, False)
@@ -97,7 +136,15 @@ def test_unfocused_release_does_not_carry_state_into_next_click() -> None:
             WindowSnapshot(title="Unity", left=0, top=0, width=1000, height=800),
         ]
     )
-    recorder = ScenarioRecorder(window_provider=lambda: next(snapshots))
+    recorder = ScenarioRecorder(
+        window_provider=lambda: next(snapshots),
+        element_resolver=lambda _x, _y: {
+            "title": "Inspector",
+            "automation_id": "Inspector",
+            "class_name": "Pane",
+            "control_type": "Pane",
+        },
+    )
     recorder.start(window_hint="Unity")
     recorder._on_click(100, 100, None, True)
     recorder._on_click(160, 160, None, False)
@@ -107,3 +154,26 @@ def test_unfocused_release_does_not_carry_state_into_next_click() -> None:
 
     assert len(steps) == 1
     assert steps[0].action == "click"
+
+
+def test_recorder_reports_error_when_selector_cannot_be_resolved() -> None:
+    errors: list[str] = []
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: None,
+        on_record_error=errors.append,
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(100, 120, None, True)
+    recorder._on_click(100, 120, None, False)
+    events = recorder.stop()
+
+    assert len(events) == 0
+    assert len(errors) == 1
+    assert "Could not resolve UI element selector" in errors[0]

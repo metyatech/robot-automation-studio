@@ -26,20 +26,20 @@ def test_scenario_json_round_trip(tmp_path: Path) -> None:
                 action="click",
                 title="Click menu",
                 params={
-                    "x_ratio": 0.07,
-                    "y_ratio": 0.05,
-                    "box_width": 180,
-                    "box_height": 48,
+                    "title": "File",
+                    "automation_id": "MainMenuFile",
+                    "class_name": "MenuItem",
+                    "control_type": "MenuItem",
                 },
             ),
             Step(
                 action="drag",
                 title="Drag control",
                 params={
-                    "from_x_ratio": 0.22,
-                    "from_y_ratio": 0.43,
-                    "to_x_ratio": 0.68,
-                    "to_y_ratio": 0.45,
+                    "source_title": "TailLength",
+                    "source_automation_id": "TailLength",
+                    "target_title": "PreviewArea",
+                    "target_automation_id": "PreviewArea",
                 },
             ),
         ],
@@ -56,7 +56,7 @@ def test_scenario_json_round_trip(tmp_path: Path) -> None:
     assert loaded.metadata[UNITY_EXECUTION_MODE_KEY] == "launch"
     assert loaded.metadata[UNITY_PROJECT_PATH_KEY] == "D:/projects/demo"
     assert len(loaded.steps) == 2
-    assert loaded.steps[0].params["x_ratio"] == 0.07
+    assert loaded.steps[0].params["automation_id"] == "MainMenuFile"
 
     raw = scenario.to_dict()
     assert raw["schema_version"] == SCHEMA_VERSION
@@ -65,7 +65,7 @@ def test_scenario_json_round_trip(tmp_path: Path) -> None:
 
 
 def test_step_has_stable_default_title() -> None:
-    step = Step(action="click", params={"x_ratio": 0.5, "y_ratio": 0.5})
+    step = Step(action="click", params={"title": "Inspector"})
     assert step.title == "click"
 
 

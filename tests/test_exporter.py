@@ -18,10 +18,10 @@ def build_scenario() -> Scenario:
                 action="click",
                 title="Open menu",
                 params={
-                    "x_ratio": 0.07,
-                    "y_ratio": 0.05,
-                    "box_width": 180,
-                    "box_height": 48,
+                    "title": "File",
+                    "automation_id": "MainMenuFile",
+                    "class_name": "MenuItem",
+                    "control_type": "MenuItem",
                     "wait_seconds": 0.8,
                 },
             ),
@@ -29,10 +29,10 @@ def build_scenario() -> Scenario:
                 action="drag",
                 title="Drag item",
                 params={
-                    "from_x_ratio": 0.22,
-                    "from_y_ratio": 0.43,
-                    "to_x_ratio": 0.68,
-                    "to_y_ratio": 0.45,
+                    "source_title": "TailLength",
+                    "source_automation_id": "TailLength",
+                    "target_title": "PreviewArea",
+                    "target_automation_id": "PreviewArea",
                     "wait_seconds": 0.8,
                 },
             ),
@@ -48,8 +48,8 @@ def test_generate_robot_suite_contains_expected_keywords() -> None:
     assert "TRY" in text
     assert "FINALLY" in text
     assert "Attach To Running Unity Editor" in text
-    assert "Click Unity Relative" in text
-    assert "Drag Unity Relative" in text
+    assert "Click Unity Element" in text
+    assert "Drag Unity Element To Element" in text
     assert "Send Unity Shortcut" in text
     assert "Emit DOCMETA" in text
     assert "Require Unity Project Path" in text
@@ -83,20 +83,16 @@ def test_generate_robot_suite_uses_zero_delay_when_not_specified() -> None:
                 action="click",
                 title="Click",
                 params={
-                    "x_ratio": 0.1,
-                    "y_ratio": 0.2,
-                    "box_width": 180,
-                    "box_height": 48,
+                    "title": "Inspector",
+                    "automation_id": "Inspector",
                 },
             ),
             Step(
                 action="drag",
                 title="Drag",
                 params={
-                    "from_x_ratio": 0.2,
-                    "from_y_ratio": 0.3,
-                    "to_x_ratio": 0.6,
-                    "to_y_ratio": 0.7,
+                    "source_title": "TailLength",
+                    "target_title": "PreviewArea",
                 },
             ),
         ],
@@ -130,4 +126,4 @@ def test_export_all_writes_robot_and_json(tmp_path: Path) -> None:
     assert out.robot_path.exists()
     assert out.json_path.exists()
     assert out.json_path.name.endswith(".scenario.json")
-    assert "Click Unity Relative" in out.robot_path.read_text(encoding="utf-8")
+    assert "Click Unity Element" in out.robot_path.read_text(encoding="utf-8")

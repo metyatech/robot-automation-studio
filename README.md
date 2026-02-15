@@ -4,7 +4,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 
 ## Features
 
-- Record desktop actions (click, drag, shortcut) with relative coordinates
+- Record desktop actions (click, drag, shortcut) with UI element selectors
 - Optional per-action delay via `wait_seconds`
 - Foreground window filtering during recording (for Unity-focused capture)
 - Edit recorded steps (add, delete, move, modify parameters)
@@ -48,6 +48,8 @@ robot-automation-studio
    - `launch`: open a Unity project path and then run the scenario.
 3. If mode is `launch`, set `Unity Project Path`.
 4. Click `Start Recording`, perform operations in Unity Editor, then click `Stop Recording`.
+   - Click/drag is recorded only when a UI Automation element selector is resolved.
+   - If selector resolution fails, Studio logs a recording error and does not add the step.
 5. Fine-tune steps from the editor panel.
 6. Choose output directory and export name.
 7. Click `Export` to generate:
