@@ -25,6 +25,7 @@ from .recorder import ScenarioRecorder, events_to_steps
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
 from .unity_bridge import UnityBridgeClient
+from .unity_project import resolve_attached_unity_project_path
 from .upm import ensure_unity_bridge_upm_dependency
 
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
@@ -564,6 +565,17 @@ class StudioApp:
 
     def _ensure_unity_bridge_dependency_if_configured(self, purpose: str) -> bool:
         project_path_raw = self.unity_project_path_var.get().strip()
+        execution_mode = normalize_unity_execution_mode(self.execution_mode_var.get())
+
+        if project_path_raw == "" and execution_mode == "attach":
+            detected_path = resolve_attached_unity_project_path(
+                window_hint=self.window_hint_var.get().strip() or "Unity"
+            )
+            if detected_path:
+                self.unity_project_path_var.set(detected_path)
+                project_path_raw = detected_path
+                self.log(f"Auto-detected Unity Project Path: {detected_path}")
+
         if project_path_raw == "":
             return True
 

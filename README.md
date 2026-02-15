@@ -50,6 +50,7 @@ robot-automation-studio
 3. Optionally set `Unity Project Path` (recommended for Unity Hierarchy bridge).
    - When set, Studio auto-adds `com.metyatech.unity-automation-bridge` to `Packages/manifest.json` before recording and before `Run Robot`.
    - This works for both `attach` and `launch`.
+   - In `attach`, when empty, Studio auto-detects the attached Unity project's `-projectPath` from the running Unity process and then auto-adds the dependency.
 4. Click `Start Recording`, perform operations in Unity Editor, then click `Stop Recording`.
    - Click/drag is recorded only when a UI Automation element selector is resolved.
    - If selector resolution fails, Studio logs a recording error and does not add the step.
@@ -68,6 +69,7 @@ robot-automation-studio
 - `launch` is useful for document generation pipelines that should open a specific project automatically.
 - In `launch` mode, the generated `.robot` suite fails fast when project path is empty.
 - If `Unity Project Path` is set, exported `.robot` also ensures Unity bridge UPM dependency before attach/launch.
+- In `attach`, Studio also tries to auto-detect project path from the attached Unity process command line.
 
 ## Output Structure
 
