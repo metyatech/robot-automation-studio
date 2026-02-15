@@ -25,6 +25,7 @@ from .recorder import ScenarioRecorder, events_to_steps, has_visible_window_with
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
 from .unity_bridge import UnityBridgeClient
+from .unity_diagnostics import get_recent_unity_compile_errors
 from .unity_project import resolve_attached_unity_project_path
 from .upm import ensure_unity_bridge_upm_dependency
 
@@ -625,13 +626,24 @@ class StudioApp:
                 request_timeout_seconds=BRIDGE_READY_REQUEST_TIMEOUT_SECONDS,
             ):
                 self.log("Unity bridge readiness check timed out.")
+                compile_errors = get_recent_unity_compile_errors(limit=3)
+                compile_error_hint = ""
+                if compile_errors:
+                    self.log("Detected Unity compile errors in Editor.log:")
+                    for line in compile_errors:
+                        self.log(f"  {line}")
+                    compile_error_hint = (
+                        "\n\nDetected recent Unity compile errors:\n- "
+                        + "\n- ".join(compile_errors)
+                    )
                 messagebox.showerror(
                     "Unity Bridge Not Ready",
                     (
                         "Unity bridge is not ready yet.\n"
                         "Unity may still be importing packages or compiling scripts.\n"
                         "Open/focus the target Unity Editor and retry Start Recording.\n"
-                        "If this persists, set Unity Project Path explicitly."
+                        "If this persists, fix Unity compile errors first."
+                        f"{compile_error_hint}"
                     ),
                 )
                 return False
