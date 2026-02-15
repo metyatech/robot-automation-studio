@@ -6,7 +6,13 @@ class DummyBridgeClient(UnityBridgeClient):
         super().__init__(host="127.0.0.1", port=39067, timeout_seconds=0.1)
         self._payloads = list(payloads)
 
-    def _request(self, method: str, path: str, payload=None):  # type: ignore[override]
+    def _request(  # type: ignore[override]
+        self,
+        method: str,
+        path: str,
+        payload=None,
+        timeout_seconds=None,
+    ):
         assert method == "GET"
         assert path == "/v1/selection"
         if not self._payloads:
@@ -56,3 +62,30 @@ def test_wait_until_available_returns_false_on_timeout() -> None:
     )
 
     assert ready is False
+
+
+def test_wait_until_available_passes_request_timeout_override() -> None:
+    class TimeoutProbeBridge(UnityBridgeClient):
+        def __init__(self) -> None:
+            super().__init__(host="127.0.0.1", port=39067, timeout_seconds=0.1)
+            self.request_timeouts: list[float | None] = []
+
+        def _request(  # type: ignore[override]
+            self,
+            method: str,
+            path: str,
+            payload=None,
+            timeout_seconds=None,
+        ):
+            self.request_timeouts.append(timeout_seconds)
+            return {"ok": True}
+
+    client = TimeoutProbeBridge()
+    ready = client.wait_until_available(
+        timeout_seconds=1.0,
+        poll_interval_seconds=0.1,
+        request_timeout_seconds=0.8,
+    )
+
+    assert ready is True
+    assert client.request_timeouts == [0.8]

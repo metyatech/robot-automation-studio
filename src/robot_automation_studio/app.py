@@ -32,6 +32,7 @@ STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
 BRIDGE_READY_TIMEOUT_SECONDS = 15.0
 BRIDGE_READY_CHECK_TIMEOUT_SECONDS = 3.0
+BRIDGE_READY_REQUEST_TIMEOUT_SECONDS = 0.8
 
 
 class StudioApp:
@@ -619,7 +620,10 @@ class StudioApp:
                 BRIDGE_READY_TIMEOUT_SECONDS if changed else BRIDGE_READY_CHECK_TIMEOUT_SECONDS
             )
             self.log("Checking Unity bridge readiness...")
-            if not self.unity_bridge.wait_until_available(timeout_seconds=wait_timeout):
+            if not self.unity_bridge.wait_until_available(
+                timeout_seconds=wait_timeout,
+                request_timeout_seconds=BRIDGE_READY_REQUEST_TIMEOUT_SECONDS,
+            ):
                 self.log("Unity bridge readiness check timed out.")
                 messagebox.showerror(
                     "Unity Bridge Not Ready",
