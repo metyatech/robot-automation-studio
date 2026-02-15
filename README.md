@@ -8,6 +8,11 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 - Foreground window filtering during recording (for Unity-focused capture)
 - Edit recorded steps (add, delete, move, modify parameters)
 - Run Robot Framework suites directly from the app
+- Runtime safety controls for automation execution:
+  - visible running status
+  - stop button
+  - global emergency stop hotkey (`Ctrl+Shift+F12`)
+  - dark overlay outside the active automation window with shortcut banner
 - Export both `.robot` suites and machine-readable JSON scenario files
 - Designed for Unity Editor and other desktop targets on Windows
 
@@ -48,6 +53,7 @@ robot-automation-studio
    - `<name>.robot`
    - `<name>.json`
 8. Click `Run Robot` to execute the generated suite.
+9. While running, use `Stop Robot` or press `Ctrl+Shift+F12` to stop immediately.
 
 ## Execution Mode Notes
 

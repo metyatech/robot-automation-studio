@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
+
+from pynput import keyboard as pynput_keyboard
 
 from .editor import ScenarioEditor
 from .exporter import export_all
@@ -17,8 +20,12 @@ from .models import (
     Scenario,
     normalize_unity_execution_mode,
 )
+from .overlay import AutomationRunOverlay
 from .recorder import ScenarioRecorder, events_to_steps
-from .runner import run_robot
+from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
+
+STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
+STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
 
 
 class StudioApp:
@@ -45,11 +52,19 @@ class StudioApp:
         self.output_dir_var = tk.StringVar(value="artifacts/studio")
         self.export_name_var = tk.StringVar(value="unity-editor-generated")
         self.log_var = tk.StringVar(value="")
+        self.robot_status_var = tk.StringVar(value="Idle")
 
         self.selected_index: int | None = None
+        self._run_thread: threading.Thread | None = None
+        self._run_process: subprocess.Popen[str] | None = None
+        self._run_lock = threading.Lock()
+        self._stop_requested = False
+        self._stop_hotkey_listener: pynput_keyboard.GlobalHotKeys | None = None
+        self._overlay: AutomationRunOverlay | None = None
 
         self._build_ui()
         self.refresh_steps()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _build_ui(self) -> None:
         top = ttk.Frame(self.root)
@@ -157,9 +172,21 @@ class StudioApp:
         ttk.Button(bottom, text="Export", command=self.export_scenario).grid(
             row=0, column=4, padx=8
         )
-        ttk.Button(bottom, text="Run Robot", command=self.run_robot_suite).grid(
-            row=0, column=5, padx=4
+        self.run_robot_button = ttk.Button(bottom, text="Run Robot", command=self.run_robot_suite)
+        self.run_robot_button.grid(row=0, column=5, padx=4)
+        self.stop_robot_button = ttk.Button(
+            bottom,
+            text=f"Stop Robot ({STOP_HOTKEY_LABEL})",
+            command=self.stop_robot_suite,
+            state="disabled",
         )
+        self.stop_robot_button.grid(row=0, column=6, padx=4)
+        ttk.Label(bottom, text="Status").grid(row=1, column=0, sticky=tk.W, pady=(8, 0))
+        ttk.Label(
+            bottom,
+            textvariable=self.robot_status_var,
+            font=("Segoe UI", 10, "bold"),
+        ).grid(row=1, column=1, sticky=tk.W, pady=(8, 0))
 
         self.log_text = tk.Text(self.root, height=10)
         self.log_text.pack(fill=tk.BOTH, padx=8, pady=(0, 8))
@@ -180,6 +207,72 @@ class StudioApp:
     def log(self, message: str) -> None:
         self.log_text.insert(tk.END, f"{message}\n")
         self.log_text.see(tk.END)
+
+    def _log_async(self, message: str) -> None:
+        self.root.after(0, lambda: self.log(message))
+
+    def _set_robot_status(self, status: str) -> None:
+        self.robot_status_var.set(status)
+
+    def _set_run_controls(self, running: bool, stopping: bool = False) -> None:
+        if running:
+            self.run_robot_button.configure(state="disabled")
+            self.stop_robot_button.configure(state="normal")
+            self._set_robot_status("Stopping" if stopping else "Running")
+            return
+        self.run_robot_button.configure(state="normal")
+        self.stop_robot_button.configure(state="disabled")
+        self._set_robot_status("Idle")
+
+    def _set_current_process(self, process: subprocess.Popen[str] | None) -> None:
+        with self._run_lock:
+            self._run_process = process
+
+    def _get_current_process(self) -> subprocess.Popen[str] | None:
+        with self._run_lock:
+            return self._run_process
+
+    def _start_stop_hotkey(self) -> None:
+        def _on_hotkey() -> None:
+            self.root.after(0, self.stop_robot_suite)
+
+        try:
+            self._stop_hotkey_listener = pynput_keyboard.GlobalHotKeys(
+                {
+                    STOP_HOTKEY_BIND: _on_hotkey,
+                }
+            )
+            self._stop_hotkey_listener.start()
+        except Exception as error:  # pragma: no cover - integration path
+            self._stop_hotkey_listener = None
+            self.log(f"Failed to register stop hotkey: {error}")
+
+    def _stop_stop_hotkey(self) -> None:
+        listener = self._stop_hotkey_listener
+        if listener is None:
+            return
+        listener.stop()
+        self._stop_hotkey_listener = None
+
+    def _start_overlay(self) -> None:
+        if self._overlay is not None:
+            return
+        try:
+            self._overlay = AutomationRunOverlay(
+                root=self.root,
+                window_hint=self.window_hint_var.get().strip() or "Unity",
+                stop_hotkey_label=STOP_HOTKEY_LABEL,
+            )
+            self._overlay.start()
+        except Exception as error:  # pragma: no cover - integration path
+            self._overlay = None
+            self.log(f"Failed to start overlay: {error}")
+
+    def _stop_overlay(self) -> None:
+        if self._overlay is None:
+            return
+        self._overlay.stop()
+        self._overlay = None
 
     def refresh_steps(self) -> None:
         self.step_list.delete(0, tk.END)
@@ -352,28 +445,87 @@ class StudioApp:
         self.log(f"Exported robot: {result.robot_path}")
         self.log(f"Exported json: {result.json_path}")
 
+    def _is_robot_running(self) -> bool:
+        return self._run_thread is not None and self._run_thread.is_alive()
+
     def run_robot_suite(self) -> None:
+        if self._is_robot_running():
+            self.log("Robot suite is already running.")
+            return
         self._sync_scenario_header()
         output_dir = Path(self.output_dir_var.get()).resolve()
         suite_name = self.export_name_var.get().strip() or "scenario"
         result = export_all(self.scenario, output_dir=output_dir, suite_name=suite_name)
         artifacts_dir = output_dir / "run"
         variable_output = output_dir
+        self._stop_requested = False
+        self._set_run_controls(running=True)
+        self._start_stop_hotkey()
+        self._start_overlay()
 
         def _run() -> None:
-            self.log("Running Robot suite...")
-            run_result = run_robot(
-                suite_path=result.robot_path,
-                output_dir=artifacts_dir,
-                variable_output_dir=variable_output,
-            )
+            run_result: RunResult | None = None
+            run_error: Exception | None = None
+            try:
+                self._log_async("Running Robot suite...")
+                process = start_robot_process(
+                    suite_path=result.robot_path,
+                    output_dir=artifacts_dir,
+                    variable_output_dir=variable_output,
+                )
+                self._set_current_process(process)
+                if self._stop_requested:
+                    stop_robot_process(process)
+                run_result = wait_robot_process(process)
+            except Exception as error:  # pragma: no cover - integration path
+                run_error = error
+            finally:
+                self._set_current_process(None)
+                self.root.after(0, lambda: self._on_robot_run_finished(run_result, run_error))
+
+        self._run_thread = threading.Thread(target=_run, daemon=True)
+        self._run_thread.start()
+
+    def stop_robot_suite(self) -> None:
+        if not self._is_robot_running():
+            self.log("Robot suite is not running.")
+            return
+        self._stop_requested = True
+        self._set_run_controls(running=True, stopping=True)
+        process = self._get_current_process()
+        self.log(f"Stopping Robot suite... ({STOP_HOTKEY_LABEL})")
+        if process is None:
+            return
+        stop_robot_process(process)
+
+    def _on_robot_run_finished(
+        self,
+        run_result: RunResult | None,
+        run_error: Exception | None,
+    ) -> None:
+        if run_error is not None:
+            self.log(f"Robot run failed: {run_error}")
+        elif run_result is not None:
             self.log(f"robot exit={run_result.return_code}")
             if run_result.stdout:
                 self.log(run_result.stdout.strip())
             if run_result.stderr:
                 self.log(run_result.stderr.strip())
+        if self._stop_requested:
+            self.log("Robot suite stopped.")
+        self._stop_requested = False
+        self._stop_overlay()
+        self._stop_stop_hotkey()
+        self._set_run_controls(running=False)
 
-        threading.Thread(target=_run, daemon=True).start()
+    def on_close(self) -> None:
+        if self._is_robot_running():
+            self.stop_robot_suite()
+            self.root.after(250, self.on_close)
+            return
+        self._stop_overlay()
+        self._stop_stop_hotkey()
+        self.root.destroy()
 
 
 def main() -> None:
