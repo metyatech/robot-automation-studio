@@ -171,7 +171,6 @@ class ScenarioRecorder:
                     "from_y_ratio": round(from_y_ratio, 4),
                     "to_x_ratio": round(to_x_ratio, 4),
                     "to_y_ratio": round(to_y_ratio, 4),
-                    "wait_seconds": 0.8,
                 },
             )
             return
@@ -183,7 +182,6 @@ class ScenarioRecorder:
                 "y_ratio": round(to_y_ratio, 4),
                 "box_width": 180,
                 "box_height": 48,
-                "wait_seconds": 0.8,
             },
         )
 

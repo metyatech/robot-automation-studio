@@ -75,6 +75,39 @@ def test_generate_robot_suite_launch_mode_contains_start_and_stop() -> None:
     assert "unity_project_path is required when unity_mode is launch." in text
 
 
+def test_generate_robot_suite_uses_zero_wait_when_not_specified() -> None:
+    scenario = Scenario(
+        name="No Wait Scenario",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="click",
+                title="Click",
+                params={
+                    "x_ratio": 0.1,
+                    "y_ratio": 0.2,
+                    "box_width": 180,
+                    "box_height": 48,
+                },
+            ),
+            Step(
+                action="drag",
+                title="Drag",
+                params={
+                    "from_x_ratio": 0.2,
+                    "from_y_ratio": 0.3,
+                    "to_x_ratio": 0.6,
+                    "to_y_ratio": 0.7,
+                },
+            ),
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="no-wait")
+
+    assert "Wait For Seconds    0.0" in text
+
+
 def test_export_all_writes_robot_and_json(tmp_path: Path) -> None:
     scenario = build_scenario()
     out = export_all(

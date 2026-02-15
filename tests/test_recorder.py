@@ -52,3 +52,26 @@ def test_recorder_inserts_wait_between_actions() -> None:
 
     assert [step.action for step in steps] == ["click", "wait", "click"]
     assert steps[1].params["seconds"] == 1.8
+
+
+def test_recorder_click_and_drag_do_not_add_fixed_wait_seconds() -> None:
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        )
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(100, 120, None, True)
+    recorder._on_click(100, 120, None, False)
+    recorder._on_click(200, 220, None, True)
+    recorder._on_click(450, 470, None, False)
+    events = recorder.stop()
+
+    steps = events_to_steps(events)
+    assert [step.action for step in steps] == ["click", "drag"]
+    assert "wait_seconds" not in steps[0].params
+    assert "wait_seconds" not in steps[1].params

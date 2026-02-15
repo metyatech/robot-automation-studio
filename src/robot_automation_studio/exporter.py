@@ -41,7 +41,7 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
             f"    {params.get('x_ratio', 0.5)}    {params.get('y_ratio', 0.5)}"
             f"    box_width={params.get('box_width', 180)}"
             f"    box_height={params.get('box_height', 48)}",
-            f"{indent}Wait For Seconds    {params.get('wait_seconds', 0.8)}",
+            f"{indent}Wait For Seconds    {params.get('wait_seconds', 0.0)}",
             f"{indent}Emit Annotation Metadata    ${{annotation}}",
         ]
         return lines
@@ -50,7 +50,7 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
             f"{indent}${{annotation}}=    Drag Unity Relative"
             f"    {params.get('from_x_ratio', 0.2)}    {params.get('from_y_ratio', 0.4)}"
             f"    {params.get('to_x_ratio', 0.7)}    {params.get('to_y_ratio', 0.4)}",
-            f"{indent}Wait For Seconds    {params.get('wait_seconds', 0.8)}",
+            f"{indent}Wait For Seconds    {params.get('wait_seconds', 0.0)}",
             f"{indent}Emit Annotation Metadata    ${{annotation}}",
         ]
         return lines
