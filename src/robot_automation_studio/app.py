@@ -12,6 +12,7 @@ from typing import Any
 
 from pynput import keyboard as pynput_keyboard
 
+from .bridge_readiness import build_recording_readiness_timeouts
 from .editor import ScenarioEditor
 from .exporter import export_all
 from .models import (
@@ -32,6 +33,7 @@ from .upm import (
     has_unity_bridge_package_script_meta,
     install_legacy_unity_bridge_script,
 )
+from .window_focus import focus_visible_window_with_hint
 
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
@@ -166,23 +168,92 @@ class StudioApp:
             "Danger.TButton", background=[("active", "#7a3a3a"), ("disabled", self._BG_LIGHT)]
         )
 
+        # Section header style
+        style.configure(
+            "Section.TLabel",
+            background=self._BG,
+            foreground=self._ACCENT_BLUE,
+            font=("Segoe UI", 11, "bold"),
+        )
+
+        # Toolbar group label style
+        style.configure(
+            "GroupLabel.TLabel",
+            background=self._BG,
+            foreground=self._FG_DIM,
+            font=("Segoe UI", 8),
+        )
+
+        # Apply button style (accent blue)
+        style.configure(
+            "Apply.TButton",
+            background="#2d4a7a",
+            foreground=self._ACCENT_BLUE,
+            padding=(8, 6),
+        )
+        style.map(
+            "Apply.TButton",
+            background=[("active", "#3a5a9a"), ("disabled", self._BG_LIGHT)],
+        )
+
+        # Card frame style
+        style.configure("Card.TFrame", background=self._BG_MID)
+        style.configure(
+            "Card.TLabel",
+            background=self._BG_MID,
+            foreground=self._FG,
+            font=self._FONT,
+        )
+        style.configure(
+            "CardHeader.TLabel",
+            background=self._BG_MID,
+            foreground=self._ACCENT_BLUE,
+            font=("Segoe UI", 10, "bold"),
+        )
+
         self.root.configure(bg=self._BG)
+
+    def _section_header(self, parent: tk.Widget, text: str) -> ttk.Frame:
+        """Create a section header (bold label + separator) and return a content frame."""
+        header_row = ttk.Frame(parent)
+        header_row.pack(fill=tk.X, padx=12, pady=(12, 0))
+        ttk.Label(header_row, text=text, style="Section.TLabel").pack(side=tk.LEFT)
+        ttk.Separator(header_row, orient=tk.HORIZONTAL).pack(
+            side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0), pady=1
+        )
+        content = ttk.Frame(parent)
+        content.pack(fill=tk.X, padx=12, pady=(4, 0))
+        return content
+
+    def _toolbar_group(
+        self, parent: tk.Widget, label: str
+    ) -> ttk.Frame:
+        """Create a labeled toolbar button group and return the button container."""
+        group = ttk.Frame(parent)
+        group.pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Label(group, text=label, style="GroupLabel.TLabel").pack(anchor=tk.W)
+        btn_row = ttk.Frame(group)
+        btn_row.pack()
+        return btn_row
 
     def _build_ui(self) -> None:
         # ── A. Scenario Configuration ──────────────────────────────────────
-        config_frame = ttk.LabelFrame(self.root, text="Scenario Configuration", padding=8)
-        config_frame.pack(fill=tk.X, padx=8, pady=(8, 4))
+        config_frame = self._section_header(self.root, "Scenario Configuration")
 
-        ttk.Label(config_frame, text="Scenario Name").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(config_frame, textvariable=self.name_var, width=40).grid(
-            row=0, column=1, sticky=tk.W, padx=6
+        ttk.Label(config_frame, text="Scenario Name").grid(
+            row=0, column=0, sticky=tk.W, pady=(4, 0)
         )
-        ttk.Label(config_frame, text="Window Hint").grid(row=0, column=2, sticky=tk.W, padx=(20, 0))
+        ttk.Entry(config_frame, textvariable=self.name_var, width=40).grid(
+            row=0, column=1, sticky=tk.W, padx=6, pady=(4, 0)
+        )
+        ttk.Label(config_frame, text="Window Hint").grid(
+            row=0, column=2, sticky=tk.W, padx=(20, 0), pady=(4, 0)
+        )
         ttk.Entry(config_frame, textvariable=self.window_hint_var, width=24).grid(
-            row=0, column=3, sticky=tk.W, padx=6
+            row=0, column=3, sticky=tk.W, padx=6, pady=(4, 0)
         )
         ttk.Label(config_frame, text="Execution Mode").grid(
-            row=1, column=0, sticky=tk.W, pady=(6, 0)
+            row=1, column=0, sticky=tk.W, pady=(8, 0)
         )
         mode_combo = ttk.Combobox(
             config_frame,
@@ -191,85 +262,79 @@ class StudioApp:
             state="readonly",
             width=14,
         )
-        mode_combo.grid(row=1, column=1, sticky=tk.W, padx=6, pady=(6, 0))
+        mode_combo.grid(row=1, column=1, sticky=tk.W, padx=6, pady=(8, 0))
         mode_combo.bind("<<ComboboxSelected>>", self.on_execution_mode_changed)
         ttk.Label(config_frame, text="Unity Project Path").grid(
-            row=1, column=2, sticky=tk.W, padx=(20, 0), pady=(6, 0)
+            row=1, column=2, sticky=tk.W, padx=(20, 0), pady=(8, 0)
         )
         self.project_path_entry = ttk.Entry(
             config_frame, textvariable=self.unity_project_path_var, width=44
         )
-        self.project_path_entry.grid(row=1, column=3, sticky=tk.W, padx=6, pady=(6, 0))
+        self.project_path_entry.grid(row=1, column=3, sticky=tk.W, padx=6, pady=(8, 0))
         self.project_path_browse_button = ttk.Button(
             config_frame, text="Browse", command=self.browse_unity_project_path
         )
-        self.project_path_browse_button.grid(row=1, column=4, sticky=tk.W, pady=(6, 0))
+        self.project_path_browse_button.grid(row=1, column=4, sticky=tk.W, pady=(8, 0))
 
         # ── B. Toolbar ─────────────────────────────────────────────────────
-        toolbar_frame = ttk.LabelFrame(self.root, text="Toolbar", padding=(8, 4))
-        toolbar_frame.pack(fill=tk.X, padx=8, pady=4)
+        toolbar_outer = ttk.Frame(self.root)
+        toolbar_outer.pack(fill=tk.X, padx=12, pady=(12, 4))
 
         # Recording group
+        rec_group = self._toolbar_group(toolbar_outer, "Recording")
         ttk.Button(
-            toolbar_frame,
-            text="\u25cf Start Recording",
+            rec_group,
+            text="\u25cf Start",
             command=self.start_recording,
             style="Record.TButton",
         ).pack(side=tk.LEFT, padx=2)
         ttk.Button(
-            toolbar_frame,
-            text="\u25a0 Stop Recording",
+            rec_group,
+            text="\u25a0 Stop",
             command=self.stop_recording,
             style="Stop.TButton",
         ).pack(side=tk.LEFT, padx=2)
 
-        ttk.Separator(toolbar_frame, orient=tk.VERTICAL).pack(
-            side=tk.LEFT, fill=tk.Y, padx=6, pady=2
-        )
-
         # Add steps group
+        add_group = self._toolbar_group(toolbar_outer, "Add Step")
         for label, cmd in [
-            ("+ Click", self.add_click),
-            ("+ Drag", self.add_drag),
-            ("+ Shortcut", self.add_shortcut),
-            ("+ Menu", self.add_menu),
-            ("+ Type", self.add_type),
+            ("Click", self.add_click),
+            ("Drag", self.add_drag),
+            ("Shortcut", self.add_shortcut),
+            ("Menu", self.add_menu),
+            ("Type", self.add_type),
         ]:
-            ttk.Button(toolbar_frame, text=label, command=cmd, style="Add.TButton").pack(
+            ttk.Button(add_group, text=label, command=cmd, style="Add.TButton").pack(
                 side=tk.LEFT, padx=2
             )
 
-        ttk.Separator(toolbar_frame, orient=tk.VERTICAL).pack(
-            side=tk.LEFT, fill=tk.Y, padx=6, pady=2
-        )
-
         # Edit steps group
+        edit_group = self._toolbar_group(toolbar_outer, "Edit")
         ttk.Button(
-            toolbar_frame, text="Delete", command=self.delete_selected, style="Danger.TButton"
+            edit_group, text="Delete", command=self.delete_selected, style="Danger.TButton"
         ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar_frame, text="\u25b2 Up", command=self.move_up).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar_frame, text="\u25bc Down", command=self.move_down).pack(
+        ttk.Button(edit_group, text="\u25b2 Up", command=self.move_up).pack(
             side=tk.LEFT, padx=2
         )
-        ttk.Button(toolbar_frame, text="Duplicate", command=self.duplicate_selected).pack(
+        ttk.Button(edit_group, text="\u25bc Down", command=self.move_down).pack(
             side=tk.LEFT, padx=2
         )
-
-        ttk.Separator(toolbar_frame, orient=tk.VERTICAL).pack(
-            side=tk.LEFT, fill=tk.Y, padx=6, pady=2
+        ttk.Button(edit_group, text="Duplicate", command=self.duplicate_selected).pack(
+            side=tk.LEFT, padx=2
         )
 
         # File group
-        ttk.Button(toolbar_frame, text="Save JSON", command=self.save_json).pack(
+        file_group = self._toolbar_group(toolbar_outer, "File")
+        ttk.Button(file_group, text="Save JSON", command=self.save_json).pack(
             side=tk.LEFT, padx=2
         )
-        ttk.Button(toolbar_frame, text="Load JSON", command=self.load_json).pack(
+        ttk.Button(file_group, text="Load JSON", command=self.load_json).pack(
             side=tk.LEFT, padx=2
         )
 
         # REC indicator (right-aligned)
         self._rec_indicator = tk.Label(
-            toolbar_frame,
+            toolbar_outer,
             text=" IDLE ",
             font=("Segoe UI", 9, "bold"),
             bg=self._BG_LIGHT,
@@ -280,10 +345,20 @@ class StudioApp:
         self._rec_indicator.pack(side=tk.RIGHT, padx=4)
 
         # ── C. Steps & Editor ──────────────────────────────────────────────
-        steps_frame = ttk.LabelFrame(self.root, text="Steps & Editor", padding=4)
-        steps_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
+        # Section header (non-expanding)
+        steps_header_row = ttk.Frame(self.root)
+        steps_header_row.pack(fill=tk.X, padx=12, pady=(12, 0))
+        ttk.Label(steps_header_row, text="Steps & Editor", style="Section.TLabel").pack(
+            side=tk.LEFT
+        )
+        ttk.Separator(steps_header_row, orient=tk.HORIZONTAL).pack(
+            side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0), pady=1
+        )
 
-        body = ttk.Panedwindow(steps_frame, orient=tk.HORIZONTAL)
+        steps_body = ttk.Frame(self.root)
+        steps_body.pack(fill=tk.BOTH, expand=True, padx=12, pady=(4, 0))
+
+        body = ttk.Panedwindow(steps_body, orient=tk.HORIZONTAL)
         body.pack(fill=tk.BOTH, expand=True)
 
         left = ttk.Frame(body)
@@ -291,8 +366,10 @@ class StudioApp:
         body.add(left, weight=3)
         body.add(right, weight=2)
 
-        # Step list with scrollbar
-        list_frame = ttk.Frame(left)
+        # Step list with 1px border wrapper and scrollbar
+        list_border = tk.Frame(left, bg=self._BG_LIGHT, padx=1, pady=1)
+        list_border.pack(fill=tk.BOTH, expand=True)
+        list_frame = ttk.Frame(list_border)
         list_frame.pack(fill=tk.BOTH, expand=True)
         step_scroll = ttk.Scrollbar(list_frame, orient=tk.VERTICAL)
         step_scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -303,7 +380,7 @@ class StudioApp:
             fg=self._FG,
             selectbackground=self._ACCENT_BLUE,
             selectforeground=self._BG,
-            font=self._FONT_MONO,
+            font=("Consolas", 11),
             borderwidth=0,
             highlightthickness=0,
             yscrollcommand=step_scroll.set,
@@ -312,82 +389,113 @@ class StudioApp:
         step_scroll.configure(command=self.step_list.yview)
         self.step_list.bind("<<ListboxSelect>>", self.on_select_step)
 
-        # Step editor (right pane)
-        edit_row = ttk.Frame(right)
-        edit_row.pack(fill=tk.X, pady=(0, 8))
-        ttk.Label(edit_row, text="Title").grid(row=0, column=0, sticky=tk.W)
+        # Step editor card (right pane)
+        card = ttk.Frame(right, style="Card.TFrame", padding=12)
+        card.pack(fill=tk.BOTH, expand=True, padx=(8, 0))
+        ttk.Label(card, text="Step Details", style="CardHeader.TLabel").pack(
+            anchor=tk.W, pady=(0, 8)
+        )
+
+        edit_row = ttk.Frame(card, style="Card.TFrame")
+        edit_row.pack(fill=tk.X)
+        ttk.Label(edit_row, text="Title", style="Card.TLabel").grid(
+            row=0, column=0, sticky=tk.W, pady=(0, 8)
+        )
         self.title_var = tk.StringVar(value="")
         ttk.Entry(edit_row, textvariable=self.title_var, width=32).grid(
-            row=0, column=1, sticky=tk.W
+            row=0, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
         )
 
-        ttk.Label(edit_row, text="Action").grid(row=1, column=0, sticky=tk.W)
+        ttk.Label(edit_row, text="Action", style="Card.TLabel").grid(
+            row=1, column=0, sticky=tk.W, pady=(0, 8)
+        )
         self.action_var = tk.StringVar(value="")
         ttk.Entry(edit_row, textvariable=self.action_var, width=32).grid(
-            row=1, column=1, sticky=tk.W
+            row=1, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8)
         )
 
-        ttk.Label(edit_row, text="Params (JSON)").grid(row=2, column=0, sticky=tk.NW)
+        ttk.Label(edit_row, text="Params (JSON)", style="Card.TLabel").grid(
+            row=2, column=0, sticky=tk.NW, pady=(0, 8)
+        )
         self.params_text = tk.Text(
             edit_row,
             width=42,
             height=16,
-            bg=self._BG_MID,
+            bg=self._BG_LIGHT,
             fg=self._FG,
             insertbackground=self._FG,
             font=self._FONT_MONO,
             borderwidth=0,
             highlightthickness=0,
         )
-        self.params_text.grid(row=2, column=1, sticky=tk.W)
+        self.params_text.grid(row=2, column=1, sticky=tk.W, padx=(8, 0), pady=(0, 8))
 
-        ttk.Button(right, text="Apply Step Changes", command=self.apply_step_changes).pack(
-            anchor=tk.W
-        )
+        ttk.Button(
+            card, text="Apply Step Changes", command=self.apply_step_changes, style="Apply.TButton"
+        ).pack(fill=tk.X, pady=(4, 0))
 
         # ── D. Export & Run ────────────────────────────────────────────────
-        run_frame = ttk.LabelFrame(self.root, text="Export & Run", padding=8)
-        run_frame.pack(fill=tk.X, padx=8, pady=4)
+        # Section header
+        run_header_row = ttk.Frame(self.root)
+        run_header_row.pack(fill=tk.X, padx=12, pady=(12, 0))
+        ttk.Label(run_header_row, text="Export & Run", style="Section.TLabel").pack(side=tk.LEFT)
+        ttk.Separator(run_header_row, orient=tk.HORIZONTAL).pack(
+            side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0), pady=1
+        )
 
-        ttk.Label(run_frame, text="Output Dir").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(run_frame, textvariable=self.output_dir_var, width=48).grid(
-            row=0, column=1, sticky=tk.W
+        run_card = ttk.Frame(self.root, style="Card.TFrame", padding=12)
+        run_card.pack(fill=tk.X, padx=12, pady=(4, 0))
+
+        # Row 1: Output Dir + Export Name + Export button
+        row1 = ttk.Frame(run_card, style="Card.TFrame")
+        row1.pack(fill=tk.X, pady=(0, 8))
+        ttk.Label(row1, text="Output Dir", style="Card.TLabel").pack(side=tk.LEFT)
+        ttk.Entry(row1, textvariable=self.output_dir_var, width=48).pack(
+            side=tk.LEFT, padx=(8, 12)
         )
-        ttk.Label(run_frame, text="Export Name").grid(row=0, column=2, sticky=tk.W, padx=(12, 0))
-        ttk.Entry(run_frame, textvariable=self.export_name_var, width=24).grid(
-            row=0, column=3, sticky=tk.W
+        ttk.Label(row1, text="Export Name", style="Card.TLabel").pack(side=tk.LEFT)
+        ttk.Entry(row1, textvariable=self.export_name_var, width=24).pack(
+            side=tk.LEFT, padx=(8, 12)
         )
-        ttk.Button(run_frame, text="Export", command=self.export_scenario).grid(
-            row=0, column=4, padx=8
-        )
+        ttk.Button(row1, text="Export", command=self.export_scenario).pack(side=tk.LEFT)
+
+        # Row 2: Run / Stop buttons + Status pill
+        row2 = ttk.Frame(run_card, style="Card.TFrame")
+        row2.pack(fill=tk.X)
         self.run_robot_button = ttk.Button(
-            run_frame, text="Run Robot", command=self.run_robot_suite, style="Record.TButton"
+            row2, text="Run Robot", command=self.run_robot_suite, style="Record.TButton"
         )
-        self.run_robot_button.grid(row=0, column=5, padx=4)
+        self.run_robot_button.pack(side=tk.LEFT, padx=(0, 4))
         self.stop_robot_button = ttk.Button(
-            run_frame,
+            row2,
             text=f"Stop Robot ({STOP_HOTKEY_LABEL})",
             command=self.stop_robot_suite,
             state="disabled",
             style="Stop.TButton",
         )
-        self.stop_robot_button.grid(row=0, column=6, padx=4)
+        self.stop_robot_button.pack(side=tk.LEFT, padx=(0, 12))
 
-        # Status row with color bar
-        self._status_bar = tk.Frame(run_frame, width=6, height=18, bg=self._FG_DIM)
-        self._status_bar.grid(row=1, column=0, sticky=tk.W, pady=(8, 0), padx=(0, 4))
-        ttk.Label(run_frame, text="Status").grid(
-            row=1, column=0, sticky=tk.W, pady=(8, 0), padx=(14, 0)
-        )
-        ttk.Label(
-            run_frame,
+        # Status pill
+        self._status_pill = tk.Label(
+            row2,
             textvariable=self.robot_status_var,
             font=("Segoe UI", 10, "bold"),
-        ).grid(row=1, column=1, sticky=tk.W, pady=(8, 0))
+            bg=self._BG_LIGHT,
+            fg=self._FG_DIM,
+            padx=14,
+            pady=3,
+        )
+        self._status_pill.pack(side=tk.LEFT, padx=4)
 
         # ── E. Output Log ──────────────────────────────────────────────────
-        log_frame = ttk.LabelFrame(self.root, text="Output Log", padding=4)
-        log_frame.pack(fill=tk.BOTH, padx=8, pady=(4, 8))
+        log_header_row = ttk.Frame(self.root)
+        log_header_row.pack(fill=tk.X, padx=12, pady=(12, 0))
+        ttk.Label(log_header_row, text="Output Log", style="Section.TLabel").pack(side=tk.LEFT)
+        ttk.Separator(log_header_row, orient=tk.HORIZONTAL).pack(
+            side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0), pady=1
+        )
+        log_frame = ttk.Frame(self.root, padding=(0, 4))
+        log_frame.pack(fill=tk.BOTH, padx=12, pady=(4, 12))
 
         log_scroll = ttk.Scrollbar(log_frame, orient=tk.VERTICAL)
         log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -432,12 +540,15 @@ class StudioApp:
     def _update_status_bar_color(self) -> None:
         phase = self._run_phase
         if phase == "idle":
-            color = self._FG_DIM
+            bg = self._BG_LIGHT
+            fg = self._FG_DIM
         elif phase == "stopping":
-            color = self._ACCENT_RED
+            bg = "#5a2d2d"
+            fg = self._ACCENT_RED
         else:
-            color = self._ACCENT_YELLOW
-        self._status_bar.configure(bg=color)
+            bg = "#4a3d1a"
+            fg = self._ACCENT_YELLOW
+        self._status_pill.configure(bg=bg, fg=fg)
 
     def _render_robot_status(self) -> None:
         spinner = SPINNER_FRAMES[self._status_spinner_index]
@@ -590,6 +701,7 @@ class StudioApp:
     def _ensure_unity_bridge_dependency_if_configured(self, purpose: str) -> bool:
         project_path_raw = self.unity_project_path_var.get().strip()
         execution_mode = normalize_unity_execution_mode(self.execution_mode_var.get())
+        package_script_meta_detected = False
 
         if project_path_raw == "" and execution_mode == "attach":
             detected_path = resolve_attached_unity_project_path(
@@ -602,9 +714,21 @@ class StudioApp:
 
         changed = False
         if project_path_raw != "":
+            project_root = Path(project_path_raw)
+            package_script_meta_detected = has_unity_bridge_package_script_meta(project_root)
+            if package_script_meta_detected:
+                self.log("Unity bridge package script metadata detected.")
+            else:
+                self.log(
+                    "Unity bridge package script metadata is missing; "
+                    "using legacy fallback bridge script mode."
+                )
             self.log(f"Ensuring Unity bridge package for {purpose}: {project_path_raw}")
             try:
-                changed = ensure_unity_bridge_upm_dependency(Path(project_path_raw))
+                changed = ensure_unity_bridge_upm_dependency(
+                    project_root,
+                    remove_legacy_bridge_script=package_script_meta_detected,
+                )
             except Exception as error:
                 self.log(f"Unity bridge package setup failed: {error}")
                 messagebox.showerror(
@@ -620,23 +744,67 @@ class StudioApp:
                 self.log("Unity bridge UPM dependency added/updated for this project.")
             else:
                 self.log("Unity bridge UPM dependency already present.")
+            if not package_script_meta_detected:
+                try:
+                    fallback_changed = install_legacy_unity_bridge_script(project_root)
+                    if fallback_changed:
+                        self.log(
+                            "Installed fallback bridge script: "
+                            "Assets/Editor/RobotFrameworkUnityBridge.cs"
+                        )
+                    else:
+                        self.log("Fallback bridge script already installed.")
+                    changed = changed or fallback_changed
+                except Exception as error:
+                    self.log(f"Fallback bridge installation failed: {error}")
+                    messagebox.showerror(
+                        "Unity Bridge Setup Error",
+                        (
+                            "Failed to install fallback Unity bridge script.\n"
+                            f"Path: {project_path_raw}\n"
+                            f"Error: {error}"
+                        ),
+                    )
+                    return False
 
         if purpose == "recording":
-            wait_timeout = (
-                BRIDGE_READY_TIMEOUT_SECONDS if changed else BRIDGE_READY_CHECK_TIMEOUT_SECONDS
+            wait_timeouts = build_recording_readiness_timeouts(
+                changed=changed,
+                execution_mode=execution_mode,
+                changed_timeout_seconds=BRIDGE_READY_TIMEOUT_SECONDS,
+                quick_timeout_seconds=BRIDGE_READY_CHECK_TIMEOUT_SECONDS,
+                attach_retry_timeout_seconds=BRIDGE_FALLBACK_READY_TIMEOUT_SECONDS,
             )
-            self.log("Checking Unity bridge readiness...")
-            if not self.unity_bridge.wait_until_available(
-                timeout_seconds=wait_timeout,
-                request_timeout_seconds=BRIDGE_READY_REQUEST_TIMEOUT_SECONDS,
-            ):
+            bridge_ready = False
+            attempt_count = len(wait_timeouts)
+            for attempt_index, wait_timeout in enumerate(wait_timeouts):
+                attempt_number = attempt_index + 1
+                if execution_mode == "attach":
+                    focused = focus_visible_window_with_hint(
+                        self.window_hint_var.get().strip() or "Unity"
+                    )
+                    if focused:
+                        if attempt_number == 1:
+                            self.log("Focused target Unity window for bridge startup check.")
+                        else:
+                            self.log("Refocused target Unity window and retrying bridge readiness.")
+                self.log(
+                    f"Checking Unity bridge readiness... (attempt {attempt_number}/{attempt_count})"
+                )
+                if self.unity_bridge.wait_until_available(
+                    timeout_seconds=wait_timeout,
+                    request_timeout_seconds=BRIDGE_READY_REQUEST_TIMEOUT_SECONDS,
+                ):
+                    bridge_ready = True
+                    break
+            if not bridge_ready:
                 self.log("Unity bridge readiness check timed out.")
                 if project_path_raw != "":
                     project_root = Path(project_path_raw)
-                    if not has_unity_bridge_package_script_meta(project_root):
+                    if not package_script_meta_detected:
                         self.log(
-                            "Unity bridge package script meta is missing in PackageCache. "
-                            "Installing legacy fallback bridge script..."
+                            "Unity bridge package script metadata is still missing after wait. "
+                            "Re-installing fallback bridge script..."
                         )
                         try:
                             fallback_changed = install_legacy_unity_bridge_script(project_root)
@@ -647,6 +815,10 @@ class StudioApp:
                                 )
                             else:
                                 self.log("Fallback bridge script already exists.")
+                            if execution_mode == "attach":
+                                focus_visible_window_with_hint(
+                                    self.window_hint_var.get().strip() or "Unity"
+                                )
                             self.log("Waiting for fallback bridge readiness...")
                             if self.unity_bridge.wait_until_available(
                                 timeout_seconds=BRIDGE_FALLBACK_READY_TIMEOUT_SECONDS,
