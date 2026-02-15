@@ -51,17 +51,9 @@ def get_foreground_window_snapshot() -> WindowSnapshot | None:
     return WindowSnapshot(title=title, left=left, top=top, width=width, height=height)
 
 
-def events_to_steps(events: list[RecordedEvent], auto_wait_threshold_ms: int = 0) -> list[Step]:
+def events_to_steps(events: list[RecordedEvent]) -> list[Step]:
     steps: list[Step] = []
-    previous_ts: int | None = None
     for event in events:
-        if previous_ts is not None and auto_wait_threshold_ms > 0:
-            diff_ms = event.timestamp_ms - previous_ts
-            if diff_ms >= auto_wait_threshold_ms:
-                seconds = round(diff_ms / 1000, 2)
-                steps.append(Step(action="wait", title="wait", params={"seconds": seconds}))
-        previous_ts = event.timestamp_ms
-
         if event.kind == "click":
             steps.append(Step(action="click", title="click", params=dict(event.payload)))
             continue
@@ -69,7 +61,7 @@ def events_to_steps(events: list[RecordedEvent], auto_wait_threshold_ms: int = 0
             steps.append(Step(action="drag", title="drag", params=dict(event.payload)))
             continue
         if event.kind == "wait":
-            steps.append(Step(action="wait", title="wait", params=dict(event.payload)))
+            # Legacy recordings may still contain wait events, but wait is no longer a step type.
             continue
         if event.kind == "shortcut":
             steps.append(Step(action="shortcut", title="shortcut", params=dict(event.payload)))

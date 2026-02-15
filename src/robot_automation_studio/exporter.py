@@ -54,8 +54,6 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
             f"{indent}Emit Annotation Metadata    ${{annotation}}",
         ]
         return lines
-    if step.action == "wait":
-        return [f"{indent}Wait For Seconds    {params.get('seconds', 1.0)}"]
     if step.action == "shortcut":
         return [f"{indent}Send Unity Shortcut    {params.get('shortcut', 'CTRL+S')}"]
     if step.action == "keys":

@@ -8,6 +8,13 @@ from typing import Any
 from .models import Scenario, Step
 
 
+def _validate_action(action: str) -> str:
+    normalized = str(action).strip()
+    if normalized.lower() == "wait":
+        raise ValueError("wait step is not supported; use per-step wait_seconds instead.")
+    return normalized
+
+
 class ScenarioEditor:
     def __init__(self, scenario: Scenario) -> None:
         self.scenario = scenario
@@ -15,7 +22,12 @@ class ScenarioEditor:
     def add_step(
         self, action: str, title: str | None = None, params: dict[str, Any] | None = None
     ) -> Step:
-        step = Step(action=action, title=title or action, params=dict(params or {}))
+        validated_action = _validate_action(action)
+        step = Step(
+            action=validated_action,
+            title=title or validated_action,
+            params=dict(params or {}),
+        )
         self.scenario.steps.append(step)
         return step
 
@@ -57,5 +69,5 @@ class ScenarioEditor:
         if params is not None:
             step.params = dict(params)
         if action is not None:
-            step.action = action
+            step.action = _validate_action(action)
         return step

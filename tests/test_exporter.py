@@ -36,7 +36,6 @@ def build_scenario() -> Scenario:
                     "wait_seconds": 0.8,
                 },
             ),
-            Step(action="wait", title="Wait", params={"seconds": 1.25}),
             Step(action="shortcut", title="Save", params={"shortcut": "CTRL+S"}),
         ],
     )
@@ -106,6 +105,19 @@ def test_generate_robot_suite_uses_zero_wait_when_not_specified() -> None:
     text = generate_robot_suite(scenario, suite_name="no-wait")
 
     assert "Wait For Seconds    0.0" in text
+
+
+def test_generate_robot_suite_treats_wait_action_as_unsupported() -> None:
+    scenario = Scenario(
+        name="Legacy Wait Action",
+        target_window_hint="Unity",
+        steps=[Step(action="wait", title="Wait", params={"seconds": 1.25})],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="legacy-wait")
+
+    assert "Unsupported action: wait" in text
+    assert "Wait For Seconds    1.25" not in text
 
 
 def test_export_all_writes_robot_and_json(tmp_path: Path) -> None:

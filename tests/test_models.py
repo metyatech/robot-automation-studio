@@ -65,8 +65,8 @@ def test_scenario_json_round_trip(tmp_path: Path) -> None:
 
 
 def test_step_has_stable_default_title() -> None:
-    step = Step(action="wait", params={"seconds": 1.5})
-    assert step.title == "wait"
+    step = Step(action="click", params={"x_ratio": 0.5, "y_ratio": 0.5})
+    assert step.title == "click"
 
 
 def test_normalize_unity_execution_mode_defaults_to_attach() -> None:

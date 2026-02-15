@@ -327,7 +327,7 @@ class StudioApp:
 
     def stop_recording(self) -> None:
         events = self.recorder.stop()
-        steps = events_to_steps(events, auto_wait_threshold_ms=0)
+        steps = events_to_steps(events)
         for step in steps:
             self.scenario.steps.append(step)
         self.refresh_steps()
