@@ -44,3 +44,13 @@ def test_build_banner_text_contains_progress_and_hotkey() -> None:
 def test_build_banner_text_normalizes_blank_progress() -> None:
     text = build_banner_text("", "Ctrl+Shift+F12")
     assert text == "Running  |  Press Ctrl+Shift+F12 to stop"
+
+
+def test_build_banner_text_for_recording_mode() -> None:
+    text = build_banner_text("Recording", "Ctrl+Shift+F12", mode="recording")
+    assert text == "Recording  |  Press Ctrl+Shift+F12 to stop recording"
+
+
+def test_build_banner_text_for_recording_mode_normalizes_blank_progress() -> None:
+    text = build_banner_text("", "Ctrl+Shift+F12", mode="recording")
+    assert text == "Recording  |  Press Ctrl+Shift+F12 to stop recording"

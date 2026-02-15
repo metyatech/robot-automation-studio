@@ -5,7 +5,7 @@ from __future__ import annotations
 import tkinter as tk
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import win32api  # type: ignore[import-not-found]
 import win32con  # type: ignore[import-not-found]
@@ -109,19 +109,63 @@ def compute_banner_rect(
     )
 
 
-def build_banner_text(progress_text: str, stop_hotkey_label: str) -> str:
-    normalized_progress = str(progress_text or "").strip() or "Running"
-    return f"{normalized_progress}  |  Press {stop_hotkey_label} to stop"
+OverlayMode = Literal["run", "recording"]
+
+
+@dataclass(frozen=True, slots=True)
+class OverlayTheme:
+    border_color: str
+    banner_background: str
+    banner_foreground: str
+    default_progress_text: str
+    stop_action_text: str
+
+
+def _overlay_theme(mode: OverlayMode) -> OverlayTheme:
+    if mode == "recording":
+        return OverlayTheme(
+            border_color="#1fb6ff",
+            banner_background="#13293d",
+            banner_foreground="#f4faff",
+            default_progress_text="Recording",
+            stop_action_text="stop recording",
+        )
+    return OverlayTheme(
+        border_color="#ff2b2b",
+        banner_background="#1a1a1a",
+        banner_foreground="#ffffff",
+        default_progress_text="Running",
+        stop_action_text="stop",
+    )
+
+
+def build_banner_text(
+    progress_text: str,
+    stop_hotkey_label: str,
+    *,
+    mode: OverlayMode = "run",
+) -> str:
+    theme = _overlay_theme(mode)
+    normalized_progress = str(progress_text or "").strip() or theme.default_progress_text
+    return f"{normalized_progress}  |  Press {stop_hotkey_label} to {theme.stop_action_text}"
 
 
 class AutomationRunOverlay:
     """Darkens non-target screen areas and shows stop-hotkey guidance."""
 
-    def __init__(self, root: tk.Tk, window_hint: str, stop_hotkey_label: str) -> None:
+    def __init__(
+        self,
+        root: tk.Tk,
+        window_hint: str,
+        stop_hotkey_label: str,
+        mode: OverlayMode = "run",
+    ) -> None:
         self._root = root
         self._window_hint = window_hint
         self._stop_hotkey_label = stop_hotkey_label
-        self._progress_text = "Running"
+        self._mode: OverlayMode = mode
+        self._theme = _overlay_theme(mode)
+        self._progress_text = self._theme.default_progress_text
         self._dim_windows: list[tk.Toplevel] = []
         self._border_windows: list[tk.Toplevel] = []
         self._banner_window: tk.Toplevel | None = None
@@ -154,13 +198,19 @@ class AutomationRunOverlay:
 
     def _create_windows(self) -> None:
         self._dim_windows = [self._new_overlay_window("#000000", 0.45) for _ in range(4)]
-        self._border_windows = [self._new_overlay_window("#ff2b2b", 0.95) for _ in range(4)]
-        self._banner_window = self._new_overlay_window("#1a1a1a", 0.9)
+        self._border_windows = [
+            self._new_overlay_window(self._theme.border_color, 0.95) for _ in range(4)
+        ]
+        self._banner_window = self._new_overlay_window(self._theme.banner_background, 0.9)
         self._banner_label = tk.Label(
             self._banner_window,
-            text=build_banner_text(self._progress_text, self._stop_hotkey_label),
-            fg="#ffffff",
-            bg="#1a1a1a",
+            text=build_banner_text(
+                self._progress_text,
+                self._stop_hotkey_label,
+                mode=self._mode,
+            ),
+            fg=self._theme.banner_foreground,
+            bg=self._theme.banner_background,
             font=("Segoe UI", 11, "bold"),
             padx=18,
             pady=6,
@@ -181,11 +231,15 @@ class AutomationRunOverlay:
         window.geometry(f"{width}x{height}+{rect.left}+{rect.top}")
 
     def set_progress_text(self, progress_text: str) -> None:
-        self._progress_text = str(progress_text or "").strip() or "Running"
+        self._progress_text = str(progress_text or "").strip() or self._theme.default_progress_text
         if self._banner_label is None:
             return
         self._banner_label.configure(
-            text=build_banner_text(self._progress_text, self._stop_hotkey_label)
+            text=build_banner_text(
+                self._progress_text,
+                self._stop_hotkey_label,
+                mode=self._mode,
+            )
         )
 
     def _update(self) -> None:

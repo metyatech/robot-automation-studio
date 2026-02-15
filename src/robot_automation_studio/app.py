@@ -20,7 +20,7 @@ from .models import (
     Scenario,
     normalize_unity_execution_mode,
 )
-from .overlay import AutomationRunOverlay
+from .overlay import AutomationRunOverlay, OverlayMode
 from .recorder import ScenarioRecorder, events_to_steps, has_visible_window_with_hint
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
@@ -70,6 +70,7 @@ class StudioApp:
         self._stop_requested = False
         self._stop_hotkey_listener: pynput_keyboard.GlobalHotKeys | None = None
         self._overlay: AutomationRunOverlay | None = None
+        self._overlay_mode: OverlayMode | None = None
         self._run_phase = "idle"
         self._status_spinner_index = 0
         self._status_timer_id: str | None = None
@@ -435,7 +436,7 @@ class StudioApp:
         status_text = format_run_status(self._run_phase, spinner)
         self.robot_status_var.set(status_text)
         self._update_status_bar_color()
-        if self._overlay is not None:
+        if self._overlay is not None and self._overlay_mode == "run":
             self._overlay.set_progress_text(status_text)
 
     def _tick_robot_status(self) -> None:
@@ -499,7 +500,7 @@ class StudioApp:
 
     def _start_stop_hotkey(self) -> None:
         def _on_hotkey() -> None:
-            self.root.after(0, self.stop_robot_suite)
+            self.root.after(0, self._stop_active_automation)
 
         try:
             self._stop_hotkey_listener = pynput_keyboard.GlobalHotKeys(
@@ -519,19 +520,25 @@ class StudioApp:
         listener.stop()
         self._stop_hotkey_listener = None
 
-    def _start_overlay(self) -> None:
-        if self._overlay is not None:
+    def _start_overlay(self, mode: OverlayMode, progress_text: str) -> None:
+        if self._overlay is not None and self._overlay_mode == mode:
+            self._overlay.set_progress_text(progress_text)
             return
+        if self._overlay is not None:
+            self._stop_overlay()
         try:
             self._overlay = AutomationRunOverlay(
                 root=self.root,
                 window_hint=self.window_hint_var.get().strip() or "Unity",
                 stop_hotkey_label=STOP_HOTKEY_LABEL,
+                mode=mode,
             )
+            self._overlay_mode = mode
             self._overlay.start()
-            self._overlay.set_progress_text(self.robot_status_var.get())
+            self._overlay.set_progress_text(progress_text)
         except Exception as error:  # pragma: no cover - integration path
             self._overlay = None
+            self._overlay_mode = None
             self.log(f"Failed to start overlay: {error}")
 
     def _stop_overlay(self) -> None:
@@ -539,6 +546,14 @@ class StudioApp:
             return
         self._overlay.stop()
         self._overlay = None
+        self._overlay_mode = None
+
+    def _stop_active_automation(self) -> None:
+        if self.recorder.is_recording:
+            self.stop_recording()
+            return
+        if self._is_robot_running():
+            self.stop_robot_suite()
 
     def refresh_steps(self) -> None:
         self.step_list.delete(0, tk.END)
@@ -641,6 +656,9 @@ class StudioApp:
         self.refresh_steps()
 
     def start_recording(self) -> None:
+        if self.recorder.is_recording:
+            self.log("Recording is already running.")
+            return
         window_hint = self.window_hint_var.get().strip() or "Unity"
         execution_mode = normalize_unity_execution_mode(self.execution_mode_var.get())
         if execution_mode == "attach" and not has_visible_window_with_hint(window_hint):
@@ -659,16 +677,24 @@ class StudioApp:
         if not self._ensure_unity_bridge_dependency_if_configured("recording"):
             return
         self.recorder.start(window_hint=window_hint)
+        self._start_stop_hotkey()
+        self._start_overlay(mode="recording", progress_text="Recording")
         self._rec_indicator.configure(text=" \u25cf REC ", bg=self._ACCENT_RED, fg="#1e1e2e")
         self.root.title("Robot Automation Studio [RECORDING]")
         self.log(f"Recording started. window_hint={window_hint}")
 
     def stop_recording(self) -> None:
+        if not self.recorder.is_recording:
+            self.log("Recording is not running.")
+            return
         events = self.recorder.stop()
         steps = events_to_steps(events)
         for step in steps:
             self.scenario.steps.append(step)
         self.refresh_steps()
+        if not self._is_robot_running():
+            self._stop_overlay()
+            self._stop_stop_hotkey()
         self._rec_indicator.configure(text=" IDLE ", bg=self._BG_LIGHT, fg=self._FG_DIM)
         self.root.title("Robot Automation Studio")
         self.log(f"Recording stopped. Added {len(steps)} steps.")
@@ -787,6 +813,13 @@ class StudioApp:
         return self._run_thread is not None and self._run_thread.is_alive()
 
     def run_robot_suite(self) -> None:
+        if self.recorder.is_recording:
+            self.log("Stop recording before running Robot suite.")
+            messagebox.showerror(
+                "Recording In Progress",
+                "Stop recording before running Robot suite.",
+            )
+            return
         if self._is_robot_running():
             self.log("Robot suite is already running.")
             return
@@ -804,7 +837,7 @@ class StudioApp:
         self._set_run_phase("starting_robot")
         self._set_run_controls(running=True)
         self._start_stop_hotkey()
-        self._start_overlay()
+        self._start_overlay(mode="run", progress_text=self.robot_status_var.get())
 
         def _run() -> None:
             run_result: RunResult | None = None
@@ -870,6 +903,8 @@ class StudioApp:
         self._set_run_controls(running=False)
 
     def on_close(self) -> None:
+        if self.recorder.is_recording:
+            self.stop_recording()
         if self._is_robot_running():
             self.stop_robot_suite()
             self.root.after(250, self.on_close)

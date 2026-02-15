@@ -15,6 +15,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - stop button
   - global emergency stop hotkey (`Ctrl+Shift+F12`)
   - dark overlay outside the active automation window with shortcut banner
+  - recording/run overlays use distinct style and banner text
 - Export both `.robot` suites and machine-readable scenario spec JSON files
 - Designed for Unity Editor and other desktop targets on Windows
 
@@ -54,6 +55,7 @@ robot-automation-studio
 4. Click `Start Recording`, perform operations in Unity Editor, then click `Stop Recording`.
    - In `attach`, `Start Recording` fails immediately with an error dialog if no visible window matches `Window Hint`.
    - If Unity bridge was just added or not ready, `Start Recording` waits for bridge readiness before starting recording.
+   - While recording, overlay highlight is enabled (distinct "recording" style from run mode).
    - Click/drag is recorded only when a UI Automation element selector is resolved.
    - If selector resolution fails, Studio logs a recording error and does not add the step.
    - For Unity Hierarchy pane clicks, Studio uses Unity bridge selection path when available.
