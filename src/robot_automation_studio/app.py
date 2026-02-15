@@ -106,7 +106,6 @@ class StudioApp:
         ttk.Button(controls, text="Stop Recording", command=self.stop_recording).pack(
             side=tk.LEFT, padx=4
         )
-        ttk.Button(controls, text="Add Wait", command=self.add_wait).pack(side=tk.LEFT, padx=4)
         ttk.Button(controls, text="Add Click", command=self.add_click).pack(side=tk.LEFT, padx=4)
         ttk.Button(controls, text="Add Drag", command=self.add_drag).pack(side=tk.LEFT, padx=4)
         ttk.Button(controls, text="Add Shortcut", command=self.add_shortcut).pack(
@@ -328,15 +327,11 @@ class StudioApp:
 
     def stop_recording(self) -> None:
         events = self.recorder.stop()
-        steps = events_to_steps(events, auto_wait_threshold_ms=500)
+        steps = events_to_steps(events, auto_wait_threshold_ms=0)
         for step in steps:
             self.scenario.steps.append(step)
         self.refresh_steps()
         self.log(f"Recording stopped. Added {len(steps)} steps.")
-
-    def add_wait(self) -> None:
-        self.editor.add_step("wait", "wait", {"seconds": 1.0})
-        self.refresh_steps()
 
     def add_click(self) -> None:
         self.editor.add_step(
@@ -347,7 +342,7 @@ class StudioApp:
                 "y_ratio": 0.5,
                 "box_width": 180,
                 "box_height": 48,
-                "wait_seconds": 0.8,
+                "wait_seconds": 0.0,
             },
         )
         self.refresh_steps()
@@ -361,7 +356,7 @@ class StudioApp:
                 "from_y_ratio": 0.5,
                 "to_x_ratio": 0.7,
                 "to_y_ratio": 0.5,
-                "wait_seconds": 0.8,
+                "wait_seconds": 0.0,
             },
         )
         self.refresh_steps()

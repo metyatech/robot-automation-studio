@@ -75,3 +75,38 @@ def test_recorder_click_and_drag_do_not_add_fixed_wait_seconds() -> None:
     assert [step.action for step in steps] == ["click", "drag"]
     assert "wait_seconds" not in steps[0].params
     assert "wait_seconds" not in steps[1].params
+
+
+def test_click_is_recorded_when_press_unfocused_and_release_focused() -> None:
+    snapshots = iter(
+        [
+            WindowSnapshot(title="Unity", left=0, top=0, width=1000, height=800),
+        ]
+    )
+    recorder = ScenarioRecorder(window_provider=lambda: next(snapshots))
+    recorder.start(window_hint="Unity")
+    recorder._on_click(300, 200, None, True)
+    recorder._on_click(300, 200, None, False)
+    steps = events_to_steps(recorder.stop())
+
+    assert len(steps) == 1
+    assert steps[0].action == "click"
+
+
+def test_unfocused_release_does_not_carry_state_into_next_click() -> None:
+    snapshots = iter(
+        [
+            WindowSnapshot(title="Other App", left=0, top=0, width=1000, height=800),
+            WindowSnapshot(title="Unity", left=0, top=0, width=1000, height=800),
+        ]
+    )
+    recorder = ScenarioRecorder(window_provider=lambda: next(snapshots))
+    recorder.start(window_hint="Unity")
+    recorder._on_click(100, 100, None, True)
+    recorder._on_click(160, 160, None, False)
+    recorder._on_click(220, 220, None, True)
+    recorder._on_click(220, 220, None, False)
+    steps = events_to_steps(recorder.stop())
+
+    assert len(steps) == 1
+    assert steps[0].action == "click"

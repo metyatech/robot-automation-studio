@@ -106,6 +106,8 @@ class ScenarioRecorder:
         self._events.clear()
         self._recording = True
         self._window_hint = window_hint
+        self._mouse_down_point = None
+        self._modifier_keys.clear()
         self._mouse_listener = mouse.Listener(on_click=self._on_click)
         self._keyboard_listener = keyboard.Listener(
             on_press=self._on_key_press, on_release=self._on_key_release
@@ -121,6 +123,8 @@ class ScenarioRecorder:
             self._keyboard_listener.stop()
         self._mouse_listener = None
         self._keyboard_listener = None
+        self._mouse_down_point = None
+        self._modifier_keys.clear()
         return list(self._events)
 
     def append(self, kind: str, payload: dict[str, Any]) -> None:
@@ -147,19 +151,21 @@ class ScenarioRecorder:
     def _on_click(self, x: int, y: int, _button: Any, pressed: bool) -> None:
         if not self._recording:
             return
-        snapshot = self._window_provider()
-        if not self._window_matches(snapshot):
-            return
-        assert snapshot is not None
 
         if pressed:
             self._mouse_down_point = (x, y)
             return
 
-        if self._mouse_down_point is None:
-            return
-        start_x, start_y = self._mouse_down_point
+        start_point = self._mouse_down_point
         self._mouse_down_point = None
+        if start_point is None:
+            return
+        snapshot = self._window_provider()
+        if not self._window_matches(snapshot):
+            return
+        assert snapshot is not None
+
+        start_x, start_y = start_point
         from_x_ratio, from_y_ratio = normalize_point(start_x, start_y, snapshot)
         to_x_ratio, to_y_ratio = normalize_point(x, y, snapshot)
         distance = abs(start_x - x) + abs(start_y - y)
