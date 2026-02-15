@@ -21,7 +21,6 @@ def test_events_to_steps_maps_mouse_and_keyboard_events() -> None:
             },
             timestamp_ms=1500,
         ),
-        RecordedEvent(kind="wait", payload={"seconds": 1.2}, timestamp_ms=2800),
         RecordedEvent(kind="shortcut", payload={"shortcut": "CTRL+S"}, timestamp_ms=3000),
     ]
 
@@ -41,7 +40,7 @@ def test_normalize_point_uses_window_rect() -> None:
     assert round(y_ratio, 2) == 0.5
 
 
-def test_recorder_does_not_insert_wait_between_actions() -> None:
+def test_recorder_does_not_insert_implicit_step_between_actions() -> None:
     recorder = ScenarioRecorder()
     recorder.start()
     recorder.append_with_timestamp("click", {"x_ratio": 0.1, "y_ratio": 0.2}, timestamp_ms=1000)
@@ -52,7 +51,7 @@ def test_recorder_does_not_insert_wait_between_actions() -> None:
     assert [step.action for step in steps] == ["click", "click"]
 
 
-def test_recorder_click_and_drag_do_not_add_fixed_wait_seconds() -> None:
+def test_recorder_click_and_drag_do_not_add_fixed_delay_seconds() -> None:
     recorder = ScenarioRecorder(
         window_provider=lambda: WindowSnapshot(
             title="Unity",

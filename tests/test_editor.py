@@ -24,17 +24,17 @@ def test_editor_add_delete_move_update() -> None:
     assert editor.scenario.steps[0].action == "click"
 
 
-def test_editor_rejects_wait_step_add() -> None:
+def test_editor_rejects_unsupported_action_on_add() -> None:
     editor = ScenarioEditor(Scenario(name="test"))
 
-    with pytest.raises(ValueError, match="wait step is not supported"):
-        editor.add_step(action="wait", title="Wait", params={"seconds": 1.0})
+    with pytest.raises(ValueError, match="Unsupported step action"):
+        editor.add_step(action="invalid-action", title="Invalid", params={})
 
 
-def test_editor_rejects_wait_step_update() -> None:
+def test_editor_rejects_unsupported_action_on_update() -> None:
     editor = ScenarioEditor(
         Scenario(name="test", steps=[Step(action="click", params={"x_ratio": 0.5, "y_ratio": 0.5})])
     )
 
-    with pytest.raises(ValueError, match="wait step is not supported"):
-        editor.update_step(0, action="wait")
+    with pytest.raises(ValueError, match="Unsupported step action"):
+        editor.update_step(0, action="invalid-action")

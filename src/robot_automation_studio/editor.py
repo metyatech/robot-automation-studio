@@ -7,11 +7,21 @@ from typing import Any
 
 from .models import Scenario, Step
 
+SUPPORTED_STEP_ACTIONS = {
+    "click",
+    "drag",
+    "shortcut",
+    "keys",
+    "menu",
+    "type",
+    "screenshot",
+}
+
 
 def _validate_action(action: str) -> str:
-    normalized = str(action).strip()
-    if normalized.lower() == "wait":
-        raise ValueError("wait step is not supported; use per-step wait_seconds instead.")
+    normalized = str(action).strip().lower()
+    if normalized not in SUPPORTED_STEP_ACTIONS:
+        raise ValueError(f"Unsupported step action: {action}")
     return normalized
 
 

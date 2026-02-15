@@ -74,9 +74,9 @@ def test_generate_robot_suite_launch_mode_contains_start_and_stop() -> None:
     assert "unity_project_path is required when unity_mode is launch." in text
 
 
-def test_generate_robot_suite_uses_zero_wait_when_not_specified() -> None:
+def test_generate_robot_suite_uses_zero_delay_when_not_specified() -> None:
     scenario = Scenario(
-        name="No Wait Scenario",
+        name="No Delay Scenario",
         target_window_hint="Unity",
         steps=[
             Step(
@@ -102,22 +102,21 @@ def test_generate_robot_suite_uses_zero_wait_when_not_specified() -> None:
         ],
     )
 
-    text = generate_robot_suite(scenario, suite_name="no-wait")
+    text = generate_robot_suite(scenario, suite_name="no-delay")
 
     assert "Wait For Seconds    0.0" in text
 
 
-def test_generate_robot_suite_treats_wait_action_as_unsupported() -> None:
+def test_generate_robot_suite_treats_unknown_action_as_unsupported() -> None:
     scenario = Scenario(
-        name="Legacy Wait Action",
+        name="Unsupported Action",
         target_window_hint="Unity",
-        steps=[Step(action="wait", title="Wait", params={"seconds": 1.25})],
+        steps=[Step(action="unknown-action", title="Unknown", params={})],
     )
 
-    text = generate_robot_suite(scenario, suite_name="legacy-wait")
+    text = generate_robot_suite(scenario, suite_name="unsupported-action")
 
-    assert "Unsupported action: wait" in text
-    assert "Wait For Seconds    1.25" not in text
+    assert "Unsupported action: unknown-action" in text
 
 
 def test_export_all_writes_robot_and_json(tmp_path: Path) -> None:

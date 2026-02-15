@@ -60,9 +60,6 @@ def events_to_steps(events: list[RecordedEvent]) -> list[Step]:
         if event.kind == "drag":
             steps.append(Step(action="drag", title="drag", params=dict(event.payload)))
             continue
-        if event.kind == "wait":
-            # Legacy recordings may still contain wait events, but wait is no longer a step type.
-            continue
         if event.kind == "shortcut":
             steps.append(Step(action="shortcut", title="shortcut", params=dict(event.payload)))
             continue

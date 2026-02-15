@@ -5,7 +5,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 ## Features
 
 - Record desktop actions (click, drag, shortcut) with relative coordinates
-- No standalone `wait` step type (delay is configured per action via `wait_seconds`)
+- Optional per-action delay via `wait_seconds`
 - Foreground window filtering during recording (for Unity-focused capture)
 - Edit recorded steps (add, delete, move, modify parameters)
 - Run Robot Framework suites directly from the app
