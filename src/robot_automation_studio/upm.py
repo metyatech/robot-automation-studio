@@ -72,6 +72,8 @@ def ensure_unity_bridge_upm_dependency(
     project_path: Path,
     package_name: str = DEFAULT_UNITY_BRIDGE_PACKAGE_NAME,
     package_url: str = DEFAULT_UNITY_BRIDGE_PACKAGE_URL,
+    *,
+    remove_legacy_bridge_script: bool = True,
 ) -> bool:
     project_root = Path(project_path).resolve()
     manifest_path = project_root / "Packages" / "manifest.json"
@@ -94,5 +96,7 @@ def ensure_unity_bridge_upm_dependency(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-    legacy_changed = _remove_legacy_bridge_script(project_root)
+    legacy_changed = False
+    if remove_legacy_bridge_script:
+        legacy_changed = _remove_legacy_bridge_script(project_root)
     return manifest_changed or legacy_changed

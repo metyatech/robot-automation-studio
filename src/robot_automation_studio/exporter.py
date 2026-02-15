@@ -32,6 +32,13 @@ def _scenario_project_path(scenario: Scenario) -> str:
     return str(scenario.metadata.get(UNITY_PROJECT_PATH_KEY) or "").strip()
 
 
+def _robot_safe_project_path(project_path: str) -> str:
+    normalized = str(project_path or "").strip()
+    if normalized == "":
+        return ""
+    return normalized.replace("\\", "/")
+
+
 def _robot_named_args(params: dict[str, object], keys: tuple[str, ...]) -> str:
     parts: list[str] = []
     for key in keys:
@@ -54,8 +61,9 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
         hierarchy_path = str(params.get("hierarchy_path") or "").strip()
         if hierarchy_path:
             lines = [
-                f"{indent}${{annotation}}=    Select Unity Hierarchy Object"
-                f"    hierarchy_path={hierarchy_path}",
+                f"{indent}${{annotation}}=    Wait Until Keyword Succeeds"
+                "    45 sec    1 sec    Select Unity Hierarchy Object"
+                f"    hierarchy_path={hierarchy_path}    timeout_seconds=4.0",
                 f"{indent}Wait For Seconds    {params.get('wait_seconds', 0.0)}",
                 f"{indent}Emit Annotation Metadata    ${{annotation}}",
             ]
@@ -105,7 +113,7 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
 def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> str:
     test_case_name = suite_name or scenario.name
     execution_mode = _scenario_execution_mode(scenario)
-    unity_project_path = _scenario_project_path(scenario)
+    unity_project_path = _robot_safe_project_path(_scenario_project_path(scenario))
     window_hint = scenario.target_window_hint.strip() or "Unity"
     lines = [
         "*** Settings ***",
@@ -119,10 +127,10 @@ def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> s
         f"    ${{unity_project_path}}=    Set Variable    {unity_project_path}",
         f"    ${{unity_window_hint}}=    Set Variable    {window_hint}",
         "    TRY",
-        "        IF    '${unity_project_path}' != ''",
-        "            Ensure Unity Bridge UPM Package    ${unity_project_path}",
-        "        END",
         "        IF    '${unity_mode}' == 'launch'",
+        "            IF    '${unity_project_path}' != ''",
+        "                Ensure Unity Bridge UPM Package    ${unity_project_path}",
+        "            END",
         "            Require Unity Project Path    ${unity_project_path}",
         "            Start Unity Editor    project_path=${unity_project_path}",
         "        ELSE",

@@ -33,7 +33,10 @@ from .upm import (
     has_unity_bridge_package_script_meta,
     install_legacy_unity_bridge_script,
 )
-from .window_focus import focus_visible_window_with_hint
+from .window_focus import (
+    focus_visible_window_with_hint,
+    trigger_assets_refresh_shortcut_with_hint,
+)
 
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
@@ -43,11 +46,64 @@ BRIDGE_READY_REQUEST_TIMEOUT_SECONDS = 0.8
 BRIDGE_FALLBACK_READY_TIMEOUT_SECONDS = 25.0
 
 
+class _ToolTip:
+    """Lightweight hover tooltip for any tkinter widget."""
+
+    _DELAY_MS = 400
+
+    def __init__(self, widget: tk.Widget, text: str) -> None:
+        self._widget = widget
+        self._text = text
+        self._tip_window: tk.Toplevel | None = None
+        self._after_id: str | None = None
+        widget.bind("<Enter>", self._schedule, add=True)
+        widget.bind("<Leave>", self._cancel, add=True)
+
+    def _schedule(self, _event: Any) -> None:
+        self._cancel()
+        self._after_id = self._widget.after(self._DELAY_MS, self._show)
+
+    def _cancel(self, _event: Any = None) -> None:
+        if self._after_id is not None:
+            self._widget.after_cancel(self._after_id)
+            self._after_id = None
+        self._hide()
+
+    def _show(self) -> None:
+        self._after_id = None
+        if self._tip_window is not None:
+            return
+        x = self._widget.winfo_rootx() + 4
+        y = self._widget.winfo_rooty() + self._widget.winfo_height() + 4
+        tw = tk.Toplevel(self._widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(
+            tw,
+            text=self._text,
+            background="#313150",
+            foreground="#cdd6f4",
+            font=("Segoe UI", 9),
+            padx=6,
+            pady=3,
+            borderwidth=1,
+            relief="solid",
+        )
+        label.pack()
+        self._tip_window = tw
+
+    def _hide(self) -> None:
+        if self._tip_window is not None:
+            self._tip_window.destroy()
+            self._tip_window = None
+
+
 class StudioApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Robot Automation Studio")
         self.root.geometry("1200x760")
+        self.root.minsize(960, 640)
 
         self.scenario = Scenario(name="Unity Editor Flow")
         self.editor = ScenarioEditor(self.scenario)
@@ -127,12 +183,22 @@ class StudioApp:
             insertcolor=self._FG,
             borderwidth=1,
         )
+        style.map(
+            "TEntry",
+            lightcolor=[("focus", self._ACCENT_BLUE)],
+            bordercolor=[("focus", self._ACCENT_BLUE)],
+        )
         style.configure(
             "TCombobox",
             fieldbackground=self._BG_MID,
             foreground=self._FG,
             background=self._BTN_BG,
             arrowcolor=self._FG,
+        )
+        style.map(
+            "TCombobox",
+            lightcolor=[("focus", self._ACCENT_BLUE)],
+            bordercolor=[("focus", self._ACCENT_BLUE)],
         )
         style.configure(
             "TButton",
@@ -213,7 +279,7 @@ class StudioApp:
 
         self.root.configure(bg=self._BG)
 
-    def _section_header(self, parent: tk.Widget, text: str) -> ttk.Frame:
+    def _section_header(self, parent: tk.Misc, text: str) -> ttk.Frame:
         """Create a section header (bold label + separator) and return a content frame."""
         header_row = ttk.Frame(parent)
         header_row.pack(fill=tk.X, padx=12, pady=(12, 0))
@@ -226,9 +292,13 @@ class StudioApp:
         return content
 
     def _toolbar_group(
-        self, parent: tk.Widget, label: str
+        self, parent: tk.Misc, label: str, *, first: bool = False
     ) -> ttk.Frame:
         """Create a labeled toolbar button group and return the button container."""
+        if not first:
+            ttk.Separator(parent, orient=tk.VERTICAL).pack(
+                side=tk.LEFT, fill=tk.Y, padx=6, pady=2
+            )
         group = ttk.Frame(parent)
         group.pack(side=tk.LEFT, padx=(0, 6))
         ttk.Label(group, text=label, style="GroupLabel.TLabel").pack(anchor=tk.W)
@@ -238,99 +308,114 @@ class StudioApp:
 
     def _build_ui(self) -> None:
         # ── A. Scenario Configuration ──────────────────────────────────────
-        config_frame = self._section_header(self.root, "Scenario Configuration")
+        config_header_row = ttk.Frame(self.root)
+        config_header_row.pack(fill=tk.X, padx=12, pady=(12, 0))
+        ttk.Label(config_header_row, text="Scenario Configuration", style="Section.TLabel").pack(
+            side=tk.LEFT
+        )
+        ttk.Separator(config_header_row, orient=tk.HORIZONTAL).pack(
+            side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0), pady=1
+        )
+        config_card = ttk.Frame(self.root, style="Card.TFrame", padding=12)
+        config_card.pack(fill=tk.X, padx=12, pady=(4, 0))
 
-        ttk.Label(config_frame, text="Scenario Name").grid(
-            row=0, column=0, sticky=tk.W, pady=(4, 0)
+        ttk.Label(config_card, text="Scenario Name", style="Card.TLabel").grid(
+            row=0, column=0, sticky=tk.W, pady=(0, 4)
         )
-        ttk.Entry(config_frame, textvariable=self.name_var, width=40).grid(
-            row=0, column=1, sticky=tk.W, padx=6, pady=(4, 0)
+        ttk.Entry(config_card, textvariable=self.name_var, width=40).grid(
+            row=0, column=1, sticky=tk.W, padx=6, pady=(0, 4)
         )
-        ttk.Label(config_frame, text="Window Hint").grid(
-            row=0, column=2, sticky=tk.W, padx=(20, 0), pady=(4, 0)
+        ttk.Label(config_card, text="Window Hint", style="Card.TLabel").grid(
+            row=0, column=2, sticky=tk.W, padx=(20, 0), pady=(0, 4)
         )
-        ttk.Entry(config_frame, textvariable=self.window_hint_var, width=24).grid(
-            row=0, column=3, sticky=tk.W, padx=6, pady=(4, 0)
+        ttk.Entry(config_card, textvariable=self.window_hint_var, width=24).grid(
+            row=0, column=3, sticky=tk.W, padx=6, pady=(0, 4)
         )
-        ttk.Label(config_frame, text="Execution Mode").grid(
-            row=1, column=0, sticky=tk.W, pady=(8, 0)
+        ttk.Label(config_card, text="Execution Mode", style="Card.TLabel").grid(
+            row=1, column=0, sticky=tk.W, pady=(4, 0)
         )
         mode_combo = ttk.Combobox(
-            config_frame,
+            config_card,
             textvariable=self.execution_mode_var,
             values=("attach", "launch"),
             state="readonly",
             width=14,
         )
-        mode_combo.grid(row=1, column=1, sticky=tk.W, padx=6, pady=(8, 0))
+        mode_combo.grid(row=1, column=1, sticky=tk.W, padx=6, pady=(4, 0))
         mode_combo.bind("<<ComboboxSelected>>", self.on_execution_mode_changed)
-        ttk.Label(config_frame, text="Unity Project Path").grid(
-            row=1, column=2, sticky=tk.W, padx=(20, 0), pady=(8, 0)
+        ttk.Label(config_card, text="Unity Project Path", style="Card.TLabel").grid(
+            row=1, column=2, sticky=tk.W, padx=(20, 0), pady=(4, 0)
         )
         self.project_path_entry = ttk.Entry(
-            config_frame, textvariable=self.unity_project_path_var, width=44
+            config_card, textvariable=self.unity_project_path_var, width=44
         )
-        self.project_path_entry.grid(row=1, column=3, sticky=tk.W, padx=6, pady=(8, 0))
+        self.project_path_entry.grid(row=1, column=3, sticky=tk.W, padx=6, pady=(4, 0))
         self.project_path_browse_button = ttk.Button(
-            config_frame, text="Browse", command=self.browse_unity_project_path
+            config_card, text="Browse", command=self.browse_unity_project_path
         )
-        self.project_path_browse_button.grid(row=1, column=4, sticky=tk.W, pady=(8, 0))
+        self.project_path_browse_button.grid(row=1, column=4, sticky=tk.W, pady=(4, 0))
 
         # ── B. Toolbar ─────────────────────────────────────────────────────
         toolbar_outer = ttk.Frame(self.root)
         toolbar_outer.pack(fill=tk.X, padx=12, pady=(12, 4))
 
         # Recording group
-        rec_group = self._toolbar_group(toolbar_outer, "Recording")
-        ttk.Button(
+        rec_group = self._toolbar_group(toolbar_outer, "Recording", first=True)
+        btn = ttk.Button(
             rec_group,
             text="\u25cf Start",
             command=self.start_recording,
             style="Record.TButton",
-        ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(
+        )
+        btn.pack(side=tk.LEFT, padx=2)
+        _ToolTip(btn, "Start recording UI actions")
+        btn = ttk.Button(
             rec_group,
             text="\u25a0 Stop",
             command=self.stop_recording,
             style="Stop.TButton",
-        ).pack(side=tk.LEFT, padx=2)
+        )
+        btn.pack(side=tk.LEFT, padx=2)
+        _ToolTip(btn, "Stop recording")
 
         # Add steps group
         add_group = self._toolbar_group(toolbar_outer, "Add Step")
-        for label, cmd in [
-            ("Click", self.add_click),
-            ("Drag", self.add_drag),
-            ("Shortcut", self.add_shortcut),
-            ("Menu", self.add_menu),
-            ("Type", self.add_type),
+        for label, tip, cmd in [
+            ("\U0001f5b1 Click", "Add a click step", self.add_click),
+            ("\u2194 Drag", "Add a drag step", self.add_drag),
+            ("\u2328 Shortcut", "Add a keyboard shortcut step", self.add_shortcut),
+            ("\u2261 Menu", "Add a menu navigation step", self.add_menu),
+            ("\u270e Type", "Add a text typing step", self.add_type),
         ]:
-            ttk.Button(add_group, text=label, command=cmd, style="Add.TButton").pack(
-                side=tk.LEFT, padx=2
-            )
+            btn = ttk.Button(add_group, text=label, command=cmd, style="Add.TButton")
+            btn.pack(side=tk.LEFT, padx=2)
+            _ToolTip(btn, tip)
 
         # Edit steps group
         edit_group = self._toolbar_group(toolbar_outer, "Edit")
-        ttk.Button(
-            edit_group, text="Delete", command=self.delete_selected, style="Danger.TButton"
-        ).pack(side=tk.LEFT, padx=2)
-        ttk.Button(edit_group, text="\u25b2 Up", command=self.move_up).pack(
-            side=tk.LEFT, padx=2
+        btn = ttk.Button(
+            edit_group, text="\u2715 Delete", command=self.delete_selected, style="Danger.TButton"
         )
-        ttk.Button(edit_group, text="\u25bc Down", command=self.move_down).pack(
-            side=tk.LEFT, padx=2
-        )
-        ttk.Button(edit_group, text="Duplicate", command=self.duplicate_selected).pack(
-            side=tk.LEFT, padx=2
-        )
+        btn.pack(side=tk.LEFT, padx=2)
+        _ToolTip(btn, "Delete selected step")
+        btn = ttk.Button(edit_group, text="\u25b2 Up", command=self.move_up)
+        btn.pack(side=tk.LEFT, padx=2)
+        _ToolTip(btn, "Move step up")
+        btn = ttk.Button(edit_group, text="\u25bc Down", command=self.move_down)
+        btn.pack(side=tk.LEFT, padx=2)
+        _ToolTip(btn, "Move step down")
+        btn = ttk.Button(edit_group, text="\u2398 Duplicate", command=self.duplicate_selected)
+        btn.pack(side=tk.LEFT, padx=2)
+        _ToolTip(btn, "Duplicate selected step")
 
         # File group
         file_group = self._toolbar_group(toolbar_outer, "File")
-        ttk.Button(file_group, text="Save JSON", command=self.save_json).pack(
-            side=tk.LEFT, padx=2
-        )
-        ttk.Button(file_group, text="Load JSON", command=self.load_json).pack(
-            side=tk.LEFT, padx=2
-        )
+        btn = ttk.Button(file_group, text="\U0001f4be Save", command=self.save_json)
+        btn.pack(side=tk.LEFT, padx=2)
+        _ToolTip(btn, "Save scenario as JSON")
+        btn = ttk.Button(file_group, text="\U0001f4c2 Load", command=self.load_json)
+        btn.pack(side=tk.LEFT, padx=2)
+        _ToolTip(btn, "Load scenario from JSON")
 
         # REC indicator (right-aligned)
         self._rec_indicator = tk.Label(
@@ -450,9 +535,7 @@ class StudioApp:
         row1 = ttk.Frame(run_card, style="Card.TFrame")
         row1.pack(fill=tk.X, pady=(0, 8))
         ttk.Label(row1, text="Output Dir", style="Card.TLabel").pack(side=tk.LEFT)
-        ttk.Entry(row1, textvariable=self.output_dir_var, width=48).pack(
-            side=tk.LEFT, padx=(8, 12)
-        )
+        ttk.Entry(row1, textvariable=self.output_dir_var, width=48).pack(side=tk.LEFT, padx=(8, 12))
         ttk.Label(row1, text="Export Name", style="Card.TLabel").pack(side=tk.LEFT)
         ttk.Entry(row1, textvariable=self.export_name_var, width=24).pack(
             side=tk.LEFT, padx=(8, 12)
@@ -494,8 +577,12 @@ class StudioApp:
         ttk.Separator(log_header_row, orient=tk.HORIZONTAL).pack(
             side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0), pady=1
         )
-        log_frame = ttk.Frame(self.root, padding=(0, 4))
-        log_frame.pack(fill=tk.BOTH, padx=12, pady=(4, 12))
+        log_outer = ttk.Frame(self.root)
+        log_outer.pack(fill=tk.BOTH, padx=12, pady=(4, 12))
+        log_border = tk.Frame(log_outer, bg=self._BG_LIGHT, padx=1, pady=1)
+        log_border.pack(fill=tk.BOTH, expand=True)
+        log_frame = ttk.Frame(log_border)
+        log_frame.pack(fill=tk.BOTH, expand=True)
 
         log_scroll = ttk.Scrollbar(log_frame, orient=tk.VERTICAL)
         log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -767,7 +854,7 @@ class StudioApp:
                     )
                     return False
 
-        if purpose == "recording":
+        if purpose in {"recording", "run"}:
             wait_timeouts = build_recording_readiness_timeouts(
                 changed=changed,
                 execution_mode=execution_mode,
@@ -799,6 +886,25 @@ class StudioApp:
                     break
             if not bridge_ready:
                 self.log("Unity bridge readiness check timed out.")
+                if execution_mode == "attach":
+                    refreshed = trigger_assets_refresh_shortcut_with_hint(
+                        self.window_hint_var.get().strip() or "Unity"
+                    )
+                    if refreshed:
+                        self.log(
+                            "Triggered Unity Assets Refresh (Ctrl+R) on target window. "
+                            "Waiting for bridge..."
+                        )
+                        if self.unity_bridge.wait_until_available(
+                            timeout_seconds=BRIDGE_FALLBACK_READY_TIMEOUT_SECONDS,
+                            request_timeout_seconds=BRIDGE_READY_REQUEST_TIMEOUT_SECONDS,
+                        ):
+                            self.log("Unity bridge is ready after refresh.")
+                            return True
+                    else:
+                        self.log(
+                            "Could not trigger Unity Assets Refresh shortcut on target window."
+                        )
                 if project_path_raw != "":
                     project_root = Path(project_path_raw)
                     if not package_script_meta_detected:
@@ -838,12 +944,13 @@ class StudioApp:
                         "\n\nDetected recent Unity compile errors:\n- "
                         + "\n- ".join(compile_errors)
                     )
+                retry_action = "Start Recording" if purpose == "recording" else "Run Robot"
                 messagebox.showerror(
                     "Unity Bridge Not Ready",
                     (
                         "Unity bridge is not ready yet.\n"
                         "Unity may still be importing packages or compiling scripts.\n"
-                        "Open/focus the target Unity Editor and retry Start Recording.\n"
+                        f"Open/focus the target Unity Editor and retry {retry_action}.\n"
                         "If this persists, fix Unity compile errors first."
                         f"{compile_error_hint}"
                     ),

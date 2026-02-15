@@ -94,6 +94,36 @@ def test_ensure_unity_bridge_upm_dependency_removes_legacy_bridge_script(tmp_pat
     assert not legacy_meta.exists()
 
 
+def test_ensure_unity_bridge_upm_dependency_keeps_legacy_when_cleanup_disabled(
+    tmp_path,
+) -> None:
+    project_path = tmp_path / "sample-project"
+    packages_dir = project_path / "Packages"
+    packages_dir.mkdir(parents=True)
+    manifest_path = packages_dir / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {"dependencies": {DEFAULT_UNITY_BRIDGE_PACKAGE_NAME: DEFAULT_UNITY_BRIDGE_PACKAGE_URL}},
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    legacy_script = project_path / "Assets" / "Editor" / "RobotFrameworkUnityBridge.cs"
+    legacy_meta = project_path / "Assets" / "Editor" / "RobotFrameworkUnityBridge.cs.meta"
+    legacy_script.parent.mkdir(parents=True)
+    legacy_script.write_text("// legacy bridge", encoding="utf-8")
+    legacy_meta.write_text("fileFormatVersion: 2", encoding="utf-8")
+
+    changed = ensure_unity_bridge_upm_dependency(
+        project_path,
+        remove_legacy_bridge_script=False,
+    )
+
+    assert changed is False
+    assert legacy_script.exists()
+    assert legacy_meta.exists()
+
+
 def test_has_unity_bridge_package_script_meta_detects_cache_meta(tmp_path) -> None:
     project_path = tmp_path / "sample-project"
     meta_path = (

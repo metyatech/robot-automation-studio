@@ -77,11 +77,33 @@ def test_generate_robot_suite_launch_mode_contains_start_and_stop() -> None:
 def test_generate_robot_suite_with_project_path_ensures_unity_bridge_package() -> None:
     scenario = build_scenario()
     scenario.metadata[UNITY_PROJECT_PATH_KEY] = "D:/projects/avatar-work"
+    scenario.metadata[UNITY_EXECUTION_MODE_KEY] = "launch"
 
     text = generate_robot_suite(scenario, suite_name="unity-editor-basic")
 
     assert "IF    '${unity_project_path}' != ''" in text
     assert "Ensure Unity Bridge UPM Package    ${unity_project_path}" in text
+
+
+def test_generate_robot_suite_normalizes_windows_project_path_for_robot() -> None:
+    scenario = build_scenario()
+    scenario.metadata[UNITY_PROJECT_PATH_KEY] = r"D:\VRChatProjects\Ryuon"
+
+    text = generate_robot_suite(scenario, suite_name="unity-editor-basic")
+
+    assert "${unity_project_path}=    Set Variable    D:/VRChatProjects/Ryuon" in text
+
+
+def test_generate_robot_suite_attach_mode_does_not_ensure_unity_bridge_package() -> None:
+    scenario = build_scenario()
+    scenario.metadata[UNITY_PROJECT_PATH_KEY] = "D:/projects/avatar-work"
+    scenario.metadata[UNITY_EXECUTION_MODE_KEY] = "attach"
+
+    text = generate_robot_suite(scenario, suite_name="unity-editor-basic")
+
+    launch_if_index = text.index("IF    '${unity_mode}' == 'launch'")
+    ensure_index = text.index("Ensure Unity Bridge UPM Package    ${unity_project_path}")
+    assert ensure_index > launch_if_index
 
 
 def test_generate_robot_suite_uses_zero_delay_when_not_specified() -> None:
@@ -140,7 +162,10 @@ def test_generate_robot_suite_handles_hierarchy_path_click() -> None:
 
     text = generate_robot_suite(scenario, suite_name="hierarchy-select")
 
-    assert "Select Unity Hierarchy Object    hierarchy_path=AvatarRoot/Hair/Tail" in text
+    assert (
+        "Wait Until Keyword Succeeds    45 sec    1 sec    Select Unity Hierarchy Object"
+        "    hierarchy_path=AvatarRoot/Hair/Tail    timeout_seconds=4.0"
+    ) in text
     assert "Click Unity Element" not in text
 
 
