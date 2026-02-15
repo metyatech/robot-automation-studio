@@ -177,3 +177,33 @@ def test_recorder_reports_error_when_selector_cannot_be_resolved() -> None:
     assert len(events) == 0
     assert len(errors) == 1
     assert "Could not resolve UI element selector" in errors[0]
+
+
+def test_recorder_uses_bridge_for_unity_hierarchy_pane() -> None:
+    class DummyBridge:
+        def get_selected_hierarchy_path(self) -> str | None:
+            return "AvatarRoot/Hair/Tail"
+
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "UnityEditor.SceneHierarchyWindow",
+            "class_name": "UnityGUIViewWndClass",
+            "control_type": "Pane",
+        },
+        unity_bridge=DummyBridge(),
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(120, 180, None, True)
+    recorder._on_click(120, 180, None, False)
+    steps = events_to_steps(recorder.stop())
+
+    assert len(steps) == 1
+    assert steps[0].action == "click"
+    assert steps[0].params["hierarchy_path"] == "AvatarRoot/Hair/Tail"

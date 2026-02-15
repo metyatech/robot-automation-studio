@@ -51,6 +51,15 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
     params = step.params
     lines: list[str]
     if step.action == "click":
+        hierarchy_path = str(params.get("hierarchy_path") or "").strip()
+        if hierarchy_path:
+            lines = [
+                f"{indent}${{annotation}}=    Select Unity Hierarchy Object"
+                f"    hierarchy_path={hierarchy_path}",
+                f"{indent}Wait For Seconds    {params.get('wait_seconds', 0.0)}",
+                f"{indent}Emit Annotation Metadata    ${{annotation}}",
+            ]
+            return lines
         selector_args = _robot_named_args(
             params,
             ("title", "automation_id", "class_name", "control_type", "index"),

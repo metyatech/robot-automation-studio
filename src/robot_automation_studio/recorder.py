@@ -58,6 +58,17 @@ def resolve_selector_from_point(x: int, y: int) -> dict[str, Any] | None:
     return selector or None
 
 
+def _is_generic_unity_hierarchy_pane(selector: dict[str, Any]) -> bool:
+    title = str(selector.get("title") or "").strip().lower()
+    class_name = str(selector.get("class_name") or "").strip()
+    control_type = str(selector.get("control_type") or "").strip().lower()
+    if class_name != "UnityGUIViewWndClass":
+        return False
+    if control_type != "pane":
+        return False
+    return "scenehierarchywindow" in title or "hierarchy" in title
+
+
 def get_foreground_window_snapshot() -> WindowSnapshot | None:
     hwnd = win32gui.GetForegroundWindow()
     if not hwnd:
@@ -97,6 +108,7 @@ class ScenarioRecorder:
         window_provider: Callable[[], WindowSnapshot | None] = get_foreground_window_snapshot,
         element_resolver: Callable[[int, int], dict[str, Any] | None] = resolve_selector_from_point,
         on_record_error: Callable[[str], None] | None = None,
+        unity_bridge: Any | None = None,
     ) -> None:
         if platform.system().lower() != "windows":
             raise RuntimeError("ScenarioRecorder supports Windows only.")
@@ -105,6 +117,7 @@ class ScenarioRecorder:
         self._window_provider = window_provider
         self._element_resolver = element_resolver
         self._on_record_error = on_record_error
+        self._unity_bridge = unity_bridge
         self._window_hint = "Unity"
         self._mouse_listener: mouse.Listener | None = None
         self._keyboard_listener: keyboard.Listener | None = None
@@ -166,6 +179,20 @@ class ScenarioRecorder:
             return True
         return self._window_hint.lower() in snapshot.title.lower()
 
+    def _resolve_hierarchy_path(self) -> str | None:
+        bridge = self._unity_bridge
+        if bridge is None:
+            return None
+        getter = getattr(bridge, "get_selected_hierarchy_path", None)
+        if getter is None:
+            return None
+        try:
+            path = getter()
+        except Exception:
+            return None
+        normalized = str(path or "").strip().replace("\\", "/").strip("/")
+        return normalized or None
+
     def _on_click(self, x: int, y: int, _button: Any, pressed: bool) -> None:
         if not self._recording:
             return
@@ -191,6 +218,13 @@ class ScenarioRecorder:
             if source_selector is None or target_selector is None:
                 self._report_record_error(
                     "Could not resolve UI element selector for drag source/target."
+                )
+                return
+            source_is_generic = _is_generic_unity_hierarchy_pane(source_selector)
+            target_is_generic = _is_generic_unity_hierarchy_pane(target_selector)
+            if source_is_generic or target_is_generic:
+                self._report_record_error(
+                    "Could not resolve reliable drag selector in Unity hierarchy pane."
                 )
                 return
             if not (source_selector.get("title") or source_selector.get("automation_id")):
@@ -225,6 +259,20 @@ class ScenarioRecorder:
         selector = self._element_resolver(x, y)
         if selector is None:
             self._report_record_error("Could not resolve UI element selector for click.")
+            return
+        if _is_generic_unity_hierarchy_pane(selector):
+            hierarchy_path = self._resolve_hierarchy_path()
+            if hierarchy_path is None:
+                self._report_record_error(
+                    "Could not resolve hierarchy path from Unity bridge for hierarchy click."
+                )
+                return
+            self.append(
+                "click",
+                {
+                    "hierarchy_path": hierarchy_path,
+                },
+            )
             return
         self.append(
             "click",

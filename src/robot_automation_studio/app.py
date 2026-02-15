@@ -24,6 +24,7 @@ from .overlay import AutomationRunOverlay
 from .recorder import ScenarioRecorder, events_to_steps
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
+from .unity_bridge import UnityBridgeClient
 
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
@@ -37,7 +38,11 @@ class StudioApp:
 
         self.scenario = Scenario(name="Unity Editor Flow")
         self.editor = ScenarioEditor(self.scenario)
-        self.recorder = ScenarioRecorder(on_record_error=self._on_record_error)
+        self.unity_bridge = UnityBridgeClient()
+        self.recorder = ScenarioRecorder(
+            on_record_error=self._on_record_error,
+            unity_bridge=self.unity_bridge,
+        )
         self.current_path: Path | None = None
 
         self.name_var = tk.StringVar(value=self.scenario.name)

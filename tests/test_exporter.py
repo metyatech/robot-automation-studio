@@ -115,6 +115,25 @@ def test_generate_robot_suite_treats_unknown_action_as_unsupported() -> None:
     assert "Unsupported action: unknown-action" in text
 
 
+def test_generate_robot_suite_handles_hierarchy_path_click() -> None:
+    scenario = Scenario(
+        name="Hierarchy Select",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="click",
+                title="Select Tail",
+                params={"hierarchy_path": "AvatarRoot/Hair/Tail", "wait_seconds": 0.2},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="hierarchy-select")
+
+    assert "Select Unity Hierarchy Object    hierarchy_path=AvatarRoot/Hair/Tail" in text
+    assert "Click Unity Element" not in text
+
+
 def test_export_all_writes_robot_and_json(tmp_path: Path) -> None:
     scenario = build_scenario()
     out = export_all(

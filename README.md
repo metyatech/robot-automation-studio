@@ -7,6 +7,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 - Record desktop actions (click, drag, shortcut) with UI element selectors
 - Optional per-action delay via `wait_seconds`
 - Foreground window filtering during recording (for Unity-focused capture)
+- Unity hierarchy click recording via Unity bridge (`hierarchy_path`)
 - Edit recorded steps (add, delete, move, modify parameters)
 - Run Robot Framework suites directly from the app
 - Runtime safety controls for automation execution:
@@ -50,6 +51,7 @@ robot-automation-studio
 4. Click `Start Recording`, perform operations in Unity Editor, then click `Stop Recording`.
    - Click/drag is recorded only when a UI Automation element selector is resolved.
    - If selector resolution fails, Studio logs a recording error and does not add the step.
+   - For Unity Hierarchy pane clicks, Studio uses Unity bridge selection path when available.
 5. Fine-tune steps from the editor panel.
 6. Choose output directory and export name.
 7. Click `Export` to generate:
@@ -69,6 +71,14 @@ robot-automation-studio
 - `<output>/<name>.robot`: Robot Framework suite
 - `<output>/<name>.scenario.json`: machine-readable scenario (automation-scenario-spec)
 - `<output>/run/robot/output.xml`: Robot run output (when running from app)
+
+## Unity Hierarchy Bridge
+
+- Unity Hierarchy rows are custom-drawn and often appear as one generic UIA pane.
+- To record stable hierarchy clicks, install the Unity bridge script in your project:
+  - Run Robot keyword: `Install Unity Editor Bridge Script    <your-project-path>`
+  - Or copy bridge script from `robotframework-unity-editor` into `Assets/Editor`.
+- Without the bridge, hierarchy row clicks cannot be resolved and recording logs an error.
 
 ## Verification
 
