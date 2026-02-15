@@ -20,8 +20,9 @@ def _ensure_dependency_in_manifest(
     dependencies = manifest.setdefault("dependencies", {})
     if not isinstance(dependencies, dict):
         raise ValueError("manifest.json dependencies must be a JSON object.")
-    current = str(dependencies.get(package_name) or "").strip()
-    if current == package_url:
+    current_value = dependencies.get(package_name)
+    current = str(current_value or "").strip()
+    if current != "":
         return False
     dependencies[package_name] = package_url
     return True

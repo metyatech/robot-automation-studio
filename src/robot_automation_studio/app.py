@@ -612,10 +612,6 @@ class StudioApp:
 
         if changed:
             self.log("Unity bridge UPM dependency added to Packages/manifest.json.")
-        else:
-            self.log("Unity bridge UPM dependency already present.")
-
-        if purpose == "recording":
             self.log("Waiting for Unity bridge readiness...")
             if not self.unity_bridge.wait_until_available(
                 timeout_seconds=BRIDGE_READY_TIMEOUT_SECONDS
@@ -631,6 +627,8 @@ class StudioApp:
                 )
                 return False
             self.log("Unity bridge is ready.")
+        else:
+            self.log("Unity bridge UPM dependency already present.")
         return True
 
     def browse_unity_project_path(self) -> None:

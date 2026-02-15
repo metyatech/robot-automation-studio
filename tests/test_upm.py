@@ -42,3 +42,26 @@ def test_ensure_unity_bridge_upm_dependency_is_idempotent(tmp_path) -> None:
     changed = ensure_unity_bridge_upm_dependency(project_path)
 
     assert changed is False
+
+
+def test_ensure_unity_bridge_upm_dependency_does_not_overwrite_existing_source(
+    tmp_path,
+) -> None:
+    project_path = tmp_path / "sample-project"
+    packages_dir = project_path / "Packages"
+    packages_dir.mkdir(parents=True)
+    manifest_path = packages_dir / "manifest.json"
+    existing_url = "file:../local-packages/unity-automation-bridge"
+    manifest_path.write_text(
+        json.dumps(
+            {"dependencies": {DEFAULT_UNITY_BRIDGE_PACKAGE_NAME: existing_url}},
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    changed = ensure_unity_bridge_upm_dependency(project_path)
+
+    assert changed is False
+    parsed = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert parsed["dependencies"][DEFAULT_UNITY_BRIDGE_PACKAGE_NAME] == existing_url
