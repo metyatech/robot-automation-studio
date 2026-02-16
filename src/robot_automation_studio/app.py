@@ -16,6 +16,7 @@ from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QCloseEvent,
     QFont,
+    QHelpEvent,
     QKeySequence,
     QShortcut,
     QTextCursor,
@@ -1696,14 +1697,19 @@ class StudioApp(QMainWindow):
             self._register_help_for_widget(child)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        if isinstance(obj, QWidget) and event.type() == QEvent.Type.ToolTip:
+            entry = self._help_entries_by_widget.get(obj)
+            if entry is None:
+                return False
+            if isinstance(event, QHelpEvent):
+                QToolTip.showText(event.globalPos(), obj.toolTip(), obj)
+                return True
+            return False
         if isinstance(obj, QWidget) and event.type() == QEvent.Type.FocusIn:
             entry = self._help_entries_by_widget.get(obj)
             if entry is not None:
                 QToolTip.showText(obj.mapToGlobal(obj.rect().center()), obj.toolTip(), obj)
-        if isinstance(obj, QWidget) and event.type() in (
-            QEvent.Type.Leave,
-            QEvent.Type.FocusOut,
-        ):
+        if isinstance(obj, QWidget) and event.type() == QEvent.Type.Leave:
             QToolTip.hideText()
         return False
 
