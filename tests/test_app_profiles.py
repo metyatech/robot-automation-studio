@@ -77,6 +77,14 @@ def test_sync_scenario_header_persists_subflow_timeout_setting() -> None:
         studio._sync_scenario_header()
         assert studio.scenario.execution.get("subflow_timeout_seconds") == "${subflow_timeout}"
 
+        studio.subflow_timeout_edit.setText(" ${subflow_timeout} ")
+        studio._sync_scenario_header()
+        assert studio.scenario.execution.get("subflow_timeout_seconds") == "${subflow_timeout}"
+
+        studio.subflow_timeout_edit.setText(" 120 ")
+        studio._sync_scenario_header()
+        assert studio.scenario.execution.get("subflow_timeout_seconds") == 120
+
         studio.subflow_timeout_edit.setText("")
         studio._sync_scenario_header()
         assert "subflow_timeout_seconds" not in studio.scenario.execution
