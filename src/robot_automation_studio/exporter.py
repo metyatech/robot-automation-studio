@@ -344,6 +344,10 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
     return _step_robot_lines_from_payload(step_payload, indent=indent)
 
 
+def validate_step_exportability(step: Step) -> None:
+    _ = _step_robot_lines(step)
+
+
 def _generate_robot_suite_from_resolved(
     resolved_scenario: Scenario,
     *,

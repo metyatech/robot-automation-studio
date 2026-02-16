@@ -4,6 +4,7 @@ from pathlib import Path
 from robot_automation_studio.run_diagnostics import (
     capture_failure_screenshot,
     parse_robot_output,
+    summarize_run_diagnostics_payload,
     write_run_diagnostics_file,
 )
 
@@ -121,3 +122,26 @@ def test_capture_failure_screenshot_returns_none_on_capture_error(tmp_path: Path
         image_grab=lambda: (_ for _ in ()).throw(RuntimeError("capture failed")),
     )
     assert screenshot is None
+
+
+def test_summarize_run_diagnostics_payload_includes_run_context() -> None:
+    summary = summarize_run_diagnostics_payload(
+        {
+            "test_status": "PASS",
+            "suite_name": "suite-a",
+            "test_name": "case-a",
+            "total_elapsed_seconds": 0.42,
+            "total_keyword_count": 5,
+            "run_context": {
+                "execution_mode": "attach",
+                "active_profile": "vrchat",
+                "window_hint": "Unity",
+                "unity_project_path": "D:/VRChatProjects/Ryuon",
+            },
+        }
+    )
+
+    assert "Status: PASS" in summary
+    assert "Suite/Test: suite-a / case-a" in summary
+    assert "Execution Mode: attach" in summary
+    assert "Active Profile: vrchat" in summary

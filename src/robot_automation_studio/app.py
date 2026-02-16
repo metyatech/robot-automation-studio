@@ -11,6 +11,7 @@ import sys
 import threading
 import warnings
 from contextlib import suppress
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -43,7 +44,7 @@ from PySide6.QtWidgets import (
 from . import app_dialogs, app_help, app_ui
 from .bridge_readiness import build_recording_readiness_timeouts
 from .editor import ScenarioEditor
-from .exporter import export_all
+from .exporter import export_all, validate_step_exportability
 from .hotkey import (
     DEFAULT_STOP_HOTKEY_LABEL,
     FALLBACK_STOP_HOTKEY_LABELS,
@@ -70,6 +71,7 @@ from .run_diagnostics import (
     RunDiagnostics,
     capture_failure_screenshot,
     parse_robot_output,
+    summarize_run_diagnostics_payload,
     write_run_diagnostics_file,
 )
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
@@ -1594,22 +1596,34 @@ class StudioApp(QMainWindow):
             action = self.scenario.steps[self.selected_index].action or "click"
         if kind == "control" and control == "":
             control = self.scenario.steps[self.selected_index].control or "if"
-        self.editor.update_step(
-            self.selected_index,
-            title=self.title_edit.text().strip(),
-            kind=kind,
-            action=action if kind == "action" else None,
-            control=control if kind == "control" else None,
-            description=self.step_description_edit.text().strip(),
-            condition=self.step_condition_edit.text().strip(),
-            disabled=self.step_disabled_check.isChecked(),
-            continue_on_error=self.step_continue_on_error_check.isChecked(),
-            annotations=[dict(item) for item in annotations if isinstance(item, dict)],
-            params=params,
-        )
-        step_id = self.step_id_edit.text().strip()
-        if step_id != "":
-            self.scenario.steps[self.selected_index].id = step_id
+        original_step = deepcopy(self.scenario.steps[self.selected_index])
+        try:
+            updated_step = self.editor.update_step(
+                self.selected_index,
+                title=self.title_edit.text().strip(),
+                kind=kind,
+                action=action if kind == "action" else None,
+                control=control if kind == "control" else None,
+                description=self.step_description_edit.text().strip(),
+                condition=self.step_condition_edit.text().strip(),
+                disabled=self.step_disabled_check.isChecked(),
+                continue_on_error=self.step_continue_on_error_check.isChecked(),
+                annotations=[dict(item) for item in annotations if isinstance(item, dict)],
+                params=params,
+            )
+            step_id = self.step_id_edit.text().strip()
+            if step_id != "":
+                updated_step.id = step_id
+            validate_step_exportability(updated_step)
+        except Exception as error:
+            self.scenario.steps[self.selected_index] = original_step
+            self.on_select_step(self.selected_index)
+            QMessageBox.critical(
+                self,
+                self._t("app.error.step_apply_invalid.title"),
+                str(error),
+            )
+            return
         self.refresh_steps()
 
     def start_recording(self) -> None:
@@ -1825,9 +1839,24 @@ class StudioApp(QMainWindow):
         header.setWordWrap(True)
         layout.addWidget(header)
 
+        raw_text = path.read_text(encoding="utf-8")
+        summary_text = self._t("app.dialog.run_diagnostics.summary_unavailable")
+        try:
+            payload = json.loads(raw_text)
+            if isinstance(payload, dict):
+                summary_text = summarize_run_diagnostics_payload(payload)
+        except Exception:
+            summary_text = self._t("app.dialog.run_diagnostics.summary_unavailable")
+
+        summary_box = QPlainTextEdit()
+        summary_box.setReadOnly(True)
+        summary_box.setMaximumHeight(220)
+        summary_box.setPlainText(summary_text)
+        layout.addWidget(summary_box)
+
         text = QPlainTextEdit()
         text.setReadOnly(True)
-        text.setPlainText(path.read_text(encoding="utf-8"))
+        text.setPlainText(raw_text)
         layout.addWidget(text, 1)
 
         footer = QHBoxLayout()

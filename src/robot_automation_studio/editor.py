@@ -172,29 +172,30 @@ class ScenarioEditor:
         continue_on_error: bool | None = None,
         annotations: list[dict[str, Any]] | None = None,
     ) -> Step:
-        step = self.scenario.steps[index]
+        candidate = deepcopy(self.scenario.steps[index])
         if kind is not None:
-            step.kind = _validate_kind(kind)
+            candidate.kind = _validate_kind(kind)
         if title is not None:
-            step.title = title
+            candidate.title = title
         if params is not None:
-            step.params = deepcopy(dict(params))
+            candidate.params = deepcopy(dict(params))
         if action is not None:
-            if step.kind != "action":
+            if candidate.kind != "action":
                 raise ValueError("action can only be set when kind is 'action'.")
-            step.action = _validate_action(action)
+            candidate.action = _validate_action(action)
         if control is not None:
-            if step.kind != "control":
+            if candidate.kind != "control":
                 raise ValueError("control can only be set when kind is 'control'.")
-            step.control = _validate_control(control)
+            candidate.control = _validate_control(control)
         if description is not None:
-            step.description = description
+            candidate.description = description
         if disabled is not None:
-            step.disabled = bool(disabled)
+            candidate.disabled = bool(disabled)
         if condition is not None:
-            step.condition = condition
+            candidate.condition = condition
         if continue_on_error is not None:
-            step.continue_on_error = bool(continue_on_error)
+            candidate.continue_on_error = bool(continue_on_error)
         if annotations is not None:
-            step.annotations = deepcopy(annotations)
-        return step
+            candidate.annotations = deepcopy(annotations)
+        self.scenario.steps[index] = candidate
+        return candidate

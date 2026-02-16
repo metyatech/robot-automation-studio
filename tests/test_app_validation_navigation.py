@@ -53,3 +53,24 @@ def test_focus_validation_issue_location_returns_false_for_unknown_location() ->
         assert focused is False
     finally:
         studio.close()
+
+
+def test_focus_validation_issue_location_handles_variables_profiles_and_outputs() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        focused_variables = studio.focus_validation_issue_location(
+            "variables.unity_project_path.default"
+        )
+        focused_profiles = studio.focus_validation_issue_location("profiles.vrchat.variables.foo")
+        focused_outputs = studio.focus_validation_issue_location("outputs.docs.markdown")
+
+        assert focused_variables is True
+        assert focused_profiles is True
+        assert focused_outputs is True
+        assert studio.main_tabs.currentIndex() in {
+            studio.scenario_tab_index,
+            studio.export_tab_index,
+        }
+    finally:
+        studio.close()

@@ -164,6 +164,33 @@ def write_run_diagnostics_file(
     return target_path
 
 
+def summarize_run_diagnostics_payload(payload: dict[str, Any]) -> str:
+    test_status = _safe_text(payload.get("test_status")).upper() or "-"
+    suite_name = _safe_text(payload.get("suite_name")) or "-"
+    test_name = _safe_text(payload.get("test_name")) or "-"
+    elapsed = _safe_float(payload.get("total_elapsed_seconds"))
+    total_keywords = int(payload.get("total_keyword_count") or 0)
+
+    run_context = payload.get("run_context")
+    context = run_context if isinstance(run_context, dict) else {}
+    execution_mode = _safe_text(context.get("execution_mode")) or "-"
+    active_profile = _safe_text(context.get("active_profile")) or "-"
+    window_hint = _safe_text(context.get("window_hint")) or "-"
+    unity_project_path = _safe_text(context.get("unity_project_path")) or "-"
+
+    return (
+        "Run Diagnostics Summary\n"
+        f"- Status: {test_status}\n"
+        f"- Suite/Test: {suite_name} / {test_name}\n"
+        f"- Elapsed: {elapsed:.3f}s\n"
+        f"- Keywords: {total_keywords}\n"
+        f"- Execution Mode: {execution_mode}\n"
+        f"- Active Profile: {active_profile}\n"
+        f"- Window Hint: {window_hint}\n"
+        f"- Unity Project Path: {unity_project_path}"
+    )
+
+
 def capture_failure_screenshot(
     *,
     diagnostics_dir: Path,

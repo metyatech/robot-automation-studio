@@ -48,6 +48,10 @@ def test_editor_rejects_unsupported_action_on_update() -> None:
     with pytest.raises(ValueError, match="Unsupported step action"):
         editor.update_step(0, action="invalid-action")
 
+    step = editor.scenario.steps[0]
+    assert step.action == "click"
+    assert step.params == {"title": "Inspector"}
+
 
 def test_editor_can_add_and_update_control_and_group_steps() -> None:
     editor = ScenarioEditor(Scenario(name="test"))

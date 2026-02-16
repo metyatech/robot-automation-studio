@@ -337,6 +337,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Diagnostics file: {path}",
         "ja": "診断ファイル: {path}",
     },
+    "app.dialog.run_diagnostics.summary_unavailable": {
+        "en": "Run diagnostics summary is unavailable for this file.",
+        "ja": "このファイルの実行診断サマリーは利用できません。",
+    },
     "app.help.menu.add.click.summary": {
         "en": "Add click action step.",
         "ja": "クリック操作ステップを追加します。",
@@ -833,6 +837,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     },
     "app.error.export.title": {"en": "Export Error", "ja": "エクスポートエラー"},
     "app.error.run.title": {"en": "Run Error", "ja": "実行エラー"},
+    "app.error.step_apply_invalid.title": {
+        "en": "Invalid Step",
+        "ja": "ステップが不正です",
+    },
     "app.error.validation_navigation.title": {
         "en": "Validation Navigation Error",
         "ja": "検証エラー移動に失敗しました",

@@ -85,3 +85,27 @@ def test_validate_scenario_reports_unknown_profile_location() -> None:
     assert len(report.issues) >= 1
     assert "Unknown profile" in report.issues[0].message
     assert report.issues[0].location == "execution.active_profile"
+
+
+def test_validate_scenario_collects_multiple_issues() -> None:
+    scenario = Scenario(
+        name="Multiple issues",
+        execution={"active_profile": "missing-profile"},
+        variables=[
+            {"id": "unity_project_path", "type": "path", "required": True, "default": ""},
+        ],
+        steps=[
+            Step(action="click", title="invalid-click-a", params={}),
+            Step(action="click", title="invalid-click-b", params={}),
+        ],
+    )
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is False
+    codes = {issue.code for issue in report.issues}
+    locations = {issue.location for issue in report.issues}
+    assert "profiles.unknown" in codes
+    assert "steps.invalid" in codes
+    assert "execution.active_profile" in locations
+    assert "steps[0].target" in locations
+    assert "steps[1].target" in locations
