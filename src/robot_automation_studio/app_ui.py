@@ -29,7 +29,10 @@ from .models import (
 )
 from .status import SPINNER_FRAMES, format_run_status
 
-_SUBFLOW_TIMEOUT_INPUT_RE = QRegularExpression(r"^(?:\s*|[0-9]+|\$\{[A-Za-z_][A-Za-z0-9_-]*\})$")
+_SUBFLOW_TIMEOUT_INPUT_RE = QRegularExpression(
+    r"^(?:\s*|\$\{[A-Za-z_][A-Za-z0-9_-]*\}|"
+    r"(?:[1-9][0-9]{0,3}|[1-7][0-9]{4}|8[0-5][0-9]{3}|86[0-3][0-9]{2}|86400))$"
+)
 
 
 def build_ui(self, *, bg_light: str) -> None:

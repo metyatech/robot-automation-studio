@@ -373,7 +373,7 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
     ),
     "SubflowTimeoutEdit": (
         "Set subflow timeout.",
-        "Use seconds, blank (=3600), or ${variable} for run_subflow and parallel waits.",
+        "Use 1..86400, blank (=3600), or ${variable} for run_subflow and parallel waits.",
     ),
     "ValidateButton": (
         "Run validation.",
@@ -678,7 +678,7 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
     ),
     "SubflowTimeoutEdit": (
         "子フロー待機秒数を設定します。",
-        "run_subflow / parallel 待機のタイムアウト。秒数、空欄(=3600)、${変数} を指定できます。",
+        "run_subflow / parallel 待機のタイムアウト。1..86400・空欄(=3600)・${変数} を指定。",
     ),
     "ValidateButton": (
         "事前検証を実行します。",
