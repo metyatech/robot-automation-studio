@@ -511,6 +511,24 @@ def test_generate_robot_suite_supports_emit_annotation_action() -> None:
     assert 'Emit DOCMETA    {"annotation":{"label":"Click","type":"click"}}' in text
 
 
+def test_generate_robot_suite_supports_open_url_action() -> None:
+    scenario = Scenario(
+        name="Open URL",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="open_url",
+                title="Open docs",
+                params={"input": {"url": "https://example.com/docs"}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="open-url")
+    assert "Open URL In Default Browser    https://example.com/docs" in text
+    assert "Open URL In Default Browser" in text
+
+
 def test_validate_step_exportability_fails_for_missing_click_target() -> None:
     step = Step(action="click", title="invalid-click", params={})
 

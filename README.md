@@ -14,7 +14,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - full scenario JSON editor for complete v2 coverage
 - v2 Robot export coverage:
   - control flow: `if`, `for_each`, `while`, `try`, `break`, `continue`, `return`, `group`
-  - action extensions: `select_hierarchy`, `double_click` (coordinate), `right_click`, `assert`, `emit_annotation`
+  - action extensions: `open_url`, `select_hierarchy`, `double_click`, `right_click`, `assert`, `emit_annotation`
 - Preflight validation before export/run:
   - fail-fast with issue list dialog when scenario is invalid
   - explicit diagnostics for unresolved placeholders (with field path)

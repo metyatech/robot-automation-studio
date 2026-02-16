@@ -8,7 +8,7 @@
 - Expanded Robot exporter coverage for v2 control flow:
   - `if`, `for_each`, `while`, `try`, `break`, `continue`, `return`, `group`
 - Expanded Robot exporter action coverage:
-  - `select_hierarchy`, `double_click` (coordinate), `right_click`, `assert`, `emit_annotation`
+  - `open_url`, `select_hierarchy`, `double_click`, `right_click`, `assert`, `emit_annotation`
 - Added dedicated UI editors for:
   - variables
   - profiles

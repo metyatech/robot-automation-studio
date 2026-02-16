@@ -822,6 +822,21 @@ def _step_robot_lines_from_payload(
             title=title,
         )
 
+    if action == "open_url":
+        input_payload = step_payload.get("input")
+        if not isinstance(input_payload, dict):
+            raise ValueError("open_url requires input payload.")
+        url = str(input_payload.get("url") or "").strip()
+        if url == "":
+            raise ValueError("open_url requires input.url.")
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=[f"{indent}Open URL In Default Browser    {url}"],
+            indent=indent,
+            path=path,
+            title=title,
+        )
+
     if action == "assert":
         expect_payload = step_payload.get("expect")
         if isinstance(expect_payload, dict):
@@ -1040,6 +1055,11 @@ def _generate_robot_suite_from_resolved(
                 ),
                 "    ${annotation}=    Double Click Unity Relative    ${x_ratio}    ${y_ratio}",
                 "    RETURN    ${annotation}",
+                "",
+                "Open URL In Default Browser",
+                "    [Arguments]    ${url}",
+                "    ${opened}=    Evaluate    __import__('webbrowser').open(str($url), new=2)",
+                "    Should Be True    ${opened}",
                 "",
             ]
         )
