@@ -535,6 +535,8 @@ class StudioApp(QMainWindow):
         window_hint_label: QLabel
         execution_mode_combo: QComboBox
         execution_mode_label: QLabel
+        active_profile_combo: QComboBox
+        active_profile_label: QLabel
         project_path_edit: QLineEdit
         project_path_browse_button: QPushButton
         unity_project_path_label: QLabel
@@ -878,6 +880,50 @@ class StudioApp(QMainWindow):
             combo.setItemData(row, summary, Qt.ItemDataRole.StatusTipRole)
             combo.setItemData(row, summary, Qt.ItemDataRole.WhatsThisRole)
 
+    def _active_profile_value(self) -> str:
+        if not hasattr(self, "active_profile_combo"):
+            return ""
+        return self._combo_value(self.active_profile_combo).strip()
+
+    def _refresh_active_profile_combo(self) -> None:
+        if not hasattr(self, "active_profile_combo"):
+            return
+        current_value = self._active_profile_value()
+        execution = dict(self.scenario.execution or {})
+        if current_value == "":
+            current_value = str(execution.get("active_profile") or "").strip()
+        profiles = dict(self.scenario.profiles or {})
+        profile_names = sorted(
+            {str(name or "").strip() for name in profiles if str(name or "").strip() != ""}
+        )
+
+        self.active_profile_combo.blockSignals(True)
+        self.active_profile_combo.clear()
+        self.active_profile_combo.addItem(self._t("app.option.profile.none"), "")
+        for name in profile_names:
+            self.active_profile_combo.addItem(name, name)
+        self.active_profile_combo.blockSignals(False)
+
+        self._set_combo_value(self.active_profile_combo, current_value)
+        if self._active_profile_value() != current_value:
+            self.active_profile_combo.setCurrentIndex(0)
+
+        option_help: dict[str, str] = {"": self._t("app.option.help.profile.none")}
+        for name in profile_names:
+            profile_payload = profiles.get(name)
+            description = ""
+            if isinstance(profile_payload, dict):
+                description = str(profile_payload.get("description") or "").strip()
+            if description:
+                option_help[name] = self._t(
+                    "app.option.help.profile.item_with_description",
+                    profile=name,
+                    description=description,
+                )
+            else:
+                option_help[name] = self._t("app.option.help.profile.item", profile=name)
+        self._configure_combo_option_help(self.active_profile_combo, option_help)
+
     @Slot()
     def _update_step_kind_fields_visibility(self) -> None:
         visibility = step_editor_visibility_for_kind(self._combo_value(self.kind_combo))
@@ -914,6 +960,12 @@ class StudioApp(QMainWindow):
             execution_mode=execution_mode,
             unity_project_path=unity_project_path,
         )
+        active_profile = self._active_profile_value()
+        self.scenario.execution = dict(self.scenario.execution or {})
+        if active_profile:
+            self.scenario.execution["active_profile"] = active_profile
+        else:
+            self.scenario.execution.pop("active_profile", None)
 
     def _on_record_error(self, message: str) -> None:
         def _report() -> None:
@@ -1745,6 +1797,7 @@ class StudioApp(QMainWindow):
             self.execution_mode_combo,
             normalize_unity_execution_mode(loaded.metadata.get(UNITY_EXECUTION_MODE_KEY, "attach")),
         )
+        self._refresh_active_profile_combo()
         self.project_path_edit.setText(str(loaded.metadata.get(UNITY_PROJECT_PATH_KEY, "")))
         self.on_execution_mode_changed()
         self.refresh_steps()
@@ -1815,6 +1868,7 @@ class StudioApp(QMainWindow):
 
     def open_profiles_editor(self) -> None:
         app_dialogs.open_profiles_editor(self)
+        self._refresh_active_profile_combo()
 
     def open_execution_outputs_editor(self) -> None:
         app_dialogs.open_execution_outputs_editor(self)
@@ -1823,8 +1877,14 @@ class StudioApp(QMainWindow):
         self._sync_scenario_header()
         output_dir = Path(self.output_dir_edit.text()).resolve()
         suite_name = self.export_name_edit.text().strip() or "scenario"
+        active_profile = self._active_profile_value()
         try:
-            result = export_all(self.scenario, output_dir=output_dir, suite_name=suite_name)
+            result = export_all(
+                self.scenario,
+                output_dir=output_dir,
+                suite_name=suite_name,
+                active_profile=active_profile,
+            )
         except Exception as error:
             self.log(self._t("app.log.export_failed", error=error))
             QMessageBox.critical(self, self._t("app.error.export.title"), str(error))
@@ -1857,8 +1917,14 @@ class StudioApp(QMainWindow):
         self.log(self._t("app.log.prepare_export"))
         output_dir = Path(self.output_dir_edit.text()).resolve()
         suite_name = self.export_name_edit.text().strip() or "scenario"
+        active_profile = self._active_profile_value()
         try:
-            result = export_all(self.scenario, output_dir=output_dir, suite_name=suite_name)
+            result = export_all(
+                self.scenario,
+                output_dir=output_dir,
+                suite_name=suite_name,
+                active_profile=active_profile,
+            )
         except Exception as error:
             self.log(self._t("app.log.run_export_failed", error=error))
             QMessageBox.critical(self, self._t("app.error.run.title"), str(error))

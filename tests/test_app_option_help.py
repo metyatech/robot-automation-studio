@@ -92,6 +92,20 @@ def test_combo_options_have_per_option_tooltips() -> None:
             item_text = studio.kind_combo.itemData(row, Qt.ItemDataRole.UserRole)
             item_tip = studio.kind_combo.itemData(row, Qt.ItemDataRole.ToolTipRole)
             assert item_tip == expected_kind[item_text]
+
+        assert studio.active_profile_combo.itemData(0, Qt.ItemDataRole.UserRole) == ""
+        assert (
+            studio.active_profile_combo.itemData(0, Qt.ItemDataRole.ToolTipRole)
+            == "Use variable defaults (no profile override)."
+        )
+
+        studio.scenario.profiles = {"vrchat": {"description": "VRChat profile", "variables": {}}}
+        studio._refresh_active_profile_combo()
+        assert studio.active_profile_combo.itemData(1, Qt.ItemDataRole.UserRole) == "vrchat"
+        assert (
+            studio.active_profile_combo.itemData(1, Qt.ItemDataRole.ToolTipRole)
+            == "Use profile 'vrchat' overrides. VRChat profile"
+        )
     finally:
         studio.close()
 

@@ -176,7 +176,7 @@ def test_generate_robot_suite_fails_fast_for_control_step() -> None:
                 kind="control",
                 control="for_each",
                 title="Loop",
-                params={"items_expression": "${items}", "item_variable": "item", "steps": []},
+                params={"items_expression": "items", "item_variable": "item", "steps": []},
             )
         ],
     )
@@ -197,3 +197,113 @@ def test_export_all_writes_robot_and_json(tmp_path: Path) -> None:
     assert out.json_path.exists()
     assert out.json_path.name.endswith(".scenario.json")
     assert "Click Unity Element" in out.robot_path.read_text(encoding="utf-8")
+
+
+def test_generate_robot_suite_resolves_active_profile_placeholders() -> None:
+    scenario = Scenario(
+        name="Profile Resolve",
+        target_window_hint="${unity_window_hint}",
+        metadata={
+            UNITY_EXECUTION_MODE_KEY: "launch",
+        },
+        variables=[
+            {"id": "unity_window_hint", "type": "string", "required": True, "default": "Unity"},
+            {
+                "id": "unity_project_path",
+                "type": "path",
+                "required": True,
+                "default": "",
+            },
+            {"id": "hierarchy_target", "type": "string", "required": True, "default": "Avatar"},
+        ],
+        profiles={
+            "ryuon": {
+                "description": "Ryuon project",
+                "variables": {
+                    "unity_window_hint": "Unity - Ryuon",
+                    "unity_project_path": r"D:\VRChatProjects\Ryuon",
+                    "hierarchy_target": "AvatarRoot/Hair/Tail",
+                },
+            }
+        },
+        execution={
+            "mode": "launch",
+            "active_profile": "ryuon",
+            "attach": {"window_hint_var": "unity_window_hint"},
+            "launch": {"unity_project_path_var": "unity_project_path"},
+        },
+        steps=[
+            Step(
+                action="click",
+                title="Select hierarchy",
+                params={"hierarchy_path": "${hierarchy_target}", "wait_seconds": 0.2},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="profile-resolve")
+
+    assert "${unity_project_path}=    Set Variable    D:/VRChatProjects/Ryuon" in text
+    assert "${unity_window_hint}=    Set Variable    Unity - Ryuon" in text
+    assert "hierarchy_path=AvatarRoot/Hair/Tail" in text
+
+
+def test_generate_robot_suite_fails_fast_when_required_variable_missing() -> None:
+    scenario = Scenario(
+        name="Missing Required",
+        target_window_hint="Unity",
+        metadata={
+            UNITY_EXECUTION_MODE_KEY: "launch",
+        },
+        variables=[
+            {"id": "unity_window_hint", "type": "string", "required": True, "default": "Unity"},
+            {
+                "id": "unity_project_path",
+                "type": "path",
+                "required": True,
+                "default": "",
+            },
+        ],
+        execution={
+            "mode": "launch",
+            "attach": {"window_hint_var": "unity_window_hint"},
+            "launch": {"unity_project_path_var": "unity_project_path"},
+        },
+        steps=[
+            Step(
+                action="click",
+                title="Click menu",
+                params={
+                    "title": "File",
+                    "automation_id": "MainMenuFile",
+                    "class_name": "MenuItem",
+                    "control_type": "MenuItem",
+                },
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="required variable"):
+        generate_robot_suite(scenario, suite_name="missing-required")
+
+
+def test_generate_robot_suite_fails_fast_for_unresolved_placeholder() -> None:
+    scenario = Scenario(
+        name="Unresolved Placeholder",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="click",
+                title="Click missing placeholder",
+                params={
+                    "title": "${missing_title}",
+                    "automation_id": "MainMenuFile",
+                    "class_name": "MenuItem",
+                    "control_type": "MenuItem",
+                },
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Unresolved placeholder"):
+        generate_robot_suite(scenario, suite_name="unresolved-placeholder")

@@ -14,6 +14,7 @@ from .models import (
     Step,
     normalize_unity_execution_mode,
 )
+from .variable_resolution import resolve_scenario_variables
 
 
 @dataclass(slots=True)
@@ -343,13 +344,19 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
     return _step_robot_lines_from_payload(step_payload, indent=indent)
 
 
-def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> str:
-    test_case_name = suite_name or scenario.name
-    execution_mode = _scenario_execution_mode(scenario)
+def generate_robot_suite(
+    scenario: Scenario,
+    suite_name: str | None = None,
+    *,
+    active_profile: str | None = None,
+) -> str:
+    resolved_scenario = resolve_scenario_variables(scenario, active_profile=active_profile)
+    test_case_name = suite_name or resolved_scenario.name
+    execution_mode = _scenario_execution_mode(resolved_scenario)
     unity_project_path = _robot_safe_project_path(
-        _scenario_project_path(scenario, execution_mode=execution_mode)
+        _scenario_project_path(resolved_scenario, execution_mode=execution_mode)
     )
-    window_hint = _scenario_window_hint(scenario)
+    window_hint = _scenario_window_hint(resolved_scenario)
     lines = [
         "*** Settings ***",
         "Library    Collections",
@@ -372,7 +379,7 @@ def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> s
         "            Attach To Running Unity Editor    window_hint=${unity_window_hint}",
         "        END",
     ]
-    for step in scenario.steps:
+    for step in resolved_scenario.steps:
         lines.append(f"        # {step.title} ({step.kind})")
         lines.extend(_step_robot_lines(step, indent="        "))
     lines.extend(
@@ -401,13 +408,23 @@ def generate_robot_suite(scenario: Scenario, suite_name: str | None = None) -> s
     return "\n".join(lines)
 
 
-def export_all(scenario: Scenario, output_dir: Path, suite_name: str | None = None) -> ExportResult:
+def export_all(
+    scenario: Scenario,
+    output_dir: Path,
+    suite_name: str | None = None,
+    *,
+    active_profile: str | None = None,
+) -> ExportResult:
+    resolved_scenario = resolve_scenario_variables(scenario, active_profile=active_profile)
     output_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = suite_name or _safe_suite_name(scenario.name)
+    safe_name = suite_name or _safe_suite_name(resolved_scenario.name)
     robot_path = output_dir / f"{safe_name}.robot"
     json_path = output_dir / f"{safe_name}.scenario.json"
 
-    robot_path.write_text(generate_robot_suite(scenario, suite_name=safe_name), encoding="utf-8")
-    scenario.save_json(json_path)
+    robot_path.write_text(
+        generate_robot_suite(resolved_scenario, suite_name=safe_name),
+        encoding="utf-8",
+    )
+    resolved_scenario.save_json(json_path)
 
     return ExportResult(robot_path=robot_path, json_path=json_path)

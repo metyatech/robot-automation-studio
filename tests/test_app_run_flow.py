@@ -43,7 +43,9 @@ def test_run_robot_suite_logs_preflight_and_finishes(monkeypatch, tmp_path: Path
     try:
         monkeypatch.setattr(
             "robot_automation_studio.app.export_all",
-            lambda scenario, output_dir, suite_name: _FakeRunExportResult(tmp_path),
+            lambda scenario, output_dir, suite_name, active_profile=None: _FakeRunExportResult(
+                tmp_path
+            ),
         )
         monkeypatch.setattr(
             studio,
@@ -89,7 +91,9 @@ def test_run_robot_suite_preflight_failure_returns_to_idle(monkeypatch, tmp_path
         )
         monkeypatch.setattr(
             "robot_automation_studio.app.export_all",
-            lambda scenario, output_dir, suite_name: _FakeRunExportResult(tmp_path),
+            lambda scenario, output_dir, suite_name, active_profile=None: _FakeRunExportResult(
+                tmp_path
+            ),
         )
 
         studio.run_robot_suite()
@@ -129,7 +133,9 @@ def test_run_robot_suite_logs_run_diagnostics_summary(monkeypatch, tmp_path: Pat
     try:
         monkeypatch.setattr(
             "robot_automation_studio.app.export_all",
-            lambda scenario, output_dir, suite_name: _FakeRunExportResult(tmp_path),
+            lambda scenario, output_dir, suite_name, active_profile=None: _FakeRunExportResult(
+                tmp_path
+            ),
         )
         monkeypatch.setattr(
             studio,
@@ -177,5 +183,62 @@ def test_run_robot_suite_logs_run_diagnostics_summary(monkeypatch, tmp_path: Pat
 
         log_text = studio.log_text.toPlainText()
         assert "Run diagnostics summary" in log_text
+    finally:
+        studio.close()
+
+
+def test_run_robot_suite_passes_active_profile_to_export(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        captured: dict[str, str | None] = {"active_profile": None}
+
+        def _fake_export_all(
+            scenario,
+            output_dir,
+            suite_name,
+            active_profile=None,
+        ):
+            _ = (scenario, output_dir, suite_name)
+            captured["active_profile"] = active_profile
+            return _FakeRunExportResult(tmp_path)
+
+        studio.scenario.profiles = {"vrchat": {"description": "VRChat", "variables": {}}}
+        studio.scenario.execution = {"active_profile": "vrchat"}
+        studio._refresh_active_profile_combo()
+        studio._set_combo_value(studio.active_profile_combo, "vrchat")
+
+        monkeypatch.setattr(
+            "robot_automation_studio.app.export_all",
+            _fake_export_all,
+        )
+        monkeypatch.setattr(
+            studio,
+            "_ensure_unity_bridge_dependency_if_configured",
+            lambda purpose: True,
+        )
+        monkeypatch.setattr(studio, "_start_stop_hotkey", lambda: True)
+        monkeypatch.setattr(studio, "_start_overlay", lambda mode, progress_text: None)
+        monkeypatch.setattr(studio, "_stop_overlay", lambda: None)
+        monkeypatch.setattr(studio, "_stop_stop_hotkey", lambda: None)
+        monkeypatch.setattr(
+            "robot_automation_studio.app.start_robot_process",
+            lambda suite_path, output_dir, variable_output_dir: _FakeProcess(),
+        )
+        monkeypatch.setattr(
+            "robot_automation_studio.app.wait_robot_process",
+            lambda process: RunResult(return_code=0, stdout="", stderr=""),
+        )
+
+        studio.run_robot_suite()
+        assert studio._run_thread is not None
+        studio._run_thread.join(timeout=1.0)
+        _process_events_for(120)
+
+        assert captured["active_profile"] == "vrchat"
     finally:
         studio.close()

@@ -154,6 +154,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.field.window_hint.label": {"en": "Window Hint", "ja": "ウィンドウヒント"},
     "app.field.window_hint.placeholder": {"en": "Unity", "ja": "Unity"},
     "app.field.execution_mode.label": {"en": "Execution Mode", "ja": "実行モード"},
+    "app.field.active_profile.label": {"en": "Active Profile", "ja": "適用プロファイル"},
     "app.field.unity_project_path.label": {
         "en": "Unity Project Path",
         "ja": "Unity プロジェクトパス",
@@ -192,6 +193,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.option.target.hybrid": {"en": "Hybrid", "ja": "ハイブリッド"},
     "app.option.execution.attach": {"en": "Attach", "ja": "アタッチ"},
     "app.option.execution.launch": {"en": "Launch", "ja": "起動"},
+    "app.option.profile.none": {"en": "(none)", "ja": "(なし)"},
     "app.option.kind.action": {"en": "Action", "ja": "アクション"},
     "app.option.kind.control": {"en": "Control", "ja": "制御"},
     "app.option.kind.group": {"en": "Group", "ja": "グループ"},
@@ -218,6 +220,18 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.option.help.execution.launch": {
         "en": "Launch Unity project before running.",
         "ja": "実行前に Unity プロジェクトを起動します。",
+    },
+    "app.option.help.profile.none": {
+        "en": "Use variable defaults (no profile override).",
+        "ja": "変数のデフォルト値をそのまま使用します。",
+    },
+    "app.option.help.profile.item": {
+        "en": "Use profile '{profile}' overrides.",
+        "ja": "プロファイル '{profile}' の上書きを使用します。",
+    },
+    "app.option.help.profile.item_with_description": {
+        "en": "Use profile '{profile}' overrides. {description}",
+        "ja": "プロファイル '{profile}' の上書きを使用します。{description}",
     },
     "app.option.help.kind.action": {
         "en": "Execute one operation step.",

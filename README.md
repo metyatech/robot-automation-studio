@@ -40,6 +40,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 - The app now uses `automation-scenario-spec` `2.0.0` only.
 - `1.x` scenario compatibility is intentionally removed.
 - Exporter fails fast with explicit errors when a step kind/action is not executable by current Robot generation logic.
+- Exporter also fails fast when required variables are missing, placeholders are unresolved, or active profile is invalid.
 
 ## Supported Environment
 
@@ -76,35 +77,38 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 2. Select execution mode:
    - `attach`: run against an already opened Unity Editor.
    - `launch`: open a Unity project path and then run the scenario.
-3. Optionally set `Unity Project Path` (recommended for Unity Hierarchy bridge).
+3. Select `Active Profile` when you need profile-specific variable overrides.
+   - `(none)` uses variable defaults.
+   - Profile selection is applied during `Export` and `Run Robot`.
+4. Optionally set `Unity Project Path` (recommended for Unity Hierarchy bridge).
    - When set, Studio auto-adds `com.metyatech.unity-automation-bridge` to `Packages/manifest.json` before recording and before `Run Robot`.
    - This works for both `attach` and `launch`.
    - In `attach`, when empty, Studio auto-detects the attached Unity project's `-projectPath` from the running Unity process and then auto-adds the dependency.
-4. Click `● Record`, perform operations in Unity Editor, then click `■ Stop`.
+5. Click `● Record`, perform operations in Unity Editor, then click `■ Stop`.
    - In `attach`, `● Record` fails immediately with an error dialog if no visible window matches `Window Hint`.
    - `● Record` validates Unity bridge readiness before starting recording.
    - While recording, overlay highlight is enabled (distinct "recording" style from run mode).
    - Click/drag is recorded only when a UI Automation element selector is resolved.
    - If selector resolution fails, Studio logs a recording error and does not add the step.
    - For Unity Hierarchy pane clicks, Studio uses Unity bridge selection path when available.
-5. Fine-tune steps from the editor panel.
+6. Fine-tune steps from the editor panel.
    - update step kind/action/control and advanced params JSON.
-6. Open dedicated v2 editors when needed:
+7. Open dedicated v2 editors when needed:
    - `Variables`
    - `Profiles`
    - `Execution/Outputs`
    - `{} Full JSON` (full scenario object)
-7. Choose output directory and export name.
-8. Click `Export` to generate:
+8. Choose output directory and export name.
+9. Click `Export` to generate:
    - `<name>.robot`
    - `<name>.scenario.json`
-9. Click `Run Robot` to execute the generated suite.
+10. Click `Run Robot` to execute the generated suite.
    - Studio first shows `Preflight checks` status while validating execution prerequisites.
-10. While running, use `Stop Robot`, the overlay `Stop Now` button, or the configured stop hotkey to stop immediately.
+11. While running, use `Stop Robot`, the overlay `Stop Now` button, or the configured stop hotkey to stop immediately.
     - Default stop hotkey is `Alt+Shift+F12`.
     - You can change it from the header `Hotkey: ...` button by pressing the target key combination directly.
     - If registration fails (for example shortcut conflict), Studio applies a fallback key and shows a warning.
-11. Use in-app help:
+12. Use in-app help:
    - hover/focus any UI component to read cursor-near tooltip help
    - press `F1` (or click `Help Guide`) to open searchable full GUI help
 

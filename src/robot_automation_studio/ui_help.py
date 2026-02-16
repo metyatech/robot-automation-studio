@@ -40,6 +40,10 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Choose attach or launch.",
         "attach uses an already-open app. launch opens the configured Unity project first.",
     ),
+    "Active Profile": (
+        "Choose active profile.",
+        "Applies profile-specific variable overrides for export and run.",
+    ),
     "Unity Project Path": (
         "Set Unity project path.",
         "Also used for bridge package setup and attach auto-detection fallback.",
@@ -331,6 +335,10 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
         "Choose attach or launch.",
         "attach uses an already-open app. launch opens the configured Unity project first.",
     ),
+    "ActiveProfileCombo": (
+        "Choose active profile.",
+        "Applies profile-specific variable overrides for export and run.",
+    ),
     "LanguageCombo": (
         "Choose language.",
         "Switch UI language between English and Japanese.",
@@ -392,6 +400,10 @@ _KNOWN_TEXT_HELP_JA: dict[str, tuple[str, str]] = {
     "実行モード": (
         "実行モードを選択します。",
         "attach は既存アプリへ接続、launch は Unity を起動して実行します。",
+    ),
+    "適用プロファイル": (
+        "適用プロファイルを選択します。",
+        "エクスポート/実行時にプロファイル別の変数上書きを適用します。",
     ),
     "Unity プロジェクトパス": (
         "Unity プロジェクトパスを設定します。",
@@ -563,6 +575,10 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
     "ExecutionModeCombo": (
         "実行モードを選択します。",
         "attach は既存接続、launch は起動実行です。",
+    ),
+    "ActiveProfileCombo": (
+        "適用プロファイルを選択します。",
+        "エクスポート/実行時にプロファイル別の変数上書きを適用します。",
     ),
     "LanguageCombo": (
         "表示言語を選択します。",

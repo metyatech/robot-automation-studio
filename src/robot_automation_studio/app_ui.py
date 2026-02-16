@@ -318,6 +318,11 @@ def build_ui(self, *, bg_light: str) -> None:
     self.execution_mode_combo.currentTextChanged.connect(self.on_execution_mode_changed)
     scenario_form.addRow(self.execution_mode_label, self.execution_mode_combo)
 
+    self.active_profile_combo = QComboBox()
+    self.active_profile_combo.setObjectName("ActiveProfileCombo")
+    self.active_profile_label = QLabel()
+    scenario_form.addRow(self.active_profile_label, self.active_profile_combo)
+
     project_path_row = QHBoxLayout()
     self.project_path_edit = QLineEdit(str(self.scenario.metadata.get(UNITY_PROJECT_PATH_KEY, "")))
     self.project_path_edit.setObjectName("ProjectPathEdit")
@@ -652,6 +657,7 @@ def apply_localized_texts(self) -> None:
     self.window_hint_label.setText(self._t("app.field.window_hint.label"))
     self.window_hint_edit.setPlaceholderText(self._t("app.field.window_hint.placeholder"))
     self.execution_mode_label.setText(self._t("app.field.execution_mode.label"))
+    self.active_profile_label.setText(self._t("app.field.active_profile.label"))
     self.unity_project_path_label.setText(self._t("app.field.unity_project_path.label"))
     self.project_path_edit.setPlaceholderText(self._t("app.field.unity_project_path.placeholder"))
     self.project_path_browse_button.setText(self._t("app.button.browse"))
@@ -660,6 +666,7 @@ def apply_localized_texts(self) -> None:
     self.variables_button.setText(self._t("app.button.variables"))
     self.profiles_button.setText(self._t("app.button.profiles"))
     self.execution_outputs_button.setText(self._t("app.button.execution_outputs"))
+    self._refresh_active_profile_combo()
 
     self.output_dir_label.setText(self._t("app.field.output_dir.label"))
     self.output_dir_edit.setPlaceholderText(self._t("app.field.output_dir.placeholder"))
