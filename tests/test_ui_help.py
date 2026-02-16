@@ -37,6 +37,37 @@ def test_build_help_entry_falls_back_to_widget_class_description() -> None:
     assert entry.summary == "Input field."
 
 
+def test_build_help_entry_uses_normalized_lookup_for_placeholder_like_text() -> None:
+    entry = build_help_entry(
+        widget_id="ScenarioIdEdit",
+        widget_class="QLineEdit",
+        widget_text="scenario-id",
+    )
+
+    assert "stable scenario identifier" in entry.summary.lower()
+
+
+def test_build_help_entry_uses_widget_id_help_when_available() -> None:
+    entry = build_help_entry(
+        widget_id="LogText",
+        widget_class="QPlainTextEdit",
+        widget_text="",
+    )
+
+    assert "runtime log output area" in entry.summary.lower()
+
+
+def test_build_help_entry_unknown_class_no_longer_uses_ui_component_text() -> None:
+    entry = build_help_entry(
+        widget_id="root.unknown",
+        widget_class="UnknownWidget",
+        widget_text="",
+    )
+
+    assert entry.summary != "UI component."
+    assert "interactive interface element" in entry.summary.lower()
+
+
 def test_filter_help_entries_matches_title_summary_and_detail() -> None:
     entries = [
         HelpEntry(

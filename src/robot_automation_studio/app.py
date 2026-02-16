@@ -567,6 +567,7 @@ class StudioApp(QMainWindow):
 
         self._status_pill = QLabel(format_run_status("idle", SPINNER_FRAMES[0]))
         self._status_pill.setObjectName("StatusPill")
+        self._status_pill.setToolTip("Run status")
         header_layout.addWidget(self._status_pill)
 
         vline2 = QFrame()
@@ -582,6 +583,7 @@ class StudioApp(QMainWindow):
 
         self._rec_indicator = QLabel(" IDLE ")
         self._rec_indicator.setObjectName("RecIndicator")
+        self._rec_indicator.setToolTip("Recording status")
         header_layout.addWidget(self._rec_indicator)
 
         self.file_menu_button = QToolButton()
@@ -633,21 +635,25 @@ class StudioApp(QMainWindow):
         step_toolbar.addWidget(self.add_step_button)
 
         self.delete_step_button = QPushButton("\u2715")
+        self.delete_step_button.setObjectName("DeleteStepButton")
         self.delete_step_button.setToolTip("Delete step")
         self.delete_step_button.clicked.connect(self.delete_selected)
         step_toolbar.addWidget(self.delete_step_button)
 
         self.move_up_button = QPushButton("\u25b2")
+        self.move_up_button.setObjectName("MoveStepUpButton")
         self.move_up_button.setToolTip("Move step up")
         self.move_up_button.clicked.connect(self.move_up)
         step_toolbar.addWidget(self.move_up_button)
 
         self.move_down_button = QPushButton("\u25bc")
+        self.move_down_button.setObjectName("MoveStepDownButton")
         self.move_down_button.setToolTip("Move step down")
         self.move_down_button.clicked.connect(self.move_down)
         step_toolbar.addWidget(self.move_down_button)
 
         self.duplicate_step_button = QPushButton("\u2398")
+        self.duplicate_step_button.setObjectName("DuplicateStepButton")
         self.duplicate_step_button.setToolTip("Duplicate step")
         self.duplicate_step_button.clicked.connect(self.duplicate_selected)
         step_toolbar.addWidget(self.duplicate_step_button)
@@ -656,6 +662,8 @@ class StudioApp(QMainWindow):
         left_panel_layout.addLayout(step_toolbar)
 
         self.step_list = QListWidget()
+        self.step_list.setObjectName("StepList")
+        self.step_list.setToolTip("Steps list")
         self.step_list.setFont(QFont("Consolas", 11))
         self.step_list.currentRowChanged.connect(self.on_select_step)
         left_panel_layout.addWidget(self.step_list)
@@ -676,51 +684,63 @@ class StudioApp(QMainWindow):
         self.step_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self.step_id_edit = QLineEdit()
+        self.step_id_edit.setObjectName("StepIdEdit")
         self.step_id_edit.setPlaceholderText("step-1")
         self.step_form.addRow("Step ID", self.step_id_edit)
 
         self.title_edit = QLineEdit()
+        self.title_edit.setObjectName("StepTitleEdit")
         self.title_edit.setPlaceholderText("Step title")
         self.step_form.addRow("Title", self.title_edit)
 
         self.kind_combo = QComboBox()
+        self.kind_combo.setObjectName("StepKindCombo")
+        self.kind_combo.setToolTip("Kind")
         self.kind_combo.addItems(["action", "control", "group"])
         self.kind_combo.currentTextChanged.connect(self._update_step_kind_fields_visibility)
         self.step_form.addRow("Kind", self.kind_combo)
 
         self.action_edit = QLineEdit()
+        self.action_edit.setObjectName("StepActionEdit")
         self.action_edit.setPlaceholderText("click / drag_drop / type_text ...")
         self.action_label = QLabel("Action")
         self.step_form.addRow(self.action_label, self.action_edit)
 
         self.control_edit = QLineEdit()
+        self.control_edit.setObjectName("StepControlEdit")
         self.control_edit.setPlaceholderText("if / for_each / while ...")
         self.control_label = QLabel("Control")
         self.step_form.addRow(self.control_label, self.control_edit)
 
         self.step_description_edit = QLineEdit()
+        self.step_description_edit.setObjectName("StepDescriptionEdit")
         self.step_description_edit.setPlaceholderText("Optional description")
         self.step_form.addRow("Description", self.step_description_edit)
 
         self.step_condition_edit = QLineEdit()
+        self.step_condition_edit.setObjectName("StepConditionEdit")
         self.step_condition_edit.setPlaceholderText("Optional condition expression")
         self.condition_label = QLabel("Condition")
         self.step_form.addRow(self.condition_label, self.step_condition_edit)
 
         checks_layout = QHBoxLayout()
         self.step_disabled_check = QCheckBox("Disabled")
+        self.step_disabled_check.setObjectName("StepDisabledCheck")
         checks_layout.addWidget(self.step_disabled_check)
         self.step_continue_on_error_check = QCheckBox("Continue On Error")
+        self.step_continue_on_error_check.setObjectName("StepContinueOnErrorCheck")
         checks_layout.addWidget(self.step_continue_on_error_check)
         checks_layout.addStretch()
         self.step_form.addRow(checks_layout)
 
         self.annotations_text = QPlainTextEdit()
+        self.annotations_text.setObjectName("StepAnnotationsText")
         self.annotations_text.setFont(QFont("Consolas", 9))
         self.annotations_text.setMaximumHeight(80)
         self.step_form.addRow("Annotations", self.annotations_text)
 
         self.params_text = QPlainTextEdit()
+        self.params_text.setObjectName("StepParamsText")
         self.params_text.setFont(QFont("Consolas", 10))
         self.params_text.setMaximumHeight(160)
         self.step_form.addRow("Params", self.params_text)
@@ -751,19 +771,25 @@ class StudioApp(QMainWindow):
         scenario_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self.scenario_id_edit = QLineEdit(self.scenario.scenario_id)
+        self.scenario_id_edit.setObjectName("ScenarioIdEdit")
         self.scenario_id_edit.setPlaceholderText("scenario-id")
         scenario_form.addRow("Scenario ID", self.scenario_id_edit)
 
         self.target_combo = QComboBox()
+        self.target_combo.setObjectName("TargetCombo")
+        self.target_combo.setToolTip("Target")
         self.target_combo.addItems(["unity", "web", "desktop", "hybrid"])
         self.target_combo.setCurrentText(self.scenario.target)
         scenario_form.addRow("Target", self.target_combo)
 
         self.window_hint_edit = QLineEdit(self.scenario.target_window_hint)
+        self.window_hint_edit.setObjectName("WindowHintEdit")
         self.window_hint_edit.setPlaceholderText("Unity")
         scenario_form.addRow("Window Hint", self.window_hint_edit)
 
         self.execution_mode_combo = QComboBox()
+        self.execution_mode_combo.setObjectName("ExecutionModeCombo")
+        self.execution_mode_combo.setToolTip("Execution Mode")
         self.execution_mode_combo.addItems(["attach", "launch"])
         execution_mode = normalize_unity_execution_mode(
             self.scenario.metadata.get(UNITY_EXECUTION_MODE_KEY, "attach")
@@ -776,25 +802,31 @@ class StudioApp(QMainWindow):
         self.project_path_edit = QLineEdit(
             str(self.scenario.metadata.get(UNITY_PROJECT_PATH_KEY, ""))
         )
+        self.project_path_edit.setObjectName("ProjectPathEdit")
         self.project_path_edit.setPlaceholderText("Path to Unity project root")
         project_path_row.addWidget(self.project_path_edit, 1)
         self.project_path_browse_button = QPushButton("Browse")
+        self.project_path_browse_button.setObjectName("ProjectPathBrowseButton")
         self.project_path_browse_button.clicked.connect(self.browse_unity_project_path)
         project_path_row.addWidget(self.project_path_browse_button)
         scenario_form.addRow("Unity Project Path", project_path_row)
 
         self.description_edit = QLineEdit(self.scenario.description)
+        self.description_edit.setObjectName("ScenarioDescriptionEdit")
         self.description_edit.setPlaceholderText("Optional scenario description")
         scenario_form.addRow("Description", self.description_edit)
 
         scenario_tools_layout = QHBoxLayout()
         variables_button = QPushButton("Variables")
+        variables_button.setObjectName("VariablesButton")
         variables_button.clicked.connect(self.open_variables_editor)
         scenario_tools_layout.addWidget(variables_button)
         profiles_button = QPushButton("Profiles")
+        profiles_button.setObjectName("ProfilesButton")
         profiles_button.clicked.connect(self.open_profiles_editor)
         scenario_tools_layout.addWidget(profiles_button)
         execution_outputs_button = QPushButton("Execution/Outputs")
+        execution_outputs_button.setObjectName("ExecutionOutputsButton")
         execution_outputs_button.clicked.connect(self.open_execution_outputs_editor)
         scenario_tools_layout.addWidget(execution_outputs_button)
         scenario_tools_layout.addStretch()
@@ -817,14 +849,17 @@ class StudioApp(QMainWindow):
         export_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self.output_dir_edit = QLineEdit("artifacts/studio")
+        self.output_dir_edit.setObjectName("OutputDirEdit")
         self.output_dir_edit.setPlaceholderText("Output directory")
         export_form.addRow("Output Dir", self.output_dir_edit)
 
         export_name_row = QHBoxLayout()
         self.export_name_edit = QLineEdit("unity-editor-generated")
+        self.export_name_edit.setObjectName("ExportNameEdit")
         self.export_name_edit.setPlaceholderText("Export name")
         export_name_row.addWidget(self.export_name_edit, 1)
         self.export_button = QPushButton("Export")
+        self.export_button.setObjectName("ExportButton")
         self.export_button.clicked.connect(self.export_scenario)
         export_name_row.addWidget(self.export_button)
         export_form.addRow("Export Name", export_name_row)
@@ -862,6 +897,7 @@ class StudioApp(QMainWindow):
 
         self._log_toggle_button = QToolButton()
         self._log_toggle_button.setObjectName("LogToggleButton")
+        self._log_toggle_button.setToolTip("Collapse or expand Output Log.")
         self._log_toggle_button.setText("\u25bc")
         self._log_toggle_button.clicked.connect(self._toggle_log_collapse)
         log_header_layout.addWidget(self._log_toggle_button)
@@ -1668,17 +1704,82 @@ class StudioApp(QMainWindow):
 
     def _widget_text(self, widget: QWidget) -> str:
         if isinstance(widget, QPushButton):
-            return widget.text()
+            text = widget.text().strip()
+            if text and any(char.isalnum() for char in text):
+                return text
+            tooltip = widget.toolTip().strip()
+            if tooltip:
+                return tooltip
+            return text
+        if isinstance(widget, QToolButton):
+            text = widget.text().strip()
+            if text:
+                return text
+            tooltip = widget.toolTip().strip()
+            if tooltip:
+                return tooltip
+            return widget.objectName()
         if isinstance(widget, QLabel):
+            tooltip = widget.toolTip().strip()
+            if tooltip:
+                return tooltip
             return widget.text()
         if isinstance(widget, QLineEdit):
-            return widget.placeholderText()
+            placeholder = widget.placeholderText().strip()
+            if placeholder:
+                return placeholder
+            tooltip = widget.toolTip().strip()
+            if tooltip:
+                return tooltip
+            text = widget.text().strip()
+            if text:
+                return text
+            return widget.objectName()
+        if isinstance(widget, QComboBox):
+            tooltip = widget.toolTip().strip()
+            if tooltip:
+                return tooltip
+            text = widget.currentText().strip()
+            if text:
+                return text
+            return widget.objectName()
         if isinstance(widget, QCheckBox):
             return widget.text()
+        if isinstance(widget, QListWidget):
+            tooltip = widget.toolTip().strip()
+            if tooltip:
+                return tooltip
+            return widget.objectName()
+        if isinstance(widget, QPlainTextEdit):
+            tooltip = widget.toolTip().strip()
+            if tooltip:
+                return tooltip
+            return widget.objectName()
         return ""
+
+    def _should_skip_help_widget(self, widget: QWidget) -> bool:
+        if widget is self:
+            return True
+        object_name = widget.objectName()
+        if object_name.startswith("qt_"):
+            return True
+        return type(widget).__name__ in {
+            "QFrame",
+            "QListView",
+            "QMenu",
+            "QScrollArea",
+            "QScrollBar",
+            "QSplitter",
+            "QSplitterHandle",
+            "QStackedWidget",
+            "QTabBar",
+            "QWidget",
+        }
 
     def _register_help_for_widget(self, widget: QWidget) -> None:
         if widget in self._help_entries_by_widget:
+            return
+        if self._should_skip_help_widget(widget):
             return
         widget_id = widget.objectName() or str(id(widget))
         widget_class = type(widget).__name__

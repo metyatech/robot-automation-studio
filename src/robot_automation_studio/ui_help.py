@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 
@@ -201,9 +202,155 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Runtime log output area.",
         "Shows recording/run diagnostics, errors, and process output lines.",
     ),
+    "Delete step": (
+        "Delete the selected step.",
+        "Removes the currently selected step from the scenario.",
+    ),
+    "Move step up": (
+        "Move selected step up.",
+        "Changes step order by moving the selected step one position earlier.",
+    ),
+    "Move step down": (
+        "Move selected step down.",
+        "Changes step order by moving the selected step one position later.",
+    ),
+    "Duplicate step": (
+        "Duplicate selected step.",
+        "Creates a copy of the selected step and inserts it nearby.",
+    ),
+    "Scenario name": (
+        "Set the scenario display name.",
+        "Human-readable scenario title used in exported Robot and scenario outputs.",
+    ),
+    "scenario-id": (
+        "Set a stable scenario identifier.",
+        "Machine-friendly ID used as the scenario key and export filename base.",
+    ),
+    "Path to Unity project root": (
+        "Set the Unity project path for launch mode.",
+        "Also used for bridge package setup and attach auto-detection fallback.",
+    ),
+    "Optional scenario description": (
+        "Add an optional scenario description.",
+        "Use for intent, prerequisites, or operator notes.",
+    ),
+    "Output directory": (
+        "Set artifact output directory.",
+        "Base directory where export/run outputs are written.",
+    ),
+    "Export name": (
+        "Set export suite name.",
+        "Base name used for generated .robot and .scenario.json files.",
+    ),
+    "Step title": (
+        "Edit selected step title.",
+        "Readable step name shown in lists and generated guidebook output.",
+    ),
+    "step-1": (
+        "Edit selected step ID.",
+        "Set a stable step identifier used in artifacts and metadata.",
+    ),
+    "click / drag_drop / type_text ...": (
+        "Edit selected action name.",
+        "Used when kind=action to determine executable operation type.",
+    ),
+    "if / for_each / while ...": (
+        "Edit selected control name.",
+        "Used when kind=control to define control-flow operator.",
+    ),
+    "Optional description": (
+        "Add an optional scenario description.",
+        "Use for intent, prerequisites, or operator notes.",
+    ),
+    "Optional condition expression": (
+        "Edit optional step condition.",
+        "Expression used to gate step execution when supported by control logic.",
+    ),
+    "Steps list": (
+        "Browse and select scenario steps.",
+        "Shows step order; select one item to edit it in the Step tab.",
+    ),
+    "Run status": (
+        "View current run phase.",
+        "Shows idle/running/stopping state and spinner progress while Robot runs.",
+    ),
+    "Recording status": (
+        "View recording mode state.",
+        "Shows IDLE or REC so you can tell whether recording is active.",
+    ),
+    "Collapse or expand Output Log.": (
+        "Collapse or expand the Output Log panel.",
+        "Use this to focus on editor controls or inspect logs while running/recording.",
+    ),
+}
+
+_KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
+    "ScenarioNameEdit": (
+        "Set the scenario display name.",
+        "Human-readable scenario title used in exported Robot and scenario outputs.",
+    ),
+    "FileMenuButton": (
+        "Open file/help menu.",
+        "Provides Save, Load, Full JSON editor, and Help Guide shortcuts.",
+    ),
+    "AddStepButton": (
+        "Open step-add menu.",
+        "Add Click, Drag, Shortcut, Menu, Type, IF, or Group steps.",
+    ),
+    "StatusPill": (
+        "View current run phase.",
+        "Shows idle/running/stopping state and spinner progress while Robot runs.",
+    ),
+    "RecIndicator": (
+        "View recording mode state.",
+        "Shows IDLE or REC so you can tell whether recording is active.",
+    ),
+    "LogToggleButton": (
+        "Collapse or expand the Output Log panel.",
+        "Use this to focus on editor controls or inspect logs while running/recording.",
+    ),
+    "LogText": (
+        "Runtime log output area.",
+        "Shows recording/run diagnostics, errors, and process output lines.",
+    ),
+    "StepList": (
+        "Browse and select scenario steps.",
+        "Shows step order; select one item to edit it in the Step tab.",
+    ),
+    "StepKindCombo": (
+        "Edit selected step kind.",
+        "Choose action/control/group for the selected step.",
+    ),
+    "TargetCombo": (
+        "Choose the scenario target platform.",
+        "Select unity/web/desktop/hybrid to define how steps are interpreted.",
+    ),
+    "ExecutionModeCombo": (
+        "Select attach or launch execution.",
+        "attach uses an already-open app. launch opens the configured Unity project first.",
+    ),
 }
 
 _CLASS_FALLBACK_SUMMARY: dict[str, str] = {
+    "QPushButton": "Click to run the labeled action.",
+    "QToolButton": "Open a menu or trigger a compact action button.",
+    "QLineEdit": "Type or edit a single-line text value.",
+    "QPlainTextEdit": "Edit multi-line text such as JSON or logs.",
+    "QComboBox": "Choose one option from the drop-down list.",
+    "QCheckBox": "Toggle this option on or off.",
+    "QListWidget": "Select an item from the list.",
+    "QLabel": "Read-only label that describes nearby controls.",
+    "QSplitter": "Drag to resize neighboring panels.",
+    "QScrollArea": "Scrollable area that contains additional controls.",
+    "QScrollBar": "Scroll to reveal hidden content.",
+    "QTabWidget": "Switch between tabs to edit different sections.",
+    "QMenu": "Menu that lists available commands.",
+    "QWidget": "Container that groups related controls.",
+    "QFrame": "Visual separator or container frame.",
+    "QListView": "List view used by combo boxes and selection popups.",
+    "QStackedWidget": "Container that swaps visible pages.",
+    "QTabBar": "Tab strip used to switch sections.",
+    "QSplitterHandle": "Handle used to resize split panes.",
     "TButton": "Button action.",
     "Button": "Button action.",
     "TEntry": "Input field.",
@@ -225,6 +372,21 @@ _CLASS_FALLBACK_SUMMARY: dict[str, str] = {
     "TSeparator": "Visual separator.",
 }
 
+_STOP_ROBOT_KEY = "stop robot"
+_NORMALIZE_HELP_KEY_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _normalize_help_key(value: str) -> str:
+    text = str(value or "").strip().lower()
+    if text == "":
+        return ""
+    return _NORMALIZE_HELP_KEY_RE.sub(" ", text).strip()
+
+
+_KNOWN_TEXT_HELP_BY_KEY: dict[str, tuple[str, str]] = {
+    _normalize_help_key(key): value for key, value in _KNOWN_TEXT_HELP.items()
+}
+
 
 def build_help_entry(
     widget_id: str,
@@ -236,7 +398,7 @@ def build_help_entry(
     """Build one normalized help entry from explicit text and fallbacks."""
 
     title = _normalize_title(widget_text, widget_class)
-    known_summary, known_detail = _lookup_known_help(title)
+    known_summary, known_detail = _lookup_known_help(title, widget_id)
 
     summary = _normalize_text(explicit_summary) or known_summary or _fallback_summary(widget_class)
     detail = _normalize_text(explicit_detail) or known_detail or summary
@@ -265,11 +427,20 @@ def filter_help_entries(entries: list[HelpEntry], query: str) -> list[HelpEntry]
     return result
 
 
-def _lookup_known_help(title: str) -> tuple[str, str]:
+def _lookup_known_help(title: str, widget_id: str) -> tuple[str, str]:
+    widget_help = _KNOWN_WIDGET_ID_HELP.get(widget_id)
+    if widget_help is not None:
+        return widget_help
+
     if title in _KNOWN_TEXT_HELP:
         return _KNOWN_TEXT_HELP[title]
 
-    if title.startswith("Stop Robot"):
+    normalized_title = _normalize_help_key(title)
+    normalized_match = _KNOWN_TEXT_HELP_BY_KEY.get(normalized_title)
+    if normalized_match is not None:
+        return normalized_match
+
+    if normalized_title.startswith(_STOP_ROBOT_KEY):
         return (
             "Stop active Robot execution.",
             "Stops the running Robot process immediately. Use Ctrl+Shift+F12 as emergency stop.",
@@ -278,7 +449,10 @@ def _lookup_known_help(title: str) -> tuple[str, str]:
 
 
 def _fallback_summary(widget_class: str) -> str:
-    return _CLASS_FALLBACK_SUMMARY.get(widget_class, "UI component.")
+    return _CLASS_FALLBACK_SUMMARY.get(
+        widget_class,
+        "Interactive interface element. See nearby labels or F1 Help Guide for context.",
+    )
 
 
 def _normalize_title(widget_text: str, widget_class: str) -> str:
