@@ -242,6 +242,15 @@ def test_parse_subflow_timeout_seconds_allows_placeholder_when_enabled() -> None
     assert parsed is None
 
 
+def test_parse_subflow_timeout_seconds_allows_spaced_placeholder_when_enabled() -> None:
+    parsed = parse_subflow_timeout_seconds(
+        " ${subflow_timeout} ",
+        default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+        allow_placeholder=True,
+    )
+    assert parsed is None
+
+
 def test_parse_subflow_timeout_seconds_rejects_mixed_placeholder_text() -> None:
     with pytest.raises(
         ValueError,

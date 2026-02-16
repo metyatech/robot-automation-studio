@@ -281,6 +281,25 @@ def test_validate_scenario_allows_variable_placeholder_for_subflow_timeout() -> 
     assert report.issues == []
 
 
+def test_validate_scenario_allows_spaced_placeholder_for_subflow_timeout() -> None:
+    scenario = Scenario(
+        name="Variable subflow timeout with spaces",
+        variables=[{"id": "subflow_timeout", "type": "number", "required": True, "default": "120"}],
+        execution={"subflow_timeout_seconds": " ${subflow_timeout} "},
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is True
+    assert report.issues == []
+
+
 def test_validate_scenario_rejects_mixed_placeholder_text_for_subflow_timeout() -> None:
     scenario = Scenario(
         name="Variable subflow timeout invalid mixed",
