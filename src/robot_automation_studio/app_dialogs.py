@@ -9,6 +9,7 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -41,6 +42,17 @@ def _parse_json_or_text(raw_text: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError:
         return text
+
+
+def format_validation_issues_for_clipboard(issues: list[ValidationIssue]) -> str:
+    if not issues:
+        return "No validation issues."
+    lines: list[str] = []
+    for index, issue in enumerate(issues, start=1):
+        location = str(issue.location or "").strip() or "-"
+        lines.append(f"{index}. [{issue.code}] {location}")
+        lines.append(f"   {issue.message}")
+    return "\n".join(lines)
 
 
 def _parse_variable_default_by_type(
@@ -687,6 +699,8 @@ def open_validation_report_dialog(
     go_to_button.setObjectName("ApplyButton")
     go_to_button.setToolTip(self._t("app.tooltip.go_to_issue"))
     go_to_button.setEnabled(False)
+    copy_issue_button = QPushButton(self._t("app.button.copy_issue"))
+    copy_all_button = QPushButton(self._t("app.button.copy_all_issues"))
 
     splitter = QSplitter(Qt.Orientation.Horizontal)
     splitter.addWidget(issues_list)
@@ -759,14 +773,29 @@ def open_validation_report_dialog(
             self._t("app.info.validation_navigation_unavailable.message", location=location),
         )
 
+    def _copy_selected_issue() -> None:
+        issue = _selected_issue()
+        if issue is None:
+            return
+        line = format_validation_issues_for_clipboard([issue])
+        QApplication.clipboard().setText(line)
+
+    def _copy_all_issues() -> None:
+        text = format_validation_issues_for_clipboard(report.issues)
+        QApplication.clipboard().setText(text)
+
     issues_list.currentRowChanged.connect(_on_select)
     issues_list.itemDoubleClicked.connect(lambda _item: _go_to_issue_location())
     go_to_button.clicked.connect(_go_to_issue_location)
+    copy_issue_button.clicked.connect(_copy_selected_issue)
+    copy_all_button.clicked.connect(_copy_all_issues)
     issues_list.setCurrentRow(0)
     _on_select(0)
 
     footer = QHBoxLayout()
     footer.addWidget(go_to_button)
+    footer.addWidget(copy_issue_button)
+    footer.addWidget(copy_all_button)
     footer.addStretch()
     close_button = QPushButton(self._t("app.button.close"))
     close_button.clicked.connect(dialog.accept)

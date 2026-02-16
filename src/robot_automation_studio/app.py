@@ -265,6 +265,21 @@ def default_params_template_for_action(action: str) -> dict[str, object] | None:
     return deepcopy(template)
 
 
+def _is_effectively_empty_json_payload(raw_text: str) -> bool:
+    text = str(raw_text or "").strip()
+    if text == "":
+        return True
+    try:
+        payload = json.loads(text)
+    except Exception:
+        return False
+    if payload is None:
+        return True
+    if isinstance(payload, (dict, list, tuple, set)):
+        return len(payload) == 0
+    return False
+
+
 _STYLESHEET = f"""
 QMainWindow, QWidget {{
     background: {_BG};
@@ -1731,6 +1746,21 @@ class StudioApp(QMainWindow):
                 ),
             )
             return
+        current_text = self.params_text.toPlainText()
+        if not _is_effectively_empty_json_payload(current_text):
+            answer = QMessageBox.question(
+                self,
+                self._t("app.confirm.params_template_overwrite.title"),
+                self._t(
+                    "app.confirm.params_template_overwrite.message",
+                    action=_normalize_step_action_for_template(action) or "-",
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                self.log(self._t("app.log.params_template_insert_cancelled"))
+                return
         self.params_text.setPlainText(json.dumps(template, ensure_ascii=False, indent=2))
         self.log(
             self._t(
@@ -1973,6 +2003,12 @@ class StudioApp(QMainWindow):
         layout.addWidget(text, 1)
 
         footer = QHBoxLayout()
+        copy_summary_button = QPushButton(self._t("app.button.copy_summary"))
+        copy_summary_button.clicked.connect(lambda: QApplication.clipboard().setText(summary_text))
+        footer.addWidget(copy_summary_button)
+        copy_json_button = QPushButton(self._t("app.button.copy_json"))
+        copy_json_button.clicked.connect(lambda: QApplication.clipboard().setText(raw_text))
+        footer.addWidget(copy_json_button)
         footer.addStretch()
         close_button = QPushButton(self._t("app.button.close"))
         close_button.clicked.connect(dialog.accept)

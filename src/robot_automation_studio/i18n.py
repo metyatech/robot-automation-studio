@@ -72,6 +72,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.button.delete_word": {"en": "Delete", "ja": "削除"},
     "app.button.apply_current": {"en": "Apply Current", "ja": "現在項目を適用"},
     "app.button.open_output_dir": {"en": "Open Dir", "ja": "フォルダを開く"},
+    "app.button.copy_issue": {"en": "Copy Issue", "ja": "選択項目をコピー"},
+    "app.button.copy_all_issues": {"en": "Copy All", "ja": "全件コピー"},
+    "app.button.copy_summary": {"en": "Copy Summary", "ja": "要約をコピー"},
+    "app.button.copy_json": {"en": "Copy JSON", "ja": "JSONをコピー"},
     "app.label.steps": {"en": "Steps", "ja": "ステップ"},
     "app.label.output_log": {"en": "Output Log", "ja": "出力ログ"},
     "app.tooltip.delete_step": {"en": "Delete step", "ja": "ステップを削除"},
@@ -577,6 +581,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Inserted params template for action: {action}",
         "ja": "アクション {action} のパラメータ雛形を挿入しました",
     },
+    "app.log.params_template_insert_cancelled": {
+        "en": "Cancelled params template insertion.",
+        "ja": "パラメータ雛形の挿入をキャンセルしました。",
+    },
     "app.log.opened_output_dir": {
         "en": "Opened output directory: {path}",
         "ja": "出力フォルダを開きました: {path}",
@@ -878,6 +886,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.error.open_output_dir.message": {
         "en": "Failed to open output directory: {path}\n\n{error}",
         "ja": "出力フォルダを開けませんでした: {path}\n\n{error}",
+    },
+    "app.confirm.params_template_overwrite.title": {
+        "en": "Overwrite Params",
+        "ja": "パラメータを上書きしますか",
+    },
+    "app.confirm.params_template_overwrite.message": {
+        "en": (
+            "Params (JSON) already contains values.\n"
+            "Overwrite with the template for action '{action}'?"
+        ),
+        "ja": (
+            "Params(JSON) に既存の値があります。\nアクション '{action}' 用の雛形で上書きしますか?"
+        ),
     },
     "app.error.validation_navigation.title": {
         "en": "Validation Navigation Error",

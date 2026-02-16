@@ -36,6 +36,12 @@ def test_insert_params_template_for_selected_action(monkeypatch, tmp_path: Path)
     try:
         studio.action_edit.setText("click")
         studio.params_text.setPlainText("{}")
+        monkeypatch.setattr(
+            "robot_automation_studio.app.QMessageBox.question",
+            lambda *args, **kwargs: (_ for _ in ()).throw(
+                AssertionError("overwrite confirmation should not be shown for empty params")
+            ),
+        )
 
         studio.insert_params_template_for_selected_action()
 
@@ -64,5 +70,32 @@ def test_insert_params_template_for_selected_action_unsupported(
         studio.insert_params_template_for_selected_action()
 
         assert critical_calls["count"] == 1
+    finally:
+        studio.close()
+
+
+def test_insert_params_template_prompts_before_overwrite_and_respects_cancel(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        studio.action_edit.setText("click")
+        studio.params_text.setPlainText('{"target":{"strategy":"coordinate"}}')
+        question_calls = {"count": 0}
+
+        def _fake_question(*args, **kwargs):
+            _ = (args, kwargs)
+            question_calls["count"] += 1
+            return 65536  # QMessageBox.StandardButton.No
+
+        monkeypatch.setattr("robot_automation_studio.app.QMessageBox.question", _fake_question)
+
+        studio.insert_params_template_for_selected_action()
+
+        assert question_calls["count"] == 1
+        assert studio.params_text.toPlainText() == '{"target":{"strategy":"coordinate"}}'
     finally:
         studio.close()

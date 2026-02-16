@@ -216,6 +216,22 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Export scenario files.",
         "Generates .robot and .scenario.json into the configured output directory.",
     ),
+    "Copy Issue": (
+        "Copy selected issue.",
+        "Copy currently selected validation issue details to clipboard.",
+    ),
+    "Copy All": (
+        "Copy all issues.",
+        "Copy all validation issues as plain text for sharing.",
+    ),
+    "Copy Summary": (
+        "Copy summary.",
+        "Copy concise run diagnostics summary text to clipboard.",
+    ),
+    "Copy JSON": (
+        "Copy diagnostics JSON.",
+        "Copy raw run diagnostics JSON text to clipboard.",
+    ),
     "Run Robot": (
         "Run scenario.",
         "Exports first, then starts Robot execution and writes run artifacts.",
@@ -552,6 +568,22 @@ _KNOWN_TEXT_HELP_JA: dict[str, tuple[str, str]] = {
     "エクスポート": (
         "シナリオを出力します。",
         ".robot と .scenario.json を生成します。",
+    ),
+    "選択項目をコピー": (
+        "選択中の検証エラーをコピーします。",
+        "現在選択している検証エラーの詳細をクリップボードへコピーします。",
+    ),
+    "全件コピー": (
+        "検証エラーを全件コピーします。",
+        "検証エラー一覧を共有用テキストとしてクリップボードへコピーします。",
+    ),
+    "要約をコピー": (
+        "診断要約をコピーします。",
+        "実行診断の要約テキストをクリップボードへコピーします。",
+    ),
+    "JSONをコピー": (
+        "診断JSONをコピーします。",
+        "実行診断の生JSONテキストをクリップボードへコピーします。",
     ),
     "出力ログ": (
         "出力ログを表示します。",
