@@ -108,8 +108,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "ja": "現在の出力フォルダをエクスプローラーで開きます。",
     },
     "app.tooltip.subflow_timeout": {
-        "en": "Timeout in seconds for run_subflow and parallel subflow waits.",
-        "ja": "run_subflow と parallel 子フロー待機のタイムアウト秒数です。",
+        "en": "Timeout for run_subflow/parallel waits. Use seconds, blank, or ${variable}.",
+        "ja": "run_subflow/parallel 待機のタイムアウト。秒数、空欄、${変数} を指定できます。",
     },
     "app.tooltip.step_validation": {
         "en": "Shows whether the current step is runnable/exportable.",

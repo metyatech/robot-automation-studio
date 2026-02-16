@@ -97,7 +97,7 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 3. Set `Subflow Timeout (s)` when your `run_subflow`/`parallel` children need custom timeout.
    - valid range is `1..86400` seconds.
    - blank value uses default `3600` seconds.
-   - in scenario JSON, variable placeholder must be a full value (`${timeout_var}`).
+   - variable placeholder must be a full value (`${timeout_var}`).
    - mixed text such as `${timeout_var}s` is treated as invalid.
 4. Select `Active Profile` when you need profile-specific variable overrides.
    - `(none)` uses variable defaults.

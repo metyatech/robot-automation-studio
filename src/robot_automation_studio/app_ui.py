@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QIntValidator
+from PySide6.QtCore import QRegularExpression, Qt
+from PySide6.QtGui import QFont, QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -25,11 +25,11 @@ from PySide6.QtWidgets import (
 )
 
 from .models import (
-    SUBFLOW_TIMEOUT_SECONDS_MAX,
-    SUBFLOW_TIMEOUT_SECONDS_MIN,
     UNITY_PROJECT_PATH_KEY,
 )
 from .status import SPINNER_FRAMES, format_run_status
+
+_SUBFLOW_TIMEOUT_INPUT_RE = QRegularExpression(r"^(?:\s*|[0-9]+|\$\{[A-Za-z_][A-Za-z0-9_-]*\})$")
 
 
 def build_ui(self, *, bg_light: str) -> None:
@@ -341,9 +341,8 @@ def build_ui(self, *, bg_light: str) -> None:
     )
     self.subflow_timeout_edit.setObjectName("SubflowTimeoutEdit")
     self.subflow_timeout_edit.setValidator(
-        QIntValidator(
-            SUBFLOW_TIMEOUT_SECONDS_MIN,
-            SUBFLOW_TIMEOUT_SECONDS_MAX,
+        QRegularExpressionValidator(
+            _SUBFLOW_TIMEOUT_INPUT_RE,
             self.subflow_timeout_edit,
         )
     )

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIntValidator
+from PySide6.QtGui import QRegularExpressionValidator, QValidator
 from PySide6.QtWidgets import QApplication
 
 from robot_automation_studio.app import StudioApp
@@ -72,6 +73,10 @@ def test_sync_scenario_header_persists_subflow_timeout_setting() -> None:
         studio._sync_scenario_header()
         assert studio.scenario.execution.get("subflow_timeout_seconds") == 120
 
+        studio.subflow_timeout_edit.setText("${subflow_timeout}")
+        studio._sync_scenario_header()
+        assert studio.scenario.execution.get("subflow_timeout_seconds") == "${subflow_timeout}"
+
         studio.subflow_timeout_edit.setText("")
         studio._sync_scenario_header()
         assert "subflow_timeout_seconds" not in studio.scenario.execution
@@ -79,14 +84,28 @@ def test_sync_scenario_header_persists_subflow_timeout_setting() -> None:
         studio.close()
 
 
-def test_subflow_timeout_edit_uses_int_validator_range() -> None:
+def test_subflow_timeout_edit_allows_number_or_placeholder() -> None:
     _ensure_qapp()
     studio = StudioApp(initial_locale="en")
     try:
         validator = studio.subflow_timeout_edit.validator()
-        assert isinstance(validator, QIntValidator)
-        assert validator.bottom() == 1
-        assert validator.top() == 86400
+        assert isinstance(validator, QRegularExpressionValidator)
+
+        number_state = cast(tuple[QValidator.State, str, int], validator.validate("120", 3))[0]
+        placeholder_state = cast(
+            tuple[QValidator.State, str, int],
+            validator.validate("${subflow_timeout}", 18),
+        )[0]
+        blank_state = cast(tuple[QValidator.State, str, int], validator.validate("", 0))[0]
+        mixed_state = cast(
+            tuple[QValidator.State, str, int],
+            validator.validate("${subflow_timeout}s", 19),
+        )[0]
+
+        assert number_state == QValidator.State.Acceptable
+        assert placeholder_state == QValidator.State.Acceptable
+        assert blank_state == QValidator.State.Acceptable
+        assert mixed_state == QValidator.State.Invalid
     finally:
         studio.close()
 
