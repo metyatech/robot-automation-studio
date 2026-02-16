@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from .models import (
+    SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+    SUBFLOW_TIMEOUT_SECONDS_MAX,
+    SUBFLOW_TIMEOUT_SECONDS_MIN,
     TARGET_WINDOW_HINT_KEY,
     UNITY_EXECUTION_MODE_KEY,
     UNITY_PROJECT_PATH_KEY,
@@ -33,7 +36,6 @@ _ACTION_ALIASES = {
     "wait": "wait_for",
     "select_hierarchy": "select_hierarchy",
 }
-_DEFAULT_SUBFLOW_TIMEOUT_SECONDS = 3600
 
 
 def _safe_suite_name(name: str) -> str:
@@ -97,25 +99,21 @@ def _scenario_subflow_timeout_seconds(scenario: Scenario) -> int:
     execution = dict(scenario.execution or {})
     raw_value = execution.get("subflow_timeout_seconds")
     if raw_value in (None, ""):
-        return _DEFAULT_SUBFLOW_TIMEOUT_SECONDS
+        return SUBFLOW_TIMEOUT_SECONDS_DEFAULT
+    error_message = (
+        "subflow_timeout_seconds must be an integer between "
+        f"{SUBFLOW_TIMEOUT_SECONDS_MIN} and {SUBFLOW_TIMEOUT_SECONDS_MAX}"
+        " at execution.subflow_timeout_seconds."
+    )
     if isinstance(raw_value, bool):
-        raise ValueError(
-            "subflow_timeout_seconds must be a positive integer"
-            " at execution.subflow_timeout_seconds."
-        )
+        raise ValueError(error_message)
 
     try:
         parsed = int(str(raw_value).strip())
     except (TypeError, ValueError) as error:
-        raise ValueError(
-            "subflow_timeout_seconds must be a positive integer"
-            " at execution.subflow_timeout_seconds."
-        ) from error
-    if parsed <= 0:
-        raise ValueError(
-            "subflow_timeout_seconds must be a positive integer"
-            " at execution.subflow_timeout_seconds."
-        )
+        raise ValueError(error_message) from error
+    if parsed < SUBFLOW_TIMEOUT_SECONDS_MIN or parsed > SUBFLOW_TIMEOUT_SECONDS_MAX:
+        raise ValueError(error_message)
     return parsed
 
 

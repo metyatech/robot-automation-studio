@@ -74,3 +74,36 @@ def test_record_error_persistence_failure_is_non_fatal(monkeypatch, tmp_path: Pa
         assert "disk full" in log_text
     finally:
         studio.close()
+
+
+def test_describe_subflow_logs_state_reports_empty(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        text = studio._describe_subflow_logs_state(tmp_path / "subflows")
+        assert "No subflow logs found." in text
+    finally:
+        studio.close()
+
+
+def test_describe_subflow_logs_state_reports_count_and_latest(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        logs_dir = tmp_path / "subflows"
+        first = logs_dir / "a" / "stdout.txt"
+        second = logs_dir / "b" / "stderr.txt"
+        first.parent.mkdir(parents=True, exist_ok=True)
+        second.parent.mkdir(parents=True, exist_ok=True)
+        first.write_text("a", encoding="utf-8")
+        second.write_text("b", encoding="utf-8")
+        second.touch()
+
+        text = studio._describe_subflow_logs_state(logs_dir)
+        assert "Subflow logs: 2 files" in text
+        assert "latest:" in text
+        assert ("stderr.txt" in text) or ("stdout.txt" in text)
+    finally:
+        studio.close()

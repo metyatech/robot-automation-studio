@@ -2051,6 +2051,9 @@ class StudioApp(QMainWindow):
         header = QLabel(self._t("app.dialog.run_diagnostics.path", path=path))
         header.setWordWrap(True)
         layout.addWidget(header)
+        subflow_logs_label = QLabel(self._describe_subflow_logs_state(path.parent / "subflows"))
+        subflow_logs_label.setWordWrap(True)
+        layout.addWidget(subflow_logs_label)
 
         raw_text = path.read_text(encoding="utf-8")
         summary_text = self._t("app.dialog.run_diagnostics.summary_unavailable")
@@ -2588,6 +2591,26 @@ class StudioApp(QMainWindow):
             "captured_at_utc": datetime.now(UTC).isoformat(),
         }
         return context
+
+    def _describe_subflow_logs_state(self, subflows_dir: Path) -> str:
+        if not subflows_dir.exists():
+            return self._t("app.dialog.run_diagnostics.subflow_logs.none", path=subflows_dir)
+        log_files = sorted(
+            [path for path in subflows_dir.rglob("*") if path.is_file() and path.suffix == ".txt"]
+        )
+        if not log_files:
+            return self._t("app.dialog.run_diagnostics.subflow_logs.none", path=subflows_dir)
+        latest_file = max(log_files, key=lambda item: item.stat().st_mtime)
+        latest_time = datetime.fromtimestamp(latest_file.stat().st_mtime, tz=UTC).isoformat(
+            timespec="seconds"
+        )
+        return self._t(
+            "app.dialog.run_diagnostics.subflow_logs.summary",
+            count=len(log_files),
+            latest=latest_file.name,
+            latest_time=latest_time,
+            path=subflows_dir,
+        )
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.recorder.is_recording:

@@ -376,6 +376,18 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Diagnostics file: {path}",
         "ja": "診断ファイル: {path}",
     },
+    "app.dialog.run_diagnostics.subflow_logs.none": {
+        "en": "No subflow logs found. Expected directory: {path}",
+        "ja": "子フローログが見つかりません。想定ディレクトリ: {path}",
+    },
+    "app.dialog.run_diagnostics.subflow_logs.summary": {
+        "en": (
+            "Subflow logs: {count} files (latest: {latest} at {latest_time}). Directory: {path}"
+        ),
+        "ja": (
+            "子フローログ: {count} ファイル (最新: {latest} / {latest_time})。ディレクトリ: {path}"
+        ),
+    },
     "app.dialog.run_diagnostics.summary_unavailable": {
         "en": "Run diagnostics summary is unavailable for this file.",
         "ja": "このファイルの実行診断サマリーは利用できません。",

@@ -23,6 +23,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - fail-fast with issue list dialog when scenario is invalid
   - explicit diagnostics for unresolved placeholders (with field path)
   - `start_video` scenarios fail early when `ffmpeg` is not found in `PATH`
+  - execution setting checks include `subflow_timeout_seconds` range (`1..86400`)
   - live step validation hint in Step tab (immediate export/run readiness feedback)
 - Profile diff preview:
   - compare resolved scenario results between two profiles
@@ -94,6 +95,7 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
    - `attach`: run against an already opened Unity Editor.
    - `launch`: open a Unity project path and then run the scenario.
 3. Set `Subflow Timeout (s)` when your `run_subflow`/`parallel` children need custom timeout.
+   - valid range is `1..86400` seconds.
    - blank value uses default `3600` seconds.
 4. Select `Active Profile` when you need profile-specific variable overrides.
    - `(none)` uses variable defaults.
@@ -151,6 +153,7 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 - `<output>/run/diagnostics/run-diagnostics.json`: parsed run diagnostics summary
 - `<output>/run/diagnostics/failure-YYYYMMDD-HHMMSS.png`: failure screenshot (when run fails)
 - Run Diagnostics dialog also provides direct button to open the `subflows` log directory.
+  - Run Diagnostics dialog also shows detected subflow log count and latest update.
 
 ## Unity Hierarchy Bridge
 

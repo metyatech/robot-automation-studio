@@ -18,6 +18,9 @@ SCHEMA_VERSION = "2.0.0"
 VALID_UNITY_EXECUTION_MODES = {"attach", "launch"}
 VALID_TARGETS = {"unity", "web", "desktop", "hybrid"}
 STEP_KINDS = {"action", "control", "group"}
+SUBFLOW_TIMEOUT_SECONDS_DEFAULT = 3600
+SUBFLOW_TIMEOUT_SECONDS_MIN = 1
+SUBFLOW_TIMEOUT_SECONDS_MAX = 86400
 
 
 def _new_step_id() -> str:

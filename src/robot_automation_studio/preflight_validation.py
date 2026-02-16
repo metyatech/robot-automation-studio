@@ -8,7 +8,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .exporter import validate_exportable_scenario, validate_step_exportability
-from .models import Scenario
+from .models import (
+    SUBFLOW_TIMEOUT_SECONDS_MAX,
+    SUBFLOW_TIMEOUT_SECONDS_MIN,
+    Scenario,
+)
 
 _AT_PATH_RE = re.compile(r"\sat\s([A-Za-z0-9_\[\]-]+(?:\.[A-Za-z0-9_\[\]-]+)*)\.?$")
 _MISSING_VARIABLE_RE = re.compile(r"required variable '([A-Za-z0-9_-]+)' is missing")
@@ -195,12 +199,16 @@ def _collect_execution_issues(payload: dict[str, Any]) -> list[ValidationIssue]:
     raw_timeout = execution.get("subflow_timeout_seconds")
     if raw_timeout in (None, ""):
         return []
+    error_message = (
+        "subflow_timeout_seconds must be an integer between "
+        f"{SUBFLOW_TIMEOUT_SECONDS_MIN} and {SUBFLOW_TIMEOUT_SECONDS_MAX}."
+    )
     if isinstance(raw_timeout, bool):
         return [
             ValidationIssue(
                 code="execution.subflow_timeout.invalid",
                 location="execution.subflow_timeout_seconds",
-                message="subflow_timeout_seconds must be a positive integer.",
+                message=error_message,
             )
         ]
     if isinstance(raw_timeout, str) and _PLACEHOLDER_RE.search(raw_timeout):
@@ -212,15 +220,15 @@ def _collect_execution_issues(payload: dict[str, Any]) -> list[ValidationIssue]:
             ValidationIssue(
                 code="execution.subflow_timeout.invalid",
                 location="execution.subflow_timeout_seconds",
-                message="subflow_timeout_seconds must be a positive integer.",
+                message=error_message,
             )
         ]
-    if parsed <= 0:
+    if parsed < SUBFLOW_TIMEOUT_SECONDS_MIN or parsed > SUBFLOW_TIMEOUT_SECONDS_MAX:
         return [
             ValidationIssue(
                 code="execution.subflow_timeout.invalid",
                 location="execution.subflow_timeout_seconds",
-                message="subflow_timeout_seconds must be a positive integer.",
+                message=error_message,
             )
         ]
     return []
@@ -364,7 +372,10 @@ def _collect_tooling_issues(scenario: Scenario) -> list[ValidationIssue]:
         ValidationIssue(
             code="tooling.ffmpeg_missing",
             location=start_video_locations[0],
-            message="ffmpeg not found in PATH. Install ffmpeg or add it to PATH.",
+            message=(
+                "ffmpeg not found in PATH. Install ffmpeg and add it to PATH "
+                "(example: winget install Gyan.FFmpeg)."
+            ),
         )
     ]
 

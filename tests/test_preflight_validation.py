@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import shutil
 
+import pytest
+
 from robot_automation_studio.models import Scenario, Step
 from robot_automation_studio.preflight_validation import validate_scenario
 
@@ -176,6 +178,7 @@ def test_validate_scenario_reports_missing_ffmpeg_for_start_video(
     assert len(report.issues) >= 1
     assert report.issues[0].code == "tooling.ffmpeg_missing"
     assert report.issues[0].location == "steps[0].input.path"
+    assert "winget install Gyan.FFmpeg" in report.issues[0].message
 
 
 def test_validate_scenario_allows_start_video_when_ffmpeg_available(
@@ -228,6 +231,29 @@ def test_validate_scenario_reports_missing_ffmpeg_for_nested_start_video(
     assert len(report.issues) >= 1
     assert report.issues[0].code == "tooling.ffmpeg_missing"
     assert report.issues[0].location == "steps[0].steps[0].input.path"
+
+
+@pytest.mark.parametrize("timeout_value", [0, 86401])
+def test_validate_scenario_reports_out_of_range_subflow_timeout_location(
+    timeout_value: int,
+) -> None:
+    scenario = Scenario(
+        name="Subflow timeout out of range",
+        execution={"subflow_timeout_seconds": timeout_value},
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is False
+    assert len(report.issues) >= 1
+    assert report.issues[0].code == "execution.subflow_timeout.invalid"
+    assert report.issues[0].location == "execution.subflow_timeout_seconds"
 
 
 def test_validate_scenario_allows_variable_placeholder_for_subflow_timeout() -> None:

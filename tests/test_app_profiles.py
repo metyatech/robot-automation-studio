@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIntValidator
 from PySide6.QtWidgets import QApplication
 
 from robot_automation_studio.app import StudioApp
@@ -74,6 +75,18 @@ def test_sync_scenario_header_persists_subflow_timeout_setting() -> None:
         studio.subflow_timeout_edit.setText("")
         studio._sync_scenario_header()
         assert "subflow_timeout_seconds" not in studio.scenario.execution
+    finally:
+        studio.close()
+
+
+def test_subflow_timeout_edit_uses_int_validator_range() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        validator = studio.subflow_timeout_edit.validator()
+        assert isinstance(validator, QIntValidator)
+        assert validator.bottom() == 1
+        assert validator.top() == 86400
     finally:
         studio.close()
 

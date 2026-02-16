@@ -644,11 +644,38 @@ def test_generate_robot_suite_fails_fast_for_invalid_subflow_timeout_seconds() -
     with pytest.raises(
         ValueError,
         match=(
-            r"subflow_timeout_seconds must be a positive integer"
+            r"subflow_timeout_seconds must be an integer between 1 and 86400"
             r" at execution\.subflow_timeout_seconds"
         ),
     ):
         generate_robot_suite(scenario, suite_name="run-subflow-timeout-invalid")
+
+
+@pytest.mark.parametrize("timeout_value", [0, 86401])
+def test_generate_robot_suite_fails_fast_for_subflow_timeout_out_of_range(
+    timeout_value: int,
+) -> None:
+    scenario = Scenario(
+        name="Run Subflow Timeout Range",
+        target_window_hint="Unity",
+        execution={"subflow_timeout_seconds": timeout_value},
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"subflow_timeout_seconds must be an integer between 1 and 86400"
+            r" at execution\.subflow_timeout_seconds"
+        ),
+    ):
+        generate_robot_suite(scenario, suite_name="run-subflow-timeout-range")
 
 
 def test_generate_robot_suite_subflow_execution_captures_stdout_and_stderr() -> None:

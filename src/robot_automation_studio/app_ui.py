@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QIntValidator
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -24,7 +24,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .models import UNITY_PROJECT_PATH_KEY
+from .models import (
+    SUBFLOW_TIMEOUT_SECONDS_MAX,
+    SUBFLOW_TIMEOUT_SECONDS_MIN,
+    UNITY_PROJECT_PATH_KEY,
+)
 from .status import SPINNER_FRAMES, format_run_status
 
 
@@ -336,6 +340,13 @@ def build_ui(self, *, bg_light: str) -> None:
         str((self.scenario.execution or {}).get("subflow_timeout_seconds", ""))
     )
     self.subflow_timeout_edit.setObjectName("SubflowTimeoutEdit")
+    self.subflow_timeout_edit.setValidator(
+        QIntValidator(
+            SUBFLOW_TIMEOUT_SECONDS_MIN,
+            SUBFLOW_TIMEOUT_SECONDS_MAX,
+            self.subflow_timeout_edit,
+        )
+    )
     self.subflow_timeout_label = QLabel()
     scenario_form.addRow(self.subflow_timeout_label, self.subflow_timeout_edit)
 
