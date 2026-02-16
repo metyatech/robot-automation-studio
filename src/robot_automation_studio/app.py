@@ -10,7 +10,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from pynput import keyboard as pynput_keyboard
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QCloseEvent, QFont, QKeySequence, QShortcut, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -49,7 +49,7 @@ from .overlay import AutomationRunOverlay, OverlayMode
 from .recorder import ScenarioRecorder, events_to_steps, has_visible_window_with_hint
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
-from .ui_help import HelpEntry, filter_help_entries
+from .ui_help import HelpEntry, build_help_entry, filter_help_entries
 from .unity_bridge import UnityBridgeClient
 from .unity_diagnostics import get_recent_unity_compile_errors
 from .unity_project import resolve_attached_unity_project_path
@@ -438,6 +438,7 @@ class StudioApp(QMainWindow):
         self._run_finished_signal.connect(self._on_robot_run_finished)
 
         self._build_ui()
+        self._register_help_for_widget_tree(self)
 
         f1_shortcut = QShortcut(QKeySequence("F1"), self)
         f1_shortcut.activated.connect(self.open_help_guide)
@@ -1521,6 +1522,46 @@ class StudioApp(QMainWindow):
         self._help_dialog.close()
         self._help_dialog = None
 
+    def _widget_text(self, widget: QWidget) -> str:
+        if isinstance(widget, QPushButton):
+            return widget.text()
+        if isinstance(widget, QLabel):
+            return widget.text()
+        if isinstance(widget, QLineEdit):
+            return widget.placeholderText()
+        if isinstance(widget, QCheckBox):
+            return widget.text()
+        return ""
+
+    def _register_help_for_widget(self, widget: QWidget) -> None:
+        if widget in self._help_entries_by_widget:
+            return
+        widget_id = widget.objectName() or str(id(widget))
+        widget_class = type(widget).__name__
+        widget_text = self._widget_text(widget)
+        entry = build_help_entry(
+            widget_id=widget_id,
+            widget_class=widget_class,
+            widget_text=widget_text,
+        )
+        self._help_entries_by_widget[widget] = entry
+        self._help_entries_by_id[entry.widget_id] = entry
+        widget.installEventFilter(self)
+
+    def _register_help_for_widget_tree(self, root: QWidget) -> None:
+        for child in root.findChildren(QWidget):
+            self._register_help_for_widget(child)
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        if isinstance(obj, QWidget) and event.type() in (
+            QEvent.Type.Enter,
+            QEvent.Type.FocusIn,
+        ):
+            entry = self._help_entries_by_widget.get(obj)
+            if entry is not None:
+                self.help_status_label.setText(entry.summary)
+        return False
+
     def _sorted_help_entries(self) -> list[HelpEntry]:
         return sorted(
             self._help_entries_by_id.values(),
@@ -1585,6 +1626,7 @@ class StudioApp(QMainWindow):
         apply_button.clicked.connect(_apply_json)
         cancel_button.clicked.connect(dialog.reject)
 
+        self._register_help_for_widget_tree(dialog)
         dialog.exec()
 
     def open_variables_editor(self) -> None:
@@ -1709,6 +1751,7 @@ class StudioApp(QMainWindow):
         if variables:
             _select(0)
 
+        self._register_help_for_widget_tree(dialog)
         dialog.exec()
 
     def open_profiles_editor(self) -> None:
@@ -1839,6 +1882,7 @@ class StudioApp(QMainWindow):
         if profile_names:
             _select(0)
 
+        self._register_help_for_widget_tree(dialog)
         dialog.exec()
 
     def open_execution_outputs_editor(self) -> None:
@@ -1937,6 +1981,7 @@ class StudioApp(QMainWindow):
         footer_layout.addWidget(apply_button)
         layout.addLayout(footer_layout)
 
+        self._register_help_for_widget_tree(dialog)
         dialog.exec()
 
     def export_scenario(self) -> None:
