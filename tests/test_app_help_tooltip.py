@@ -1,12 +1,8 @@
-from PySide6.QtCore import QEvent, QPoint, QPointF
-from PySide6.QtGui import QCursor, QEnterEvent, QHelpEvent
+from PySide6.QtCore import QEvent, QPointF
+from PySide6.QtGui import QEnterEvent
 from PySide6.QtWidgets import QApplication, QToolTip
 
-from robot_automation_studio.app import (
-    StudioApp,
-    build_help_tooltip_position,
-    build_help_tooltip_text,
-)
+from robot_automation_studio.app import StudioApp, build_help_tooltip_text
 
 
 def _ensure_qapp() -> QApplication:
@@ -26,16 +22,20 @@ def test_build_help_tooltip_text_uses_fallback_for_blank_summary() -> None:
     assert build_help_tooltip_text("   ") == "No help available for this component."
 
 
-def test_build_help_tooltip_position_offsets_from_cursor() -> None:
-    assert build_help_tooltip_position(120, 300) == (134, 322)
-
-
-def test_event_filter_shows_help_tooltip_near_cursor(monkeypatch) -> None:
+def test_registered_widget_has_standard_qt_tooltip_text() -> None:
     _ensure_qapp()
     studio = StudioApp()
     try:
-        target_widget = studio.run_button
-        entry = studio._help_entries_by_widget[target_widget]
+        entry = studio._help_entries_by_widget[studio.run_button]
+        assert studio.run_button.toolTip() == build_help_tooltip_text(entry.summary)
+    finally:
+        studio.close()
+
+
+def test_event_filter_shows_tooltip_on_focus_in(monkeypatch) -> None:
+    _ensure_qapp()
+    studio = StudioApp()
+    try:
         captured: dict[str, object] = {}
 
         def fake_show_text(pos, text, *args, **kwargs):
@@ -46,11 +46,37 @@ def test_event_filter_shows_help_tooltip_near_cursor(monkeypatch) -> None:
 
         monkeypatch.setattr(QToolTip, "showText", fake_show_text)
 
-        handled = studio.eventFilter(target_widget, QEvent(QEvent.Type.Enter))
+        handled = studio.eventFilter(studio.run_button, QEvent(QEvent.Type.FocusIn))
+        expected = studio.run_button.mapToGlobal(studio.run_button.rect().center())
 
         assert handled is False
-        assert captured["text"] == build_help_tooltip_text(entry.summary)
-        assert captured["widget"] is target_widget
+        assert captured["x"] == expected.x()
+        assert captured["y"] == expected.y()
+        assert captured["text"] == studio.run_button.toolTip()
+        assert captured["widget"] is studio.run_button
+    finally:
+        studio.close()
+
+
+def test_event_filter_does_not_force_manual_show_on_hover(monkeypatch) -> None:
+    _ensure_qapp()
+    studio = StudioApp()
+    try:
+        called = {"count": 0}
+
+        def fake_show_text(*args, **kwargs):
+            called["count"] += 1
+
+        monkeypatch.setattr(QToolTip, "showText", fake_show_text)
+
+        enter_event = QEnterEvent(
+            QPointF(2, 2),
+            QPointF(10, 20),
+            QPointF(10, 20),
+        )
+        studio.eventFilter(studio.run_button, enter_event)
+
+        assert called["count"] == 0
     finally:
         studio.close()
 
@@ -67,57 +93,5 @@ def test_event_filter_hides_tooltip_on_leave(monkeypatch) -> None:
         monkeypatch.setattr(QToolTip, "hideText", fake_hide_text)
         studio.eventFilter(studio.run_button, QEvent(QEvent.Type.Leave))
         assert called["count"] == 1
-    finally:
-        studio.close()
-
-
-def test_event_filter_prefers_enter_event_global_position_over_cursor(monkeypatch) -> None:
-    _ensure_qapp()
-    studio = StudioApp()
-    try:
-        captured: dict[str, object] = {}
-
-        def fake_show_text(pos, text, *args, **kwargs):
-            captured["x"] = pos.x()
-            captured["y"] = pos.y()
-
-        monkeypatch.setattr(QToolTip, "showText", fake_show_text)
-        monkeypatch.setattr(QCursor, "pos", lambda: QPoint(9000, 9000))
-
-        enter_event = QEnterEvent(
-            QPointF(2, 2),
-            QPointF(10, 20),
-            QPointF(10, 20),
-        )
-        studio.eventFilter(studio.run_button, enter_event)
-
-        assert captured["x"] == 24
-        assert captured["y"] == 42
-    finally:
-        studio.close()
-
-
-def test_event_filter_handles_tooltip_event_at_event_global_position(monkeypatch) -> None:
-    _ensure_qapp()
-    studio = StudioApp()
-    try:
-        captured: dict[str, object] = {}
-
-        def fake_show_text(pos, text, *args, **kwargs):
-            captured["x"] = pos.x()
-            captured["y"] = pos.y()
-
-        monkeypatch.setattr(QToolTip, "showText", fake_show_text)
-
-        tooltip_event = QHelpEvent(
-            QEvent.Type.ToolTip,
-            QPoint(4, 4),
-            QPoint(30, 50),
-        )
-        handled = studio.eventFilter(studio.run_button, tooltip_event)
-
-        assert handled is True
-        assert captured["x"] == 44
-        assert captured["y"] == 72
     finally:
         studio.close()

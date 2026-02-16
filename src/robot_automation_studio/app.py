@@ -12,13 +12,10 @@ from copy import deepcopy
 from pathlib import Path
 
 from pynput import keyboard as pynput_keyboard
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QCloseEvent,
-    QCursor,
-    QEnterEvent,
     QFont,
-    QHelpEvent,
     QKeySequence,
     QShortcut,
     QTextCursor,
@@ -85,8 +82,6 @@ _BTN_BG = "#45475a"
 _BTN_HOVER = "#585b70"
 _LOG_BG = "#1a1a2e"
 _PYWINAUTO_PREPARED = False
-_HELP_TOOLTIP_OFFSET_X = 14
-_HELP_TOOLTIP_OFFSET_Y = 22
 
 
 def _import_pywinauto_with_warning_filters(importer) -> None:
@@ -147,26 +142,6 @@ def build_help_tooltip_text(summary: str) -> str:
     if text:
         return text
     return "No help available for this component."
-
-
-def build_help_tooltip_position(cursor_x: int, cursor_y: int) -> tuple[int, int]:
-    """Return tooltip anchor coordinates with a small cursor offset."""
-    return (cursor_x + _HELP_TOOLTIP_OFFSET_X, cursor_y + _HELP_TOOLTIP_OFFSET_Y)
-
-
-def resolve_help_tooltip_anchor(widget: QWidget, event: QEvent) -> tuple[int, int]:
-    """Return anchor coordinates for help tooltip placement."""
-    if isinstance(event, QEnterEvent):
-        anchor = event.globalPosition().toPoint()
-        return (anchor.x(), anchor.y())
-    if isinstance(event, QHelpEvent):
-        anchor = event.globalPos()
-        return (anchor.x(), anchor.y())
-    if event.type() == QEvent.Type.FocusIn:
-        anchor = widget.mapToGlobal(widget.rect().center())
-        return (anchor.x(), anchor.y())
-    anchor = QCursor.pos()
-    return (anchor.x(), anchor.y())
 
 
 _STYLESHEET = f"""
@@ -1713,6 +1688,7 @@ class StudioApp(QMainWindow):
         )
         self._help_entries_by_widget[widget] = entry
         self._help_entries_by_id[entry.widget_id] = entry
+        widget.setToolTip(build_help_tooltip_text(entry.summary))
         widget.installEventFilter(self)
 
     def _register_help_for_widget_tree(self, root: QWidget) -> None:
@@ -1720,22 +1696,10 @@ class StudioApp(QMainWindow):
             self._register_help_for_widget(child)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        if isinstance(obj, QWidget) and event.type() in (
-            QEvent.Type.Enter,
-            QEvent.Type.FocusIn,
-            QEvent.Type.ToolTip,
-        ):
+        if isinstance(obj, QWidget) and event.type() == QEvent.Type.FocusIn:
             entry = self._help_entries_by_widget.get(obj)
             if entry is not None:
-                anchor_x, anchor_y = resolve_help_tooltip_anchor(obj, event)
-                tip_x, tip_y = build_help_tooltip_position(anchor_x, anchor_y)
-                QToolTip.showText(
-                    QPoint(tip_x, tip_y),
-                    build_help_tooltip_text(entry.summary),
-                    obj,
-                )
-            if event.type() == QEvent.Type.ToolTip:
-                return True
+                QToolTip.showText(obj.mapToGlobal(obj.rect().center()), obj.toolTip(), obj)
         if isinstance(obj, QWidget) and event.type() in (
             QEvent.Type.Leave,
             QEvent.Type.FocusOut,
