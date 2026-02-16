@@ -627,6 +627,25 @@ def test_generate_robot_suite_uses_configured_subflow_timeout_seconds() -> None:
     assert "Subflow process timed out alias=${alias} after 90s." in text
 
 
+def test_generate_robot_suite_uses_default_subflow_timeout_for_whitespace() -> None:
+    scenario = Scenario(
+        name="Run Subflow Timeout Whitespace",
+        target_window_hint="Unity",
+        execution={"subflow_timeout_seconds": "   "},
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="run-subflow-timeout-whitespace")
+    assert "timeout=3600s    on_timeout=terminate" in text
+    assert "Wait For Process    ${alias}    timeout=3600s" in text
+
+
 def test_generate_robot_suite_fails_fast_for_invalid_subflow_timeout_seconds() -> None:
     scenario = Scenario(
         name="Run Subflow Timeout Invalid",
