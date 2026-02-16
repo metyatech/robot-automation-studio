@@ -177,6 +177,14 @@ def summarize_run_diagnostics_payload(payload: dict[str, Any]) -> str:
     active_profile = _safe_text(context.get("active_profile")) or "-"
     window_hint = _safe_text(context.get("window_hint")) or "-"
     unity_project_path = _safe_text(context.get("unity_project_path")) or "-"
+    failed_keyword = payload.get("failed_keyword")
+    failure_screenshot_path = _safe_text(payload.get("failure_screenshot_path"))
+
+    failed_keyword_name = "-"
+    failed_keyword_message = "-"
+    if isinstance(failed_keyword, dict):
+        failed_keyword_name = _safe_text(failed_keyword.get("name")) or "-"
+        failed_keyword_message = _safe_text(failed_keyword.get("message")) or "-"
 
     return (
         "Run Diagnostics Summary\n"
@@ -187,7 +195,10 @@ def summarize_run_diagnostics_payload(payload: dict[str, Any]) -> str:
         f"- Execution Mode: {execution_mode}\n"
         f"- Active Profile: {active_profile}\n"
         f"- Window Hint: {window_hint}\n"
-        f"- Unity Project Path: {unity_project_path}"
+        f"- Unity Project Path: {unity_project_path}\n"
+        f"- Failed Keyword: {failed_keyword_name}\n"
+        f"- Failure Message: {failed_keyword_message}\n"
+        f"- Failure Screenshot: {failure_screenshot_path or '-'}"
     )
 
 

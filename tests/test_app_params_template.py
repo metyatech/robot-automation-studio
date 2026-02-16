@@ -99,3 +99,30 @@ def test_insert_params_template_prompts_before_overwrite_and_respects_cancel(
         assert studio.params_text.toPlainText() == '{"target":{"strategy":"coordinate"}}'
     finally:
         studio.close()
+
+
+def test_params_template_button_enabled_only_for_action_kind(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        studio._set_combo_value(studio.kind_combo, "action")
+        studio._update_step_kind_fields_visibility()
+        action_enabled = studio.params_template_button.isEnabled()
+
+        studio._set_combo_value(studio.kind_combo, "control")
+        studio._update_step_kind_fields_visibility()
+        control_enabled = studio.params_template_button.isEnabled()
+
+        studio._set_combo_value(studio.kind_combo, "group")
+        studio._update_step_kind_fields_visibility()
+        group_enabled = studio.params_template_button.isEnabled()
+
+        assert action_enabled is True
+        assert control_enabled is False
+        assert group_enabled is False
+    finally:
+        studio.close()

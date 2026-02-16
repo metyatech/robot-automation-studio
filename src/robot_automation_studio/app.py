@@ -1037,7 +1037,8 @@ class StudioApp(QMainWindow):
 
     @Slot()
     def _update_step_kind_fields_visibility(self) -> None:
-        visibility = step_editor_visibility_for_kind(self._combo_value(self.kind_combo))
+        step_kind = self._combo_value(self.kind_combo)
+        visibility = step_editor_visibility_for_kind(step_kind)
         self._set_step_row_visible(self.action_label, self.action_edit, visibility["show_action"])
         self._set_step_row_visible(
             self.control_label,
@@ -1049,6 +1050,7 @@ class StudioApp(QMainWindow):
             self.step_condition_edit,
             visibility["show_condition"],
         )
+        self.params_template_button.setEnabled(step_kind == "action")
 
     def _sync_scenario_header(self) -> None:
         self.scenario.name = self.name_edit.text().strip() or self._t(

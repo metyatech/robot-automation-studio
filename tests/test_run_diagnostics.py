@@ -145,3 +145,24 @@ def test_summarize_run_diagnostics_payload_includes_run_context() -> None:
     assert "Suite/Test: suite-a / case-a" in summary
     assert "Execution Mode: attach" in summary
     assert "Active Profile: vrchat" in summary
+
+
+def test_summarize_run_diagnostics_payload_includes_failure_details() -> None:
+    summary = summarize_run_diagnostics_payload(
+        {
+            "test_status": "FAIL",
+            "suite_name": "suite-fail",
+            "test_name": "case-fail",
+            "total_elapsed_seconds": 1.25,
+            "total_keyword_count": 8,
+            "failed_keyword": {
+                "name": "Select Unity Hierarchy Object",
+                "message": "Timeout while waiting target.",
+            },
+            "failure_screenshot_path": "artifacts/run/diagnostics/failure-1.png",
+        }
+    )
+
+    assert "Failed Keyword: Select Unity Hierarchy Object" in summary
+    assert "Failure Message: Timeout while waiting target." in summary
+    assert "Failure Screenshot: artifacts/run/diagnostics/failure-1.png" in summary
