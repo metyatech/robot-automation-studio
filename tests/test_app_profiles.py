@@ -170,6 +170,20 @@ def test_subflow_timeout_validation_label_shows_rejected_hint() -> None:
         studio.close()
 
 
+def test_subflow_timeout_validation_label_recovers_after_rejected_hint() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        studio._on_subflow_timeout_input_rejected()
+        assert "Rejected input." in studio.subflow_timeout_validation_label.text()
+
+        studio.subflow_timeout_edit.setText("120")
+        studio._refresh_subflow_timeout_validation_hint()
+        assert "Using: 120s." in studio.subflow_timeout_validation_label.text()
+    finally:
+        studio.close()
+
+
 def test_subflow_timeout_validation_label_is_localized_in_japanese() -> None:
     _ensure_qapp()
     studio = StudioApp(initial_locale="ja")
