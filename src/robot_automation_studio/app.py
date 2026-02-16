@@ -456,6 +456,7 @@ class StudioApp(QMainWindow):
     _log_signal = Signal(str)
     _phase_signal = Signal(str)
     _run_finished_signal = Signal(object, object)
+    _stop_hotkey_signal = Signal()
 
     def __init__(self, initial_locale: str | None = None) -> None:
         super().__init__()
@@ -509,6 +510,7 @@ class StudioApp(QMainWindow):
         self._log_signal.connect(self.log)
         self._phase_signal.connect(self._set_run_phase)
         self._run_finished_signal.connect(self._on_robot_run_finished)
+        self._stop_hotkey_signal.connect(self._stop_active_automation)
 
         self._build_ui()
         self._apply_localized_texts()
@@ -1367,7 +1369,7 @@ class StudioApp(QMainWindow):
 
     def _start_stop_hotkey(self) -> None:
         def _on_hotkey() -> None:
-            QTimer.singleShot(0, self._stop_active_automation)
+            self._stop_hotkey_signal.emit()
 
         try:
             self._stop_hotkey_listener = pynput_keyboard.GlobalHotKeys(
@@ -1425,7 +1427,7 @@ class StudioApp(QMainWindow):
             self.stop_robot_suite()
 
     def _on_recorder_stop_hotkey(self) -> None:
-        QTimer.singleShot(0, self._stop_active_automation)
+        self._stop_hotkey_signal.emit()
 
     def refresh_steps(self) -> None:
         self.step_list.clear()

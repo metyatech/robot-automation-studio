@@ -264,6 +264,28 @@ def test_recorder_invokes_stop_hotkey_callback() -> None:
     assert steps == []
 
 
+def test_recorder_stop_hotkey_callback_supports_right_side_modifiers() -> None:
+    callback_count = 0
+
+    def _on_stop_hotkey() -> None:
+        nonlocal callback_count
+        callback_count += 1
+
+    recorder = ScenarioRecorder(on_stop_hotkey=_on_stop_hotkey)
+    recorder.start(window_hint="Unity")
+    recorder._on_key_press(keyboard.Key.alt_r)
+    recorder._on_key_press(keyboard.Key.shift_r)
+    recorder._on_key_press(keyboard.Key.f12)
+    recorder._on_key_release(keyboard.Key.f12)
+    recorder._on_key_release(keyboard.Key.shift_r)
+    recorder._on_key_release(keyboard.Key.alt_r)
+
+    steps = events_to_steps(recorder.stop())
+
+    assert callback_count == 1
+    assert steps == []
+
+
 def test_recorder_retries_bridge_lookup_for_hierarchy_click() -> None:
     class FlakyBridge:
         def __init__(self) -> None:

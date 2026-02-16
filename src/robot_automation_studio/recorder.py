@@ -389,8 +389,8 @@ class ScenarioRecorder:
         value = str(key).replace("Key.", "").upper()
         if value == "CTRL_L" or value == "CTRL_R":
             return "CTRL"
-        if value == "ALT_L" or value == "ALT_GR":
+        if value in {"ALT_L", "ALT_R", "ALT_GR"}:
             return "ALT"
-        if value == "SHIFT":
+        if value in {"SHIFT", "SHIFT_L", "SHIFT_R"}:
             return "SHIFT"
         return value
