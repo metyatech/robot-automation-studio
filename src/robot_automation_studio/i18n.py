@@ -41,6 +41,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.button.record_stop": {"en": "■ Stop", "ja": "■ 記録停止"},
     "app.button.run_robot": {"en": "▶ Run Robot", "ja": "▶ Robot 実行"},
     "app.button.stop_robot": {"en": "Stop Robot", "ja": "Robot 停止"},
+    "app.button.hotkey_with_value": {"en": "Hotkey: {hotkey}", "ja": "停止キー: {hotkey}"},
     "app.button.file_menu": {"en": "File ▾", "ja": "ファイル ▾"},
     "app.button.language_menu": {"en": "Language", "ja": "言語"},
     "app.button.add_step": {"en": "+ Add ▾", "ja": "+ 追加 ▾"},
@@ -70,6 +71,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.tooltip.move_step_down": {"en": "Move step down", "ja": "ステップを下へ移動"},
     "app.tooltip.duplicate_step": {"en": "Duplicate step", "ja": "ステップを複製"},
     "app.tooltip.steps_list": {"en": "Steps list", "ja": "ステップ一覧"},
+    "app.tooltip.stop_hotkey": {
+        "en": "Configure emergency stop hotkey.",
+        "ja": "緊急停止ホットキーを設定します。",
+    },
     "app.log.toggle.tooltip": {
         "en": "Collapse or expand Output Log.",
         "ja": "出力ログの表示を折りたたみ/展開します。",
@@ -422,6 +427,37 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Failed to register stop hotkey: {error}",
         "ja": "停止ホットキー登録に失敗しました: {error}",
     },
+    "app.log.stop_requested": {
+        "en": "Stop requested via {source}.",
+        "ja": "{source} で停止要求を受信しました。",
+    },
+    "app.log.hotkey_registered": {
+        "en": "Stop hotkey registered: {hotkey}",
+        "ja": "停止ホットキーを登録しました: {hotkey}",
+    },
+    "app.log.hotkey_fallback": {
+        "en": "Configured hotkey unavailable; fallback applied: {hotkey}",
+        "ja": "設定したホットキーが使えないため、代替キーを適用しました: {hotkey}",
+    },
+    "app.log.hotkey_updated": {
+        "en": "Stop hotkey updated: {hotkey}",
+        "ja": "停止ホットキーを更新しました: {hotkey}",
+    },
+    "app.log.settings_saved": {
+        "en": "Saved UI settings: {path}",
+        "ja": "UI 設定を保存しました: {path}",
+    },
+    "app.log.settings_save_failed": {
+        "en": "Failed to save UI settings: {error}",
+        "ja": "UI 設定の保存に失敗しました: {error}",
+    },
+    "app.log.settings_load_failed": {
+        "en": "Failed to load UI settings: {error}",
+        "ja": "UI 設定の読込に失敗しました: {error}",
+    },
+    "app.stop_source.global_hotkey": {"en": "global hotkey", "ja": "グローバルホットキー"},
+    "app.stop_source.recorder_hotkey": {"en": "recorder hotkey", "ja": "記録ホットキー"},
+    "app.stop_source.overlay_button": {"en": "overlay stop button", "ja": "オーバーレイ停止ボタン"},
     "app.log.failed_start_overlay": {
         "en": "Failed to start overlay: {error}",
         "ja": "オーバーレイの開始に失敗しました: {error}",
@@ -661,8 +697,49 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.error.export.title": {"en": "Export Error", "ja": "エクスポートエラー"},
     "app.error.run.title": {"en": "Run Error", "ja": "実行エラー"},
     "app.error.recording_in_progress.title": {"en": "Recording In Progress", "ja": "記録中です"},
+    "app.error.hotkey_invalid.title": {"en": "Invalid Hotkey", "ja": "ホットキーが不正です"},
+    "app.error.hotkey_register_failed.title": {
+        "en": "Stop Hotkey Registration Failed",
+        "ja": "停止ホットキー登録に失敗しました",
+    },
+    "app.error.hotkey_register_failed.message": {
+        "en": (
+            "Failed to register stop hotkey: {hotkey}\n\n"
+            "Fallback keys were also unavailable.\n"
+            "You can still stop from Stop button or overlay stop button.\n\n"
+            "Details:\n{details}"
+        ),
+        "ja": (
+            "停止ホットキーを登録できませんでした: {hotkey}\n\n"
+            "代替キーも利用できませんでした。\n"
+            "Stop ボタンまたはオーバーレイ停止ボタンは利用できます。\n\n"
+            "詳細:\n{details}"
+        ),
+    },
+    "app.warn.hotkey_fallback.title": {
+        "en": "Stop Hotkey Changed",
+        "ja": "停止ホットキーを切り替えました",
+    },
+    "app.warn.hotkey_fallback.message": {
+        "en": (
+            "Configured stop hotkey could not be registered.\n"
+            "Applied fallback: {hotkey}\n"
+            "Reason: {error}"
+        ),
+        "ja": (
+            "設定した停止ホットキーを登録できませんでした。\n"
+            "代替キーを適用しました: {hotkey}\n"
+            "理由: {error}"
+        ),
+    },
     "app.action.start_recording": {"en": "Start Recording", "ja": "記録開始"},
     "app.action.run_robot": {"en": "Run Robot", "ja": "Run Robot"},
+    "app.dialog.hotkey.title": {"en": "Stop Hotkey", "ja": "停止ホットキー"},
+    "app.dialog.hotkey.label": {
+        "en": "Set emergency stop hotkey (example: Alt+Shift+F12)",
+        "ja": "緊急停止ホットキーを設定してください (例: Alt+Shift+F12)",
+    },
+    "app.dialog.hotkey.apply": {"en": "Apply Hotkey", "ja": "ホットキーを適用"},
     "app.dialog.full_json.title": {"en": "Full Scenario JSON (v2)", "ja": "シナリオ全体 JSON (v2)"},
     "app.dialog.variables.title": {"en": "Variables Editor", "ja": "変数エディタ"},
     "app.dialog.profiles.title": {"en": "Profiles Editor", "ja": "プロファイルエディタ"},
@@ -697,6 +774,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "overlay.progress.running": {"en": "Running", "ja": "実行中"},
     "overlay.stop_action.run": {"en": "stop", "ja": "停止"},
     "overlay.stop_action.recording": {"en": "stop recording", "ja": "記録停止"},
+    "overlay.stop_button": {"en": "Stop Now", "ja": "今すぐ停止"},
     "overlay.banner": {
         "en": "{progress}  |  Press {hotkey} to {action}",
         "ja": "{progress}  |  {hotkey} で {action}",

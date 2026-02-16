@@ -167,6 +167,8 @@ class ScenarioRecorder:
         element_resolver: Callable[[int, int], dict[str, Any] | None] = resolve_selector_from_point,
         on_record_error: Callable[[str], None] | None = None,
         on_stop_hotkey: Callable[[], None] | None = None,
+        stop_hotkey_main_key: str = STOP_HOTKEY_MAIN_KEY,
+        stop_hotkey_required_modifiers: set[str] | frozenset[str] = STOP_HOTKEY_REQUIRED_MODIFIERS,
         unity_bridge: Any | None = None,
     ) -> None:
         if platform.system().lower() != "windows":
@@ -178,6 +180,10 @@ class ScenarioRecorder:
         self._on_record_error = on_record_error
         self._on_stop_hotkey = on_stop_hotkey
         self._unity_bridge = unity_bridge
+        self._stop_hotkey_main_key = str(stop_hotkey_main_key or STOP_HOTKEY_MAIN_KEY).upper()
+        self._stop_hotkey_required_modifiers = {
+            str(modifier).upper() for modifier in stop_hotkey_required_modifiers
+        } or set(STOP_HOTKEY_REQUIRED_MODIFIERS)
         self._window_hint = "Unity"
         self._mouse_listener: mouse.Listener | None = None
         self._keyboard_listener: keyboard.Listener | None = None
@@ -185,6 +191,13 @@ class ScenarioRecorder:
         self._modifier_keys: set[str] = set()
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
+
+    def set_stop_hotkey(self, main_key: str, required_modifiers: set[str] | frozenset[str]) -> None:
+        self._stop_hotkey_main_key = str(main_key or STOP_HOTKEY_MAIN_KEY).upper()
+        normalized_modifiers = {str(value).upper() for value in required_modifiers}
+        self._stop_hotkey_required_modifiers = normalized_modifiers or set(
+            STOP_HOTKEY_REQUIRED_MODIFIERS
+        )
 
     @property
     def is_recording(self) -> bool:
@@ -363,7 +376,7 @@ class ScenarioRecorder:
             self._modifier_keys.add(name)
             return
 
-        if name == STOP_HOTKEY_MAIN_KEY and STOP_HOTKEY_REQUIRED_MODIFIERS.issubset(
+        if name == self._stop_hotkey_main_key and self._stop_hotkey_required_modifiers.issubset(
             self._modifier_keys
         ):
             if self._on_stop_hotkey is not None:

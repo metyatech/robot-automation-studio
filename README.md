@@ -15,15 +15,17 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 - Runtime safety controls for automation execution:
   - visible running status
   - stop button
-  - global emergency stop hotkey (`Alt+Shift+F12`)
-  - dark overlay outside the active automation window with shortcut banner
+  - configurable global emergency stop hotkey (default: `Alt+Shift+F12`)
+  - automatic hotkey fallback when the configured key cannot be registered
+  - dark overlay outside the active automation window with shortcut banner and `Stop Now` button
   - recording/run overlays use distinct style and banner text
 - In-app universal help system:
-  - context help bar for the currently hovered/focused UI component
+  - cursor-near tooltip help for hovered/focused UI components
   - `Help Guide (F1)` searchable GUI help dialog
   - auto-generated explanations for all visible UI components (including editor dialogs)
 - Built-in localization switch (English / Japanese) for UI, status, dialogs, logs, and tooltips
 - Startup locale auto-detection (explicit `en`/`ja`, env override, then OS locale)
+- Persisted UI preferences (locale, target, execution mode, window hint, project path, stop hotkey)
 - Export both `.robot` suites and machine-readable scenario spec JSON files
 - Designed for Unity Editor and other desktop targets on Windows
 
@@ -91,7 +93,10 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
    - `<name>.robot`
    - `<name>.scenario.json`
 9. Click `Run Robot` to execute the generated suite.
-10. While running, use `Stop Robot` or press `Alt+Shift+F12` to stop immediately.
+10. While running, use `Stop Robot`, the overlay `Stop Now` button, or the configured stop hotkey to stop immediately.
+    - Default stop hotkey is `Alt+Shift+F12`.
+    - You can change it from the header `Hotkey: ...` button.
+    - If registration fails (for example shortcut conflict), Studio applies a fallback key and shows a warning.
 11. Use in-app help:
    - hover/focus any UI component to read context help in the `Context Help` bar
    - press `F1` (or click `Help Guide`) to open searchable full GUI help

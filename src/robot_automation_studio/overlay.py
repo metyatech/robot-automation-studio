@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -10,7 +11,7 @@ import win32con  # type: ignore[import-not-found]
 import win32gui  # type: ignore[import-not-found]
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
 from .i18n import translate
 
@@ -169,10 +170,21 @@ _OVERLAY_FLAGS = (
     | Qt.WindowType.Tool
     | Qt.WindowType.WindowTransparentForInput
 )
+_BANNER_FLAGS = (
+    Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool
+)
 
 
 def _new_overlay_widget(parent: QWidget | None, color: str, alpha: float) -> QWidget:
     w = QWidget(parent, _OVERLAY_FLAGS)
+    w.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+    w.setStyleSheet(f"background-color: {color};")
+    w.setWindowOpacity(alpha)
+    return w
+
+
+def _new_banner_widget(parent: QWidget | None, color: str, alpha: float) -> QWidget:
+    w = QWidget(parent, _BANNER_FLAGS)
     w.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
     w.setStyleSheet(f"background-color: {color};")
     w.setWindowOpacity(alpha)
@@ -193,12 +205,14 @@ class AutomationRunOverlay:
         parent: QWidget | None,
         window_hint: str,
         stop_hotkey_label: str,
+        on_stop_requested: Callable[[], None] | None = None,
         mode: OverlayMode = "run",
         locale: str = "en",
     ) -> None:
         self._parent = parent
         self._window_hint = window_hint
         self._stop_hotkey_label = stop_hotkey_label
+        self._on_stop_requested = on_stop_requested
         self._mode: OverlayMode = mode
         self._locale = locale
         self._theme = _overlay_theme(mode)
@@ -207,6 +221,7 @@ class AutomationRunOverlay:
         self._border_windows: list[QWidget] = []
         self._banner_window: QWidget | None = None
         self._banner_label: QLabel | None = None
+        self._stop_button: QPushButton | None = None
         self._running = False
         self._timer = QTimer()
         self._timer.setInterval(120)
@@ -233,15 +248,17 @@ class AutomationRunOverlay:
         self._border_windows.clear()
         self._banner_window = None
         self._banner_label = None
+        self._stop_button = None
 
     def _create_windows(self) -> None:
         self._dim_windows = [_new_overlay_widget(self._parent, "#000000", 0.45) for _ in range(4)]
         self._border_windows = [
             _new_overlay_widget(self._parent, self._theme.border_color, 0.95) for _ in range(4)
         ]
-        banner = _new_overlay_widget(self._parent, self._theme.banner_background, 0.9)
-        layout = QVBoxLayout(banner)
-        layout.setContentsMargins(0, 0, 0, 0)
+        banner = _new_banner_widget(self._parent, self._theme.banner_background, 0.9)
+        layout = QHBoxLayout(banner)
+        layout.setContentsMargins(10, 0, 10, 0)
+        layout.setSpacing(12)
         label = QLabel(
             build_banner_text(
                 self._progress_text,
@@ -254,12 +271,31 @@ class AutomationRunOverlay:
         label.setStyleSheet(
             f"color: {self._theme.banner_foreground}; "
             f"background: {self._theme.banner_background}; "
-            "padding: 6px 18px;"
+            "padding: 6px 10px;"
         )
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(label)
+        label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(label, 1)
+        stop_button = QPushButton(translate("overlay.stop_button", locale=self._locale))
+        stop_button.setObjectName("OverlayStopButton")
+        stop_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        stop_button.setStyleSheet(
+            "QPushButton {"
+            "background: #c62828;"
+            "color: #ffffff;"
+            "border: none;"
+            "border-radius: 5px;"
+            "padding: 6px 12px;"
+            "font-weight: bold;"
+            "}"
+            "QPushButton:hover { background: #e53935; }"
+        )
+        stop_button.clicked.connect(self._handle_stop_button_clicked)
+        layout.addWidget(
+            stop_button, 0, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight
+        )
         self._banner_window = banner
         self._banner_label = label
+        self._stop_button = stop_button
 
     def set_progress_text(self, progress_text: str) -> None:
         self._progress_text = str(progress_text or "").strip() or translate(
@@ -280,6 +316,16 @@ class AutomationRunOverlay:
     def set_locale(self, locale: str) -> None:
         self._locale = locale
         self.set_progress_text(self._progress_text)
+        if self._stop_button is not None:
+            self._stop_button.setText(translate("overlay.stop_button", locale=self._locale))
+
+    def set_stop_hotkey_label(self, stop_hotkey_label: str) -> None:
+        self._stop_hotkey_label = str(stop_hotkey_label or "").strip() or self._stop_hotkey_label
+        self.set_progress_text(self._progress_text)
+
+    def _handle_stop_button_clicked(self) -> None:
+        if self._on_stop_requested is not None:
+            self._on_stop_requested()
 
     def _update(self) -> None:
         if not self._running:

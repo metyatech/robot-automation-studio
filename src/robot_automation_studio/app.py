@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -52,7 +53,20 @@ from PySide6.QtWidgets import (
 from .bridge_readiness import build_recording_readiness_timeouts
 from .editor import ScenarioEditor
 from .exporter import export_all
-from .i18n import DEFAULT_LOCALE, SUPPORTED_LOCALES, Translator, detect_default_locale, translate
+from .hotkey import (
+    DEFAULT_STOP_HOTKEY_LABEL,
+    FALLBACK_STOP_HOTKEY_LABELS,
+    HotkeySpec,
+    parse_hotkey_label,
+)
+from .i18n import (
+    DEFAULT_LOCALE,
+    LOCALE_ENV_VAR,
+    SUPPORTED_LOCALES,
+    Translator,
+    detect_default_locale,
+    translate,
+)
 from .models import (
     UNITY_EXECUTION_MODE_KEY,
     UNITY_PROJECT_PATH_KEY,
@@ -61,13 +75,17 @@ from .models import (
 )
 from .overlay import AutomationRunOverlay, OverlayMode
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
+from .settings_store import (
+    StudioUiSettings,
+    load_ui_settings,
+    resolve_settings_path,
+    save_ui_settings,
+)
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
 from .ui_help import HelpEntry, build_help_entry, filter_help_entries
 from .unity_bridge import UnityBridgeClient
 from .unity_diagnostics import get_recent_unity_compile_errors
 
-STOP_HOTKEY_BIND = "<alt>+<shift>+<f12>"
-STOP_HOTKEY_LABEL = "Alt+Shift+F12"
 BRIDGE_READY_TIMEOUT_SECONDS = 15.0
 BRIDGE_READY_CHECK_TIMEOUT_SECONDS = 3.0
 BRIDGE_READY_REQUEST_TIMEOUT_SECONDS = 0.8
@@ -456,16 +474,32 @@ class StudioApp(QMainWindow):
     _log_signal = Signal(str)
     _phase_signal = Signal(str)
     _run_finished_signal = Signal(object, object)
-    _stop_hotkey_signal = Signal()
+    _automation_stop_requested = Signal(str)
 
     def __init__(self, initial_locale: str | None = None) -> None:
         super().__init__()
-        self._translator = Translator(detect_default_locale(initial_locale))
+        self._settings_path = resolve_settings_path()
+        self._settings_load_error: Exception | None = None
+        try:
+            self._ui_settings = load_ui_settings(self._settings_path)
+        except Exception as error:
+            self._ui_settings = StudioUiSettings()
+            self._settings_load_error = error
+
+        if initial_locale is not None:
+            locale_hint: str | None = initial_locale
+        elif os.getenv(LOCALE_ENV_VAR):
+            locale_hint = None
+        else:
+            locale_hint = self._ui_settings.locale
+        self._translator = Translator(detect_default_locale(locale_hint))
         self.setWindowTitle(self._t("app.window.title"))
         self.resize(1200, 760)
         self.setMinimumSize(960, 640)
 
         _prepare_pywinauto_for_qt()
+
+        self._stop_hotkey_spec = self._parse_hotkey_or_default(self._ui_settings.stop_hotkey_label)
 
         self.scenario = Scenario(name=self._t("app.scenario.default_name"))
         self.editor = ScenarioEditor(self.scenario)
@@ -475,6 +509,8 @@ class StudioApp(QMainWindow):
         self.recorder = ScenarioRecorder(
             on_record_error=self._on_record_error,
             on_stop_hotkey=self._on_recorder_stop_hotkey,
+            stop_hotkey_main_key=self._stop_hotkey_spec.main_key,
+            stop_hotkey_required_modifiers=set(self._stop_hotkey_spec.required_modifiers),
             unity_bridge=self.unity_bridge,
         )
         self.current_path: Path | None = None
@@ -510,16 +546,19 @@ class StudioApp(QMainWindow):
         self._log_signal.connect(self.log)
         self._phase_signal.connect(self._set_run_phase)
         self._run_finished_signal.connect(self._on_robot_run_finished)
-        self._stop_hotkey_signal.connect(self._stop_active_automation)
+        self._automation_stop_requested.connect(self._on_automation_stop_requested)
 
         self._build_ui()
         self._apply_localized_texts()
+        self._apply_loaded_ui_settings()
         self._rebuild_help_entries()
 
         f1_shortcut = QShortcut(QKeySequence("F1"), self)
         f1_shortcut.activated.connect(self.open_help_guide)
 
         self.refresh_steps()
+        if self._settings_load_error is not None:
+            self.log(self._t("app.log.settings_load_failed", error=self._settings_load_error))
 
     def _t(self, key: str, **kwargs: object) -> str:
         return self._translator.t(key, **kwargs)
@@ -542,6 +581,59 @@ class StudioApp(QMainWindow):
         action.setToolTip(summary)
         action.setStatusTip(summary)
         action.setWhatsThis(detail)
+
+    @staticmethod
+    def _parse_hotkey_or_default(label: str) -> HotkeySpec:
+        try:
+            return parse_hotkey_label(label)
+        except Exception:
+            return parse_hotkey_label(DEFAULT_STOP_HOTKEY_LABEL)
+
+    def _set_stop_hotkey_spec(self, spec: HotkeySpec, *, persist: bool = False) -> None:
+        self._stop_hotkey_spec = spec
+        self.recorder.set_stop_hotkey(spec.main_key, set(spec.required_modifiers))
+        if hasattr(self, "hotkey_button"):
+            self.hotkey_button.setText(self._t("app.button.hotkey_with_value", hotkey=spec.label))
+            self.hotkey_button.setToolTip(self._t("app.tooltip.stop_hotkey"))
+        if self._overlay is not None:
+            self._overlay.set_stop_hotkey_label(spec.label)
+            self._overlay.set_progress_text(self._status_pill.text())
+        if persist:
+            self._persist_ui_settings()
+
+    def _apply_loaded_ui_settings(self) -> None:
+        settings = self._ui_settings
+        self.window_hint_edit.setText(settings.window_hint)
+        self.project_path_edit.setText(settings.unity_project_path)
+        self._set_combo_value(self.target_combo, settings.target)
+        self._set_combo_value(self.execution_mode_combo, settings.execution_mode)
+        self.on_execution_mode_changed()
+        self._set_stop_hotkey_spec(self._parse_hotkey_or_default(settings.stop_hotkey_label))
+
+    def _collect_ui_settings(self) -> StudioUiSettings:
+        return StudioUiSettings(
+            locale=self._translator.locale,
+            target=self._combo_value(self.target_combo).strip() or "unity",
+            window_hint=self.window_hint_edit.text().strip()
+            or self._t("app.field.window_hint.placeholder"),
+            execution_mode=normalize_unity_execution_mode(
+                self._combo_value(self.execution_mode_combo)
+            ),
+            unity_project_path=self.project_path_edit.text().strip(),
+            stop_hotkey_label=self._stop_hotkey_spec.label,
+        )
+
+    def _persist_ui_settings(self) -> None:
+        try:
+            saved_path = save_ui_settings(self._collect_ui_settings(), self._settings_path)
+            self.log(self._t("app.log.settings_saved", path=saved_path))
+        except Exception as error:
+            self.log(self._t("app.log.settings_save_failed", error=error))
+
+    def _stop_source_label(self, source: str) -> str:
+        key = f"app.stop_source.{str(source or '').strip().lower()}"
+        localized = self._t(key)
+        return localized if localized != key else source
 
     def _rebuild_help_entries(self) -> None:
         self._help_entries_by_widget.clear()
@@ -567,6 +659,7 @@ class StudioApp(QMainWindow):
             self._overlay.set_progress_text(self._status_pill.text())
         if self._help_dialog is not None:
             self._close_help_dialog()
+        self._persist_ui_settings()
 
     def _build_ui(self) -> None:
         central = QWidget()
@@ -653,6 +746,11 @@ class StudioApp(QMainWindow):
         self.file_help_action.triggered.connect(self.open_help_guide)
         self.file_menu_button.setMenu(file_menu)
         header_layout.addWidget(self.file_menu_button)
+
+        self.hotkey_button = QPushButton()
+        self.hotkey_button.setObjectName("HotkeyButton")
+        self.hotkey_button.clicked.connect(self.open_hotkey_dialog)
+        header_layout.addWidget(self.hotkey_button)
 
         self.language_combo = QComboBox()
         self.language_combo.setObjectName("LanguageCombo")
@@ -1007,6 +1105,10 @@ class StudioApp(QMainWindow):
         self.file_load_action.setText(self._t("app.menu.file.load"))
         self.file_json_action.setText(self._t("app.menu.file.full_json"))
         self.file_help_action.setText(self._t("app.menu.file.help"))
+        self.hotkey_button.setText(
+            self._t("app.button.hotkey_with_value", hotkey=self._stop_hotkey_spec.label)
+        )
+        self.hotkey_button.setToolTip(self._t("app.tooltip.stop_hotkey"))
         self._set_action_help(
             self.file_save_action,
             "app.help.menu.file.save.summary",
@@ -1367,20 +1469,68 @@ class StudioApp(QMainWindow):
         with self._run_lock:
             return self._run_process
 
-    def _start_stop_hotkey(self) -> None:
-        def _on_hotkey() -> None:
-            self._stop_hotkey_signal.emit()
+    def _create_global_hotkey_listener(
+        self,
+        hotkey_bind: str,
+        callback,
+    ) -> pynput_keyboard.GlobalHotKeys:
+        return pynput_keyboard.GlobalHotKeys({hotkey_bind: callback})
 
-        try:
-            self._stop_hotkey_listener = pynput_keyboard.GlobalHotKeys(
-                {
-                    STOP_HOTKEY_BIND: _on_hotkey,
-                }
+    def _start_stop_hotkey(self) -> bool:
+        self._stop_stop_hotkey()
+
+        def _on_hotkey() -> None:
+            self._automation_stop_requested.emit("global_hotkey")
+
+        candidate_specs: list[HotkeySpec] = [self._stop_hotkey_spec]
+        for fallback_label in FALLBACK_STOP_HOTKEY_LABELS:
+            fallback_spec = self._parse_hotkey_or_default(fallback_label)
+            if all(spec.label != fallback_spec.label for spec in candidate_specs):
+                candidate_specs.append(fallback_spec)
+
+        errors: list[str] = []
+        for index, spec in enumerate(candidate_specs):
+            try:
+                listener = self._create_global_hotkey_listener(spec.bind, _on_hotkey)
+                listener.start()
+            except Exception as error:
+                self.log(self._t("app.log.failed_register_hotkey", error=error))
+                errors.append(f"{spec.label}: {error}")
+                continue
+
+            self._stop_hotkey_listener = listener
+            if index == 0:
+                self.log(self._t("app.log.hotkey_registered", hotkey=spec.label))
+                return True
+
+            previous = self._stop_hotkey_spec.label
+            self._set_stop_hotkey_spec(spec, persist=True)
+            self.log(self._t("app.log.hotkey_fallback", hotkey=spec.label))
+            QMessageBox.warning(
+                self,
+                self._t("app.warn.hotkey_fallback.title"),
+                self._t(
+                    "app.warn.hotkey_fallback.message",
+                    hotkey=spec.label,
+                    error=errors[-1] if errors else "unknown",
+                ),
             )
-            self._stop_hotkey_listener.start()
-        except Exception as error:
-            self._stop_hotkey_listener = None
-            self.log(self._t("app.log.failed_register_hotkey", error=error))
+            if previous != spec.label:
+                self.log(self._t("app.log.hotkey_updated", hotkey=spec.label))
+            return True
+
+        self._stop_hotkey_listener = None
+        details = "\n".join(errors) if errors else "unknown"
+        QMessageBox.warning(
+            self,
+            self._t("app.error.hotkey_register_failed.title"),
+            self._t(
+                "app.error.hotkey_register_failed.message",
+                hotkey=self._stop_hotkey_spec.label,
+                details=details,
+            ),
+        )
+        return False
 
     def _stop_stop_hotkey(self) -> None:
         listener = self._stop_hotkey_listener
@@ -1400,7 +1550,8 @@ class StudioApp(QMainWindow):
                 parent=self,
                 window_hint=self.window_hint_edit.text().strip()
                 or self._t("app.field.window_hint.placeholder"),
-                stop_hotkey_label=STOP_HOTKEY_LABEL,
+                stop_hotkey_label=self._stop_hotkey_spec.label,
+                on_stop_requested=lambda: self._automation_stop_requested.emit("overlay_button"),
                 mode=mode,
                 locale=self._translator.locale,
             )
@@ -1419,15 +1570,28 @@ class StudioApp(QMainWindow):
         self._overlay = None
         self._overlay_mode = None
 
-    def _stop_active_automation(self) -> None:
+    def _stop_active_automation(self, source: str = "") -> None:
         if self.recorder.is_recording:
             self.stop_recording()
             return
         if self._is_robot_running():
-            self.stop_robot_suite()
+            self.stop_robot_suite(stop_source=source)
+
+    @Slot(str)
+    def _on_automation_stop_requested(self, source: str) -> None:
+        normalized_source = str(source or "").strip().lower()
+        if normalized_source == "":
+            normalized_source = "unknown"
+        self.log(
+            self._t(
+                "app.log.stop_requested",
+                source=self._stop_source_label(normalized_source),
+            )
+        )
+        self._stop_active_automation(normalized_source)
 
     def _on_recorder_stop_hotkey(self) -> None:
-        self._stop_hotkey_signal.emit()
+        self._automation_stop_requested.emit("recorder_hotkey")
 
     def refresh_steps(self) -> None:
         self.step_list.clear()
@@ -1707,6 +1871,41 @@ class StudioApp(QMainWindow):
         if not selected:
             return
         self.project_path_edit.setText(selected)
+
+    def open_hotkey_dialog(self) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self._t("app.dialog.hotkey.title"))
+        dialog.setMinimumWidth(460)
+        layout = QVBoxLayout(dialog)
+        description = QLabel(self._t("app.dialog.hotkey.label"))
+        description.setWordWrap(True)
+        layout.addWidget(description)
+
+        hotkey_edit = QLineEdit(self._stop_hotkey_spec.label)
+        hotkey_edit.setObjectName("StopHotkeyEdit")
+        layout.addWidget(hotkey_edit)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        cancel_button = QPushButton(self._t("app.button.cancel"))
+        cancel_button.clicked.connect(dialog.reject)
+        actions.addWidget(cancel_button)
+        apply_button = QPushButton(self._t("app.dialog.hotkey.apply"))
+        apply_button.clicked.connect(dialog.accept)
+        actions.addWidget(apply_button)
+        layout.addLayout(actions)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            spec = parse_hotkey_label(hotkey_edit.text())
+        except Exception as error:
+            QMessageBox.critical(self, self._t("app.error.hotkey_invalid.title"), str(error))
+            return
+        self._set_stop_hotkey_spec(spec, persist=True)
+        if self.recorder.is_recording or self._is_robot_running():
+            self._start_stop_hotkey()
+        self.log(self._t("app.log.hotkey_updated", hotkey=spec.label))
 
     def apply_step_changes(self) -> None:
         if self.selected_index is None:
@@ -2754,14 +2953,15 @@ class StudioApp(QMainWindow):
         self._run_thread = threading.Thread(target=_run, daemon=True)
         self._run_thread.start()
 
-    def stop_robot_suite(self) -> None:
+    def stop_robot_suite(self, stop_source: str = "manual") -> None:
         if not self._is_robot_running():
             self.log(self._t("app.log.robot_not_running"))
             return
+        _ = stop_source
         self._stop_requested = True
         self._set_run_controls(running=True, stopping=True)
         process = self._get_current_process()
-        self.log(self._t("app.log.stopping_robot_suite", hotkey=STOP_HOTKEY_LABEL))
+        self.log(self._t("app.log.stopping_robot_suite", hotkey=self._stop_hotkey_spec.label))
         if process is None:
             return
         stop_robot_process(process)
@@ -2798,6 +2998,7 @@ class StudioApp(QMainWindow):
         self._stop_overlay()
         self._stop_stop_hotkey()
         self._close_help_dialog()
+        self._persist_ui_settings()
         event.accept()
 
 

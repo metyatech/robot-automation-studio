@@ -335,6 +335,10 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
         "Choose language.",
         "Switch UI language between English and Japanese.",
     ),
+    "HotkeyButton": (
+        "Set stop hotkey.",
+        "Open a dialog to configure emergency stop hotkey for record/run.",
+    ),
     "VariablesButton": (
         "Edit variables.",
         "Open Variables Editor for reusable scenario variables.",
@@ -560,6 +564,10 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
     "LanguageCombo": (
         "表示言語を選択します。",
         "English / 日本語 の UI 表示を切り替えます。",
+    ),
+    "HotkeyButton": (
+        "停止ホットキーを設定します。",
+        "記録/実行の緊急停止ホットキー設定ダイアログを開きます。",
     ),
     "VariablesButton": (
         "変数を編集します。",
