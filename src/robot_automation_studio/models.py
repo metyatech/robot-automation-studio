@@ -406,7 +406,7 @@ class Step:
             if input_payload:
                 payload["input"] = input_payload
 
-        if canonical_action == "screenshot":
+        if canonical_action in {"screenshot", "start_video", "run_subflow"}:
             input_payload = dict(payload.get("input") or {})
             if "path" not in input_payload and "path" in params:
                 input_payload["path"] = params["path"]

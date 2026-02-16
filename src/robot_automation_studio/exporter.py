@@ -275,6 +275,22 @@ def _format_hierarchy_select_line(indent: str, hierarchy_path: str, timeout_seco
     )
 
 
+def _run_subflow_path_from_step_payload(step_payload: dict[str, Any], *, path: str) -> str:
+    action = _normalize_action(str(step_payload.get("action") or ""))
+    if action != "run_subflow":
+        raise ValueError(
+            "parallel control currently supports only run_subflow child steps."
+            f" invalid action at {path}: {action or '<empty>'}"
+        )
+    input_payload = step_payload.get("input")
+    if not isinstance(input_payload, dict):
+        raise ValueError(f"run_subflow requires input.path at {path}.")
+    subflow_path = str(input_payload.get("path") or "").strip()
+    if subflow_path == "":
+        raise ValueError(f"run_subflow requires input.path at {path}.")
+    return subflow_path
+
+
 def _step_robot_lines_from_payload(
     step_payload: dict[str, Any],
     indent: str = "    ",
@@ -449,6 +465,34 @@ def _step_robot_lines_from_payload(
                         )
                     )
             lines.append(f"{indent}END")
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if control == "parallel":
+            branches = _validated_child_steps(step_payload.get("steps"), path=f"{path}.steps")
+            if len(branches) < 2:
+                raise ValueError("parallel control requires at least 2 run_subflow child steps.")
+            lines = []
+            alias_variables: list[str] = []
+            for branch_index, branch in enumerate(branches):
+                branch_path = f"{path}.steps[{branch_index}]"
+                subflow_path = _run_subflow_path_from_step_payload(branch, path=branch_path)
+                sanitized_path = path.replace("[", "_").replace("]", "").replace(".", "_")
+                alias = f"parallel_{sanitized_path}_{branch_index}"
+                alias_variable = f"${{parallel_alias_{branch_index}}}"
+                alias_variables.append(alias_variable)
+                lines.append(
+                    f"{indent}{alias_variable}=    Start Robot Subflow Process"
+                    f"    suite_path={subflow_path}    alias={alias}"
+                )
+            wait_line = f"{indent}Wait Robot Subflow Processes"
+            for alias_variable in alias_variables:
+                wait_line = f"{wait_line}    {alias_variable}"
+            lines.append(wait_line)
             return _apply_step_guards(
                 step_payload=step_payload,
                 lines=lines,
@@ -837,6 +881,45 @@ def _step_robot_lines_from_payload(
             title=title,
         )
 
+    if action == "run_subflow":
+        input_payload = step_payload.get("input")
+        if not isinstance(input_payload, dict):
+            raise ValueError("run_subflow requires input.path.")
+        suite_path = str(input_payload.get("path") or "").strip()
+        if suite_path == "":
+            raise ValueError("run_subflow requires input.path.")
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=[f"{indent}Run Robot Subflow    {suite_path}"],
+            indent=indent,
+            path=path,
+            title=title,
+        )
+
+    if action == "start_video":
+        input_payload = step_payload.get("input")
+        if not isinstance(input_payload, dict):
+            raise ValueError("start_video requires input.path.")
+        video_path = str(input_payload.get("path") or "").strip()
+        if video_path == "":
+            raise ValueError("start_video requires input.path.")
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=[f"{indent}Start Desktop Video Capture    {video_path}"],
+            indent=indent,
+            path=path,
+            title=title,
+        )
+
+    if action == "stop_video":
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=[f"{indent}Stop Desktop Video Capture"],
+            indent=indent,
+            path=path,
+            title=title,
+        )
+
     if action == "assert":
         expect_payload = step_payload.get("expect")
         if isinstance(expect_payload, dict):
@@ -981,6 +1064,8 @@ def _generate_robot_suite_from_resolved(
     lines = [
         "*** Settings ***",
         "Library    Collections",
+        "Library    Process",
+        "Library    OperatingSystem",
         "Library    robotframework_unity_editor.UnityEditorLibrary",
         "",
         "*** Test Cases ***",
@@ -1009,60 +1094,149 @@ def _generate_robot_suite_from_resolved(
                 path=f"steps[{index}]",
             )
         )
-        lines.extend(
-            [
-                "    FINALLY",
-                "        IF    '${unity_mode}' == 'launch'",
-                "            Stop Unity Editor",
-                "        END",
-                "    END",
-                "",
-                "*** Keywords ***",
-                "Emit Annotation Metadata",
-                "    [Arguments]    ${annotation}",
-                "    ${metadata}=    Create Dictionary    annotation=${annotation}",
-                "    Emit DOCMETA    ${metadata}",
-                "",
-                "Require Unity Project Path",
-                "    [Arguments]    ${project_path}",
-                "    ${normalized}=    Evaluate    str($project_path).strip()",
-                "    IF    '${normalized}' == ''",
-                "        Fail    unity_project_path is required when unity_mode is launch.",
-                "    END",
-                "",
-                "Double Click Unity Element",
-                (
-                    "    [Arguments]    ${title}=${None}    ${automation_id}=${None}"
-                    "    ${class_name}=${None}    ${control_type}=${None}"
-                    "    ${index}=${None}    ${timeout_seconds}=10.0"
-                ),
-                (
-                    "    ${rect}=    Get Unity Element Rect    title=${title}"
-                    "    automation_id=${automation_id}    class_name=${class_name}"
-                    "    control_type=${control_type}    index=${index}"
-                    "    timeout_seconds=${timeout_seconds}"
-                ),
-                "    ${window}=    Get Unity Window Rect",
-                (
-                    "    ${x_ratio}=    Evaluate"
-                    "    (float($rect['left']) + (float($rect['width']) / 2.0)"
-                    " - float($window['left'])) / max(1.0, float($window['width']))"
-                ),
-                (
-                    "    ${y_ratio}=    Evaluate"
-                    "    (float($rect['top']) + (float($rect['height']) / 2.0)"
-                    " - float($window['top'])) / max(1.0, float($window['height']))"
-                ),
-                "    ${annotation}=    Double Click Unity Relative    ${x_ratio}    ${y_ratio}",
-                "    RETURN    ${annotation}",
-                "",
-                "Open URL In Default Browser",
-                "    [Arguments]    ${url}",
-                "    ${opened}=    Evaluate    __import__('webbrowser').open(str($url), new=2)",
-                "    Should Be True    ${opened}",
-                "",
-            ]
-        )
+    lines.extend(
+        [
+            "    FINALLY",
+            "        IF    '${unity_mode}' == 'launch'",
+            "            Stop Unity Editor",
+            "        END",
+            "    END",
+            "",
+            "*** Keywords ***",
+            "Emit Annotation Metadata",
+            "    [Arguments]    ${annotation}",
+            "    ${metadata}=    Create Dictionary    annotation=${annotation}",
+            "    Emit DOCMETA    ${metadata}",
+            "",
+            "Require Unity Project Path",
+            "    [Arguments]    ${project_path}",
+            "    ${normalized}=    Evaluate    str($project_path).strip()",
+            "    IF    '${normalized}' == ''",
+            "        Fail    unity_project_path is required when unity_mode is launch.",
+            "    END",
+            "",
+            "Double Click Unity Element",
+            (
+                "    [Arguments]    ${title}=${None}    ${automation_id}=${None}"
+                "    ${class_name}=${None}    ${control_type}=${None}"
+                "    ${index}=${None}    ${timeout_seconds}=10.0"
+            ),
+            (
+                "    ${rect}=    Get Unity Element Rect    title=${title}"
+                "    automation_id=${automation_id}    class_name=${class_name}"
+                "    control_type=${control_type}    index=${index}"
+                "    timeout_seconds=${timeout_seconds}"
+            ),
+            "    ${window}=    Get Unity Window Rect",
+            (
+                "    ${x_ratio}=    Evaluate"
+                "    (float($rect['left']) + (float($rect['width']) / 2.0)"
+                " - float($window['left'])) / max(1.0, float($window['width']))"
+            ),
+            (
+                "    ${y_ratio}=    Evaluate"
+                "    (float($rect['top']) + (float($rect['height']) / 2.0)"
+                " - float($window['top'])) / max(1.0, float($window['height']))"
+            ),
+            "    ${annotation}=    Double Click Unity Relative    ${x_ratio}    ${y_ratio}",
+            "    RETURN    ${annotation}",
+            "",
+            "Open URL In Default Browser",
+            "    [Arguments]    ${url}",
+            "    ${opened}=    Evaluate    __import__('webbrowser').open(str($url), new=2)",
+            "    Should Be True    ${opened}",
+            "",
+            "Run Robot Subflow",
+            "    [Arguments]    ${suite_path}",
+            "    ${resolved}=    Resolve Robot Subflow Path    ${suite_path}",
+            (
+                "    ${subflow_name}=    Evaluate    __import__('os').path.splitext("
+                "__import__('os').path.basename($resolved))[0]"
+            ),
+            "    ${subflow_output}=    Join Path    ${OUTPUT DIR}    subflows    ${subflow_name}",
+            "    Create Directory    ${subflow_output}",
+            "    ${py}=    Evaluate    __import__('sys').executable",
+            (
+                "    ${result}=    Run Process    ${py}    -m    robot    --outputdir"
+                "    ${subflow_output}    --variable    OUTPUT_DIR:${OUTPUT DIR}"
+                "    ${resolved}    stdout=${subflow_output}${/}stdout.txt"
+                "    stderr=${subflow_output}${/}stderr.txt"
+            ),
+            "    Should Be Equal As Integers    ${result.rc}    0",
+            "",
+            "Start Robot Subflow Process",
+            "    [Arguments]    ${suite_path}    ${alias}",
+            "    ${resolved}=    Resolve Robot Subflow Path    ${suite_path}",
+            "    ${subflow_output}=    Join Path    ${OUTPUT DIR}    subflows    ${alias}",
+            "    Create Directory    ${subflow_output}",
+            "    ${py}=    Evaluate    __import__('sys').executable",
+            (
+                "    Start Process    ${py}    -m    robot    --outputdir"
+                "    ${subflow_output}    --variable    OUTPUT_DIR:${OUTPUT DIR}"
+                "    ${resolved}    stdout=${subflow_output}${/}stdout.txt"
+                "    stderr=${subflow_output}${/}stderr.txt    alias=${alias}"
+            ),
+            "    RETURN    ${alias}",
+            "",
+            "Wait Robot Subflow Processes",
+            "    [Arguments]    @{aliases}",
+            "    FOR    ${alias}    IN    @{aliases}",
+            "        ${result}=    Wait For Process    ${alias}",
+            "        Should Be Equal As Integers    ${result.rc}    0",
+            "    END",
+            "",
+            "Resolve Robot Subflow Path",
+            "    [Arguments]    ${suite_path}",
+            "    ${normalized}=    Evaluate    str($suite_path).strip()",
+            "    IF    '${normalized}' == ''",
+            "        Fail    run_subflow requires input.path.",
+            "    END",
+            "    ${is_abs}=    Evaluate    __import__('os').path.isabs($normalized)",
+            "    IF    ${is_abs}",
+            "        ${resolved}=    Normalize Path    ${normalized}",
+            "    ELSE",
+            "        ${resolved}=    Normalize Path    ${CURDIR}${/}${normalized}",
+            "    END",
+            "    File Should Exist    ${resolved}",
+            "    ${is_robot}=    Evaluate    str($resolved).lower().endswith('.robot')",
+            "    Should Be True    ${is_robot}    subflow suite_path must point to a .robot file.",
+            "    RETURN    ${resolved}",
+            "",
+            "Start Desktop Video Capture",
+            "    [Arguments]    ${video_path}",
+            "    ${normalized}=    Evaluate    str($video_path).strip()",
+            "    IF    '${normalized}' == ''",
+            "        Fail    start_video requires input.path.",
+            "    END",
+            "    ${ffmpeg}=    Evaluate    __import__('shutil').which('ffmpeg')",
+            "    Should Not Be Empty    ${ffmpeg}    ffmpeg is required for start_video.",
+            "    ${is_abs}=    Evaluate    __import__('os').path.isabs($normalized)",
+            "    IF    ${is_abs}",
+            "        ${resolved}=    Normalize Path    ${normalized}",
+            "    ELSE",
+            "        ${resolved}=    Normalize Path    ${OUTPUT DIR}${/}${normalized}",
+            "    END",
+            "    ${video_dir}=    Evaluate    __import__('os').path.dirname($resolved)",
+            "    IF    '${video_dir}' != ''",
+            "        Create Directory    ${video_dir}",
+            "    END",
+            (
+                "    Start Process    ${ffmpeg}    -y    -f    gdigrab"
+                "    -framerate    30    -i    desktop    -pix_fmt"
+                "    yuv420p    ${resolved}    alias=studio_video_capture"
+            ),
+            "",
+            "Stop Desktop Video Capture",
+            (
+                "    ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Terminate Process    studio_video_capture    kill=True"
+            ),
+            "    IF    '${status}' == 'FAIL'",
+            "        Fail    No active video capture process to stop.",
+            "    END",
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 

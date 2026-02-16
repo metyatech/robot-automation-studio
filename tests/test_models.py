@@ -163,3 +163,27 @@ def test_step_select_hierarchy_flat_params_are_normalized_to_target() -> None:
     assert payload["action"] == "select_hierarchy"
     assert payload["target"]["strategy"] == "unity_hierarchy"
     assert payload["target"]["unity_hierarchy"]["path"] == "AvatarRoot/Hair/Tail"
+
+
+def test_step_run_subflow_flat_path_is_normalized_to_input_path() -> None:
+    step = Step(
+        action="run_subflow",
+        title="Run child",
+        params={"path": "flows/child.robot"},
+    )
+
+    payload = step.to_dict()
+    assert payload["action"] == "run_subflow"
+    assert payload["input"]["path"] == "flows/child.robot"
+
+
+def test_step_start_video_flat_path_is_normalized_to_input_path() -> None:
+    step = Step(
+        action="start_video",
+        title="Start video",
+        params={"path": "videos/capture.mp4"},
+    )
+
+    payload = step.to_dict()
+    assert payload["action"] == "start_video"
+    assert payload["input"]["path"] == "videos/capture.mp4"

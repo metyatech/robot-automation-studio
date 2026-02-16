@@ -226,15 +226,18 @@ def build_ui(self, *, bg_light: str) -> None:
     self.kind_combo.setObjectName("StepKindCombo")
     self.step_kind_label = QLabel()
     self.kind_combo.currentTextChanged.connect(self._update_step_kind_fields_visibility)
+    self.kind_combo.currentTextChanged.connect(self._refresh_step_validation_hint)
     self.step_form.addRow(self.step_kind_label, self.kind_combo)
 
     self.action_edit = QLineEdit()
     self.action_edit.setObjectName("StepActionEdit")
+    self.action_edit.textChanged.connect(self._refresh_step_validation_hint)
     self.action_label = QLabel()
     self.step_form.addRow(self.action_label, self.action_edit)
 
     self.control_edit = QLineEdit()
     self.control_edit.setObjectName("StepControlEdit")
+    self.control_edit.textChanged.connect(self._refresh_step_validation_hint)
     self.control_label = QLabel()
     self.step_form.addRow(self.control_label, self.control_edit)
 
@@ -269,6 +272,7 @@ def build_ui(self, *, bg_light: str) -> None:
     self.params_text.setObjectName("StepParamsText")
     self.params_text.setFont(QFont("Consolas", 10))
     self.params_text.setMaximumHeight(160)
+    self.params_text.textChanged.connect(self._refresh_step_validation_hint)
     self.params_label = QLabel()
     self.step_form.addRow(self.params_label, self.params_text)
 
@@ -278,6 +282,11 @@ def build_ui(self, *, bg_light: str) -> None:
     self.params_template_button.setObjectName("ParamsTemplateButton")
     self.params_template_button.clicked.connect(self.insert_params_template_for_selected_action)
     step_scroll_layout.addWidget(self.params_template_button)
+
+    self.step_validation_label = QLabel()
+    self.step_validation_label.setObjectName("StepValidationLabel")
+    self.step_validation_label.setWordWrap(True)
+    step_scroll_layout.addWidget(self.step_validation_label)
 
     self.apply_step_button = QPushButton()
     self.apply_step_button.setObjectName("ApplyButton")
@@ -611,7 +620,9 @@ def apply_localized_texts(self) -> None:
     self.params_label.setText(self._t("app.field.params.label"))
     self.params_template_button.setText(self._t("app.button.params_template"))
     self.params_template_button.setToolTip(self._t("app.tooltip.params_template"))
+    self.step_validation_label.setToolTip(self._t("app.tooltip.step_validation"))
     self.apply_step_button.setText(self._t("app.button.apply_step"))
+    self._refresh_step_validation_hint()
 
     current_step_kind = self._combo_value(self.kind_combo) or "action"
     current_target = self._combo_value(self.target_combo) or "unity"

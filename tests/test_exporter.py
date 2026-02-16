@@ -193,7 +193,7 @@ def test_generate_robot_suite_fails_fast_for_unknown_action() -> None:
         generate_robot_suite(scenario, suite_name="unsupported-action")
 
 
-def test_generate_robot_suite_fails_fast_for_control_step() -> None:
+def test_generate_robot_suite_fails_fast_for_parallel_control_with_too_few_steps() -> None:
     scenario = Scenario(
         name="Control Scenario",
         target_window_hint="Unity",
@@ -207,7 +207,7 @@ def test_generate_robot_suite_fails_fast_for_control_step() -> None:
         ],
     )
 
-    with pytest.raises(ValueError, match="Unsupported control step"):
+    with pytest.raises(ValueError, match="parallel control requires at least 2 run_subflow"):
         generate_robot_suite(scenario, suite_name="control-scenario")
 
 
@@ -527,6 +527,198 @@ def test_generate_robot_suite_supports_open_url_action() -> None:
     text = generate_robot_suite(scenario, suite_name="open-url")
     assert "Open URL In Default Browser    https://example.com/docs" in text
     assert "Open URL In Default Browser" in text
+
+
+def test_generate_robot_suite_emits_finally_and_keywords_once() -> None:
+    scenario = Scenario(
+        name="Finalize Once",
+        target_window_hint="Unity",
+        steps=[
+            Step(action="wait_for", title="Wait 1", params={"seconds": 0.1}),
+            Step(action="wait_for", title="Wait 2", params={"seconds": 0.2}),
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="finalize-once")
+    assert text.count("*** Keywords ***") == 1
+    assert text.count("    FINALLY") == 1
+    assert text.count("            Stop Unity Editor") == 1
+
+
+def test_generate_robot_suite_supports_start_and_stop_video_actions() -> None:
+    scenario = Scenario(
+        name="Video Capture",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="start_video",
+                title="Start capture",
+                params={"input": {"path": "videos/run.mp4"}},
+            ),
+            Step(
+                action="stop_video",
+                title="Stop capture",
+                params={},
+            ),
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="video-capture")
+    assert "Start Desktop Video Capture    videos/run.mp4" in text
+    assert "Stop Desktop Video Capture" in text
+    assert "Start Desktop Video Capture" in text
+
+
+def test_generate_robot_suite_resolves_relative_video_path_under_output_dir() -> None:
+    scenario = Scenario(
+        name="Video Capture Relative",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="start_video",
+                title="Start capture",
+                params={"input": {"path": "videos/run.mp4"}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="video-capture-relative")
+    assert "    ${is_abs}=    Evaluate    __import__('os').path.isabs($normalized)" in text
+    assert "    ${resolved}=    Normalize Path    ${OUTPUT DIR}${/}${normalized}" in text
+    assert "    yuv420p    ${resolved}    alias=studio_video_capture" in text
+
+
+def test_generate_robot_suite_supports_run_subflow_action() -> None:
+    scenario = Scenario(
+        name="Run Subflow",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="run-subflow")
+    assert "Run Robot Subflow    flows/child.robot" in text
+    assert "Run Robot Subflow" in text
+
+
+def test_generate_robot_suite_subflow_execution_captures_stdout_and_stderr() -> None:
+    scenario = Scenario(
+        name="Run Subflow Logs",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="run-subflow-logs")
+    assert (
+        "stdout=${subflow_output}${/}stdout.txt    stderr=${subflow_output}${/}stderr.txt" in text
+    )
+
+
+def test_generate_robot_suite_resolves_relative_subflow_paths_from_suite_dir() -> None:
+    scenario = Scenario(
+        name="Run Subflow Relative",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="run-subflow-relative")
+    assert "    ${is_abs}=    Evaluate    __import__('os').path.isabs($normalized)" in text
+    assert "    ${resolved}=    Normalize Path    ${CURDIR}${/}${normalized}" in text
+
+
+def test_generate_robot_suite_fails_fast_for_run_subflow_without_path() -> None:
+    scenario = Scenario(
+        name="Run Subflow Missing Path",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {}},
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match=r"run_subflow requires input\.path"):
+        generate_robot_suite(scenario, suite_name="run-subflow-missing")
+
+
+def test_generate_robot_suite_supports_parallel_control_with_subflow_branches() -> None:
+    scenario = Scenario(
+        name="Parallel Subflows",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                kind="control",
+                control="parallel",
+                title="Parallel",
+                params={
+                    "steps": [
+                        Step(
+                            action="run_subflow",
+                            title="Branch A",
+                            params={"input": {"path": "flows/a.robot"}},
+                        ).to_dict(),
+                        Step(
+                            action="run_subflow",
+                            title="Branch B",
+                            params={"input": {"path": "flows/b.robot"}},
+                        ).to_dict(),
+                    ]
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="parallel-subflows")
+    assert "Start Robot Subflow Process" in text
+    assert "Wait Robot Subflow Processes" in text
+    assert "flows/a.robot" in text
+    assert "flows/b.robot" in text
+
+
+def test_generate_robot_suite_fails_fast_for_parallel_with_non_subflow_step() -> None:
+    scenario = Scenario(
+        name="Parallel Invalid",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                kind="control",
+                control="parallel",
+                title="Parallel",
+                params={
+                    "steps": [
+                        Step(action="wait_for", title="Wait", params={"seconds": 0.2}).to_dict(),
+                        Step(
+                            action="run_subflow",
+                            title="Branch B",
+                            params={"input": {"path": "flows/b.robot"}},
+                        ).to_dict(),
+                    ]
+                },
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="parallel control currently supports only run_subflow"):
+        generate_robot_suite(scenario, suite_name="parallel-invalid")
 
 
 def test_validate_step_exportability_fails_for_missing_click_target() -> None:

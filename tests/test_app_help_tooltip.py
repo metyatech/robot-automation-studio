@@ -132,3 +132,35 @@ def test_event_filter_hides_tooltip_on_leave(monkeypatch) -> None:
         assert called["count"] == 1
     finally:
         studio.close()
+
+
+def test_event_filter_handles_missing_combo_tooltip_registry(monkeypatch) -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        if hasattr(studio, "_combo_tooltip_viewports"):
+            delattr(studio, "_combo_tooltip_viewports")
+        captured: dict[str, object] = {}
+
+        def fake_show_text(pos, text, *args, **kwargs):
+            captured["x"] = pos.x()
+            captured["y"] = pos.y()
+            captured["text"] = text
+            captured["widget"] = args[0] if args else None
+
+        monkeypatch.setattr(QToolTip, "showText", fake_show_text)
+
+        tooltip_event = QHelpEvent(
+            QEvent.Type.ToolTip,
+            QPoint(4, 5),
+            QPoint(140, 260),
+        )
+        handled = studio.eventFilter(studio.run_button, tooltip_event)
+
+        assert handled is True
+        assert captured["x"] == 140
+        assert captured["y"] == 260
+        assert captured["text"] == studio.run_button.toolTip()
+        assert captured["widget"] is studio.run_button
+    finally:
+        studio.close()

@@ -244,7 +244,11 @@ def _register_help_for_widget_tree(self, root: QWidget) -> None:
 
 
 def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-    combo = self._combo_tooltip_viewports.get(obj)
+    combo_tooltip_viewports = getattr(self, "_combo_tooltip_viewports", {})
+    combo = combo_tooltip_viewports.get(obj) if isinstance(combo_tooltip_viewports, dict) else None
+    help_entries_by_widget = getattr(self, "_help_entries_by_widget", {})
+    if not isinstance(help_entries_by_widget, dict):
+        help_entries_by_widget = {}
     if combo is not None and event.type() == QEvent.Type.ToolTip:
         if isinstance(event, QHelpEvent):
             index = combo.view().indexAt(event.pos())
@@ -255,7 +259,7 @@ def eventFilter(self, obj: QObject, event: QEvent) -> bool:
                     return True
         return False
     if isinstance(obj, QWidget) and event.type() == QEvent.Type.Enter:
-        entry = self._help_entries_by_widget.get(obj)
+        entry = help_entries_by_widget.get(obj)
         if entry is None:
             return False
         if isinstance(event, QEnterEvent):
@@ -264,7 +268,7 @@ def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         QToolTip.showText(obj.mapToGlobal(obj.rect().center()), obj.toolTip(), obj)
         return False
     if isinstance(obj, QWidget) and event.type() == QEvent.Type.ToolTip:
-        entry = self._help_entries_by_widget.get(obj)
+        entry = help_entries_by_widget.get(obj)
         if entry is None:
             return False
         if isinstance(event, QHelpEvent):
@@ -272,7 +276,7 @@ def eventFilter(self, obj: QObject, event: QEvent) -> bool:
             return True
         return False
     if isinstance(obj, QWidget) and event.type() == QEvent.Type.FocusIn:
-        entry = self._help_entries_by_widget.get(obj)
+        entry = help_entries_by_widget.get(obj)
         if entry is not None:
             QToolTip.showText(obj.mapToGlobal(obj.rect().center()), obj.toolTip(), obj)
     if isinstance(obj, QWidget) and event.type() == QEvent.Type.Leave:

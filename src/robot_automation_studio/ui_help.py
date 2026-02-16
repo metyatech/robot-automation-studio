@@ -387,6 +387,10 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
         "Insert params template.",
         "Auto-fills Params (JSON) with a safe starter template for the current action.",
     ),
+    "StepValidationLabel": (
+        "Check step validity.",
+        "Shows whether the current step can be exported and run, with immediate error details.",
+    ),
     "LanguageCombo": (
         "Choose language.",
         "Switch UI language between English and Japanese.",
@@ -679,6 +683,10 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
     "ParamsTemplateButton": (
         "パラメータ雛形を挿入します。",
         "現在のアクションに対応する Params(JSON) の初期雛形を自動入力します。",
+    ),
+    "StepValidationLabel": (
+        "ステップ妥当性を確認します。",
+        "現在のステップが実行/エクスポート可能かを即時に表示し、エラー内容も確認できます。",
     ),
     "LanguageCombo": (
         "表示言語を選択します。",

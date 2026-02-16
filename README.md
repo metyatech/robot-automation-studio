@@ -13,11 +13,12 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - dedicated editors for `execution`, `outputs`
   - full scenario JSON editor for complete v2 coverage
 - v2 Robot export coverage:
-  - control flow: `if`, `for_each`, `while`, `try`, `break`, `continue`, `return`, `group`
-  - action extensions: `open_url`, `select_hierarchy`, `double_click`, `right_click`, `assert`, `emit_annotation`
+  - control flow: `if`, `for_each`, `while`, `try`, `parallel`, `break`, `continue`, `return`, `group`
+  - action extensions: `open_url`, `select_hierarchy`, `double_click`, `right_click`, `assert`, `emit_annotation`, `run_subflow`, `start_video`, `stop_video`
 - Preflight validation before export/run:
   - fail-fast with issue list dialog when scenario is invalid
   - explicit diagnostics for unresolved placeholders (with field path)
+  - live step validation hint in Step tab (immediate export/run readiness feedback)
 - Profile diff preview:
   - compare resolved scenario results between two profiles
   - inspect changed paths and before/after values
@@ -103,6 +104,7 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
    - For Unity Hierarchy pane clicks, Studio uses Unity bridge selection path when available.
 6. Fine-tune steps from the editor panel.
    - update step kind/action/control and advanced params JSON.
+   - confirm `Step Validation` status is `Ready for export/run.` before running.
 7. Open dedicated v2 editors when needed:
    - `Variables`
    - `Profiles`
@@ -138,6 +140,7 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 - `<output>/<name>.robot`: Robot Framework suite
 - `<output>/<name>.scenario.json`: machine-readable scenario (automation-scenario-spec)
 - `<output>/run/robot/output.xml`: Robot run output (when running from app)
+- `<output>/run/robot/subflows/*/{stdout.txt,stderr.txt}`: subflow process logs (when using `run_subflow` or `parallel`)
 - `<output>/run/diagnostics/run-diagnostics.json`: parsed run diagnostics summary
 - `<output>/run/diagnostics/failure-YYYYMMDD-HHMMSS.png`: failure screenshot (when run fails)
 

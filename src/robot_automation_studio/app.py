@@ -247,7 +247,7 @@ def default_params_template_for_action(action: str) -> dict[str, object] | None:
         "start_video": {"input": {"path": "videos/run.mp4"}},
         "stop_video": {},
         "emit_annotation": {"input": {"annotation": {"type": "click", "label": "Click"}}},
-        "run_subflow": {"input": {"path": "flows/subflow.scenario.json"}},
+        "run_subflow": {"input": {"path": "flows/subflow.robot"}},
     }
     template = templates.get(normalized)
     if template is None:
@@ -623,6 +623,7 @@ class StudioApp(QMainWindow):
         params_text: QPlainTextEdit
         params_label: QLabel
         params_template_button: QPushButton
+        step_validation_label: QLabel
         apply_step_button: QPushButton
         step_tab_index: int
         scenario_id_edit: QLineEdit
@@ -1042,6 +1043,67 @@ class StudioApp(QMainWindow):
         )
         self.params_template_button.setEnabled(step_kind == "action")
 
+    @Slot()
+    def _refresh_step_validation_hint(self) -> None:
+        if not hasattr(self, "step_validation_label"):
+            return
+        label_prefix = self._t("app.field.step_validation.label")
+
+        if self.selected_index is None or not (0 <= self.selected_index < len(self.scenario.steps)):
+            self.step_validation_label.setText(
+                f"{label_prefix}: {self._t('app.validation.step.none')}"
+            )
+            self.step_validation_label.setStyleSheet(f"color: {_FG_DIM};")
+            return
+
+        try:
+            params = json.loads(self.params_text.toPlainText().strip() or "{}")
+        except json.JSONDecodeError as error:
+            self.step_validation_label.setText(
+                f"{label_prefix}: {self._t('app.validation.step.invalid', message=str(error))}"
+            )
+            self.step_validation_label.setStyleSheet(f"color: {_ACCENT_RED};")
+            return
+
+        if not isinstance(params, dict):
+            invalid_message = self._t("app.error.invalid_params_object")
+            self.step_validation_label.setText(
+                f"{label_prefix}: {self._t('app.validation.step.invalid', message=invalid_message)}"
+            )
+            self.step_validation_label.setStyleSheet(f"color: {_ACCENT_RED};")
+            return
+
+        candidate = deepcopy(self.scenario.steps[self.selected_index])
+        candidate.kind = self._combo_value(self.kind_combo).strip().lower() or "action"
+        candidate.title = self.title_edit.text().strip()
+        candidate.params = params
+        candidate.condition = self.step_condition_edit.text().strip()
+        candidate.disabled = self.step_disabled_check.isChecked()
+        candidate.continue_on_error = self.step_continue_on_error_check.isChecked()
+        if candidate.kind == "action":
+            candidate.action = self.action_edit.text().strip() or candidate.action or "click"
+            candidate.control = ""
+        elif candidate.kind == "control":
+            candidate.control = self.control_edit.text().strip() or candidate.control or "if"
+            candidate.action = ""
+        else:
+            candidate.action = ""
+            candidate.control = ""
+
+        try:
+            validate_step_exportability(candidate, path=f"steps[{self.selected_index}]")
+        except Exception as error:
+            self.step_validation_label.setText(
+                f"{label_prefix}: {self._t('app.validation.step.invalid', message=str(error))}"
+            )
+            self.step_validation_label.setStyleSheet(f"color: {_ACCENT_RED};")
+            return
+
+        self.step_validation_label.setText(
+            f"{label_prefix}: {self._t('app.validation.step.ready')}"
+        )
+        self.step_validation_label.setStyleSheet(f"color: {_ACCENT_GREEN};")
+
     def _sync_scenario_header(self) -> None:
         self.scenario.name = self.name_edit.text().strip() or self._t(
             "app.scenario.default_fallback_name"
@@ -1362,6 +1424,7 @@ class StudioApp(QMainWindow):
             self.annotations_text.clear()
             self.params_text.clear()
             self._update_step_kind_fields_visibility()
+            self._refresh_step_validation_hint()
             return
         self.selected_index = row
         step = self.scenario.steps[row]
@@ -1379,6 +1442,7 @@ class StudioApp(QMainWindow):
         )
         self.params_text.setPlainText(json.dumps(step.params, ensure_ascii=False, indent=2))
         self._update_step_kind_fields_visibility()
+        self._refresh_step_validation_hint()
 
     def on_execution_mode_changed(self) -> None:
         execution_mode = normalize_unity_execution_mode(
@@ -1722,6 +1786,8 @@ class StudioApp(QMainWindow):
             )
             return
         self.refresh_steps()
+        self.step_list.setCurrentRow(self.selected_index)
+        self.on_select_step(self.selected_index)
 
     def insert_params_template_for_selected_action(self) -> None:
         action = self.action_edit.text().strip()

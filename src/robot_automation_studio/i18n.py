@@ -103,6 +103,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Open the current output directory in file explorer.",
         "ja": "現在の出力フォルダをエクスプローラーで開きます。",
     },
+    "app.tooltip.step_validation": {
+        "en": "Shows whether the current step is runnable/exportable.",
+        "ja": "現在のステップが実行/エクスポート可能かを表示します。",
+    },
     "app.log.toggle.tooltip": {
         "en": "Collapse or expand Output Log.",
         "ja": "出力ログの表示を折りたたみ/展開します。",
@@ -176,6 +180,13 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.field.step_continue_on_error": {"en": "Continue On Error", "ja": "エラー時も継続"},
     "app.field.annotations.label": {"en": "Annotations", "ja": "注釈"},
     "app.field.params.label": {"en": "Params", "ja": "パラメータ"},
+    "app.field.step_validation.label": {"en": "Step Validation", "ja": "ステップ検証"},
+    "app.validation.step.none": {"en": "No step selected.", "ja": "ステップ未選択です。"},
+    "app.validation.step.ready": {
+        "en": "Ready for export/run.",
+        "ja": "実行/エクスポート可能です。",
+    },
+    "app.validation.step.invalid": {"en": "Invalid: {message}", "ja": "無効: {message}"},
     "app.field.scenario_id.label": {"en": "Scenario ID", "ja": "シナリオID"},
     "app.field.scenario_id.placeholder": {"en": "scenario-id", "ja": "scenario-id"},
     "app.field.target.label": {"en": "Target", "ja": "対象"},
