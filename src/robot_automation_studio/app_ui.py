@@ -352,6 +352,14 @@ def build_ui(self, *, bg_light: str) -> None:
     self.execution_outputs_button.setObjectName("ExecutionOutputsButton")
     self.execution_outputs_button.clicked.connect(self.open_execution_outputs_editor)
     scenario_tools_layout.addWidget(self.execution_outputs_button)
+    self.validate_button = QPushButton()
+    self.validate_button.setObjectName("ValidateButton")
+    self.validate_button.clicked.connect(self.open_preflight_validation)
+    scenario_tools_layout.addWidget(self.validate_button)
+    self.profile_diff_button = QPushButton()
+    self.profile_diff_button.setObjectName("ProfileDiffButton")
+    self.profile_diff_button.clicked.connect(self.open_profile_diff_preview)
+    scenario_tools_layout.addWidget(self.profile_diff_button)
     scenario_tools_layout.addStretch()
     scenario_form.addRow(scenario_tools_layout)
 
@@ -666,6 +674,8 @@ def apply_localized_texts(self) -> None:
     self.variables_button.setText(self._t("app.button.variables"))
     self.profiles_button.setText(self._t("app.button.profiles"))
     self.execution_outputs_button.setText(self._t("app.button.execution_outputs"))
+    self.validate_button.setText(self._t("app.button.validate"))
+    self.profile_diff_button.setText(self._t("app.button.profile_diff"))
     self._refresh_active_profile_combo()
 
     self.output_dir_label.setText(self._t("app.field.output_dir.label"))

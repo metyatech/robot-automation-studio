@@ -93,3 +93,29 @@ def test_resolve_scenario_variables_fails_for_unresolved_placeholder() -> None:
 
     with pytest.raises(ValueError, match="Unresolved placeholder"):
         resolve_scenario_variables(scenario)
+
+
+def test_resolve_scenario_variables_error_includes_field_path() -> None:
+    scenario = Scenario(
+        name="Unresolved path info",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="click",
+                title="Click unresolved",
+                params={
+                    "title": "${undefined_title}",
+                    "automation_id": "MainMenuFile",
+                    "class_name": "MenuItem",
+                    "control_type": "MenuItem",
+                },
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError) as error:
+        resolve_scenario_variables(scenario)
+    message = str(error.value)
+    assert "Unresolved placeholder" in message
+    assert "steps[0]" in message
+    assert "title" in message

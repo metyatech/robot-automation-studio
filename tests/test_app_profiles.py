@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from robot_automation_studio.app import StudioApp
+from robot_automation_studio.preflight_validation import ValidationIssue, ValidationReport
 
 
 def _ensure_qapp() -> QApplication:
@@ -94,5 +95,39 @@ def test_export_scenario_passes_active_profile(monkeypatch, tmp_path: Path) -> N
         studio.export_scenario()
 
         assert captured["active_profile"] == "vrchat"
+    finally:
+        studio.close()
+
+
+def test_export_scenario_fails_fast_when_preflight_validation_has_issues(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        report = ValidationReport(
+            issues=[
+                ValidationIssue(
+                    code="scenario.invalid",
+                    message="required variable 'unity_project_path' is missing.",
+                    location="variables.unity_project_path.default",
+                )
+            ]
+        )
+        captured: dict[str, str] = {}
+
+        monkeypatch.setattr(
+            "robot_automation_studio.app.validate_scenario", lambda *args, **kwargs: report
+        )
+        monkeypatch.setattr(
+            "robot_automation_studio.app_dialogs.open_validation_report_dialog",
+            lambda _self, _report, *, title: captured.setdefault("title", title),
+        )
+
+        studio.export_scenario()
+
+        assert captured["title"] == "Preflight Validation"
     finally:
         studio.close()

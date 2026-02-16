@@ -64,6 +64,14 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Edit execution/outputs.",
         "Edit runtime execution settings and output metadata as JSON.",
     ),
+    "Validate": (
+        "Run validation.",
+        "Checks scenario/profile/step validity before export or run.",
+    ),
+    "Profile Diff": (
+        "Preview diff.",
+        "Compare resolved scenario values between two profiles.",
+    ),
     "● Start": (
         "Start recording.",
         "Begins capture for the current target window and appends recognized steps.",
@@ -335,6 +343,14 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
         "Choose attach or launch.",
         "attach uses an already-open app. launch opens the configured Unity project first.",
     ),
+    "ValidateButton": (
+        "Run validation.",
+        "Checks scenario/profile/step validity before export or run.",
+    ),
+    "ProfileDiffButton": (
+        "Preview profile diff.",
+        "Compare resolved scenario values between two profiles.",
+    ),
     "ActiveProfileCombo": (
         "Choose active profile.",
         "Applies profile-specific variable overrides for export and run.",
@@ -424,6 +440,14 @@ _KNOWN_TEXT_HELP_JA: dict[str, tuple[str, str]] = {
     "実行/出力": (
         "実行/出力設定を編集します。",
         "実行設定と出力メタデータを JSON で編集します。",
+    ),
+    "検証": (
+        "事前検証を実行します。",
+        "エクスポート/実行前にシナリオの妥当性を検査します。",
+    ),
+    "プロファイル差分": (
+        "プロファイル差分を表示します。",
+        "2つのプロファイル間で解決後シナリオの差分を確認します。",
     ),
     "● 記録開始": (
         "記録を開始します。",
@@ -575,6 +599,14 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
     "ExecutionModeCombo": (
         "実行モードを選択します。",
         "attach は既存接続、launch は起動実行です。",
+    ),
+    "ValidateButton": (
+        "事前検証を実行します。",
+        "エクスポート/実行前にシナリオの妥当性を検査します。",
+    ),
+    "ProfileDiffButton": (
+        "プロファイル差分を表示します。",
+        "2つのプロファイル間で解決後シナリオの差分を確認します。",
     ),
     "ActiveProfileCombo": (
         "適用プロファイルを選択します。",

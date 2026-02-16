@@ -4,6 +4,7 @@ from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
 
 from robot_automation_studio.app import StudioApp
+from robot_automation_studio.preflight_validation import ValidationIssue, ValidationReport
 from robot_automation_studio.runner import RunResult
 
 
@@ -183,6 +184,42 @@ def test_run_robot_suite_logs_run_diagnostics_summary(monkeypatch, tmp_path: Pat
 
         log_text = studio.log_text.toPlainText()
         assert "Run diagnostics summary" in log_text
+    finally:
+        studio.close()
+
+
+def test_run_robot_suite_fails_fast_when_preflight_validation_has_issues(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        report = ValidationReport(
+            issues=[
+                ValidationIssue(
+                    code="scenario.invalid",
+                    message="Unresolved placeholder: ${missing} at steps[0].target.uia.title",
+                    location="steps[0].target.uia.title",
+                )
+            ]
+        )
+        captured: dict[str, str] = {}
+
+        monkeypatch.setattr(
+            "robot_automation_studio.app.validate_scenario", lambda *args, **kwargs: report
+        )
+        monkeypatch.setattr(
+            "robot_automation_studio.app_dialogs.open_validation_report_dialog",
+            lambda _self, _report, *, title: captured.setdefault("title", title),
+        )
+
+        studio.run_robot_suite()
+
+        assert captured["title"] == "Preflight Validation"
+        assert studio._run_thread is None
+        assert studio._run_phase == "idle"
     finally:
         studio.close()
 

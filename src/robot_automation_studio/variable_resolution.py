@@ -79,16 +79,19 @@ def resolve_scenario_payload(
             scenario_payload[key] = _resolve_payload_value(
                 scenario_payload[key],
                 resolved_values=resolved_values,
+                path=key,
             )
     if "steps" in scenario_payload:
         scenario_payload["steps"] = _resolve_payload_value(
             scenario_payload["steps"],
             resolved_values=resolved_values,
+            path="steps",
         )
     if "tags" in scenario_payload:
         scenario_payload["tags"] = _resolve_payload_value(
             scenario_payload["tags"],
             resolved_values=resolved_values,
+            path="tags",
         )
     return scenario_payload
 
@@ -179,6 +182,7 @@ def _resolve_variable_values(
                 raw_values[variable_id],
                 resolved_values=resolved,
                 resolver=resolve_variable,
+                path=f"variables.{variable_id}.default",
             )
         finally:
             stack.pop()
@@ -214,6 +218,7 @@ def _resolve_payload_value(
     value: Any,
     *,
     resolved_values: dict[str, Any],
+    path: str,
     resolver=None,
 ) -> Any:
     if isinstance(value, dict):
@@ -221,20 +226,27 @@ def _resolve_payload_value(
             key: _resolve_payload_value(
                 item,
                 resolved_values=resolved_values,
+                path=f"{path}.{key}" if path else str(key),
                 resolver=resolver,
             )
             for key, item in value.items()
         }
     if isinstance(value, list):
         return [
-            _resolve_payload_value(item, resolved_values=resolved_values, resolver=resolver)
-            for item in value
+            _resolve_payload_value(
+                item,
+                resolved_values=resolved_values,
+                path=f"{path}[{index}]",
+                resolver=resolver,
+            )
+            for index, item in enumerate(value)
         ]
     if not isinstance(value, str):
         return deepcopy(value)
     return _resolve_string_value(
         value,
         resolved_values=resolved_values,
+        path=path,
         resolver=resolver,
     )
 
@@ -243,6 +255,7 @@ def _resolve_string_value(
     text: str,
     *,
     resolved_values: dict[str, Any],
+    path: str,
     resolver=None,
 ) -> Any:
     full = _PLACEHOLDER_RE.fullmatch(text)
@@ -251,6 +264,7 @@ def _resolve_string_value(
         value = _resolve_variable_reference(
             variable_id,
             resolved_values=resolved_values,
+            path=path,
             resolver=resolver,
         )
         return deepcopy(value)
@@ -262,6 +276,7 @@ def _resolve_string_value(
         value = _resolve_variable_reference(
             variable_id,
             resolved_values=resolved_values,
+            path=path,
             resolver=resolver,
         )
         if value is None:
@@ -275,10 +290,11 @@ def _resolve_variable_reference(
     variable_id: str,
     *,
     resolved_values: dict[str, Any],
+    path: str,
     resolver,
 ) -> Any:
     if variable_id in resolved_values:
         return deepcopy(resolved_values[variable_id])
     if resolver is None:
-        raise ValueError(f"Unresolved placeholder: ${{{variable_id}}}")
+        raise ValueError(f"Unresolved placeholder: ${{{variable_id}}} at {path}")
     return resolver(variable_id)

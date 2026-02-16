@@ -55,6 +55,11 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.button.variables": {"en": "Variables", "ja": "変数"},
     "app.button.profiles": {"en": "Profiles", "ja": "プロファイル"},
     "app.button.execution_outputs": {"en": "Execution/Outputs", "ja": "実行/出力"},
+    "app.button.validate": {"en": "Validate", "ja": "検証"},
+    "app.button.profile_diff": {"en": "Profile Diff", "ja": "プロファイル差分"},
+    "app.button.refresh_diff": {"en": "Refresh Diff", "ja": "差分を更新"},
+    "app.button.add_override": {"en": "Add Override", "ja": "上書き追加"},
+    "app.button.remove_override": {"en": "Remove Override", "ja": "上書き削除"},
     "app.button.close": {"en": "Close", "ja": "閉じる"},
     "app.button.cancel": {"en": "Cancel", "ja": "キャンセル"},
     "app.button.apply": {"en": "Apply", "ja": "適用"},
@@ -172,6 +177,23 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.field.output_dir.placeholder": {"en": "Output directory", "ja": "出力ディレクトリ"},
     "app.field.export_name.label": {"en": "Export Name", "ja": "出力名"},
     "app.field.export_name.placeholder": {"en": "Export name", "ja": "出力名"},
+    "app.field.variable_id.label": {"en": "Variable ID", "ja": "変数ID"},
+    "app.field.variable_type.label": {"en": "Variable Type", "ja": "変数タイプ"},
+    "app.field.variable_required.label": {"en": "Required", "ja": "必須"},
+    "app.field.variable_default.label": {"en": "Default Value", "ja": "デフォルト値"},
+    "app.field.profile_name.label": {"en": "Profile Name", "ja": "プロファイル名"},
+    "app.field.profile_description.label": {"en": "Description", "ja": "説明"},
+    "app.field.profile_overrides.label": {"en": "Variable Overrides", "ja": "変数上書き"},
+    "app.field.profile_override_key.label": {"en": "Variable", "ja": "変数"},
+    "app.field.profile_override_value.label": {
+        "en": "Value (JSON or text)",
+        "ja": "値 (JSON またはテキスト)",
+    },
+    "app.field.profile_diff.base.label": {"en": "Base Profile", "ja": "基準プロファイル"},
+    "app.field.profile_diff.compare.label": {
+        "en": "Compare Profile",
+        "ja": "比較プロファイル",
+    },
     "app.menu.file.save": {"en": "💾 Save", "ja": "💾 保存"},
     "app.menu.file.load": {"en": "📂 Load", "ja": "📂 読込"},
     "app.menu.file.full_json": {"en": "{} Full JSON", "ja": "{} 全体 JSON"},
@@ -416,6 +438,18 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.log.updated_profiles": {
         "en": "Updated profiles from Profiles Editor.",
         "ja": "Profiles Editor からプロファイルを更新しました。",
+    },
+    "app.log.validation_ok": {
+        "en": "Preflight validation passed.",
+        "ja": "事前検証に成功しました。",
+    },
+    "app.log.validation_failed": {
+        "en": "Preflight validation failed.",
+        "ja": "事前検証に失敗しました。",
+    },
+    "app.log.validation_issue": {
+        "en": "[validation] {code} ({location}): {message}",
+        "ja": "[検証] {code} ({location}): {message}",
     },
     "app.log.updated_execution_outputs": {
         "en": "Updated execution/outputs from editor.",
@@ -855,6 +889,11 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Execution / Outputs Editor",
         "ja": "実行 / 出力エディタ",
     },
+    "app.dialog.validation.title": {"en": "Preflight Validation", "ja": "事前検証"},
+    "app.dialog.profile_diff.title": {
+        "en": "Profile Diff Preview",
+        "ja": "プロファイル差分プレビュー",
+    },
     "app.dialog.execution_outputs.header": {
         "en": "Execution / Outputs JSON",
         "ja": "実行 / 出力 JSON",
@@ -863,6 +902,28 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.dialog.execution_outputs.outputs": {"en": "outputs", "ja": "outputs"},
     "app.list.item.variable": {"en": "{index}. {id} ({type})", "ja": "{index}. {id} ({type})"},
     "app.list.item.profile": {"en": "{index}. {name}", "ja": "{index}. {name}"},
+    "app.validation.status.ok": {"en": "No validation issues.", "ja": "検証エラーはありません。"},
+    "app.validation.status.ng": {
+        "en": "Validation issues detected.",
+        "ja": "検証エラーを検出しました。",
+    },
+    "app.validation.issue.item": {
+        "en": "{index}. [{code}] {message}",
+        "ja": "{index}. [{code}] {message}",
+    },
+    "app.validation.issue.none": {"en": "No issues.", "ja": "問題はありません。"},
+    "app.validation.issue.select_prompt": {
+        "en": "Select an issue to view details.",
+        "ja": "詳細を表示するには項目を選択してください。",
+    },
+    "app.validation.issue.none_detail": {
+        "en": "Validation completed without issues.",
+        "ja": "問題なく検証が完了しました。",
+    },
+    "app.validation.issue.detail": {
+        "en": "Code: {code}\nLocation: {location}\n\nMessage:\n{message}",
+        "ja": "コード: {code}\n場所: {location}\n\nメッセージ:\n{message}",
+    },
     "app.list.item.help_entry": {
         "en": "{title} [{widget_class}]",
         "ja": "{title} [{widget_class}]",

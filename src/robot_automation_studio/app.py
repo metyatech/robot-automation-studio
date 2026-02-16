@@ -64,6 +64,7 @@ from .models import (
     normalize_unity_execution_mode,
 )
 from .overlay import AutomationRunOverlay, OverlayMode
+from .preflight_validation import ValidationReport, validate_scenario
 from .run_diagnostics import (
     RunDiagnostics,
     capture_failure_screenshot,
@@ -545,6 +546,8 @@ class StudioApp(QMainWindow):
         variables_button: QPushButton
         profiles_button: QPushButton
         execution_outputs_button: QPushButton
+        validate_button: QPushButton
+        profile_diff_button: QPushButton
         scenario_tab_index: int
         output_dir_edit: QLineEdit
         output_dir_label: QLabel
@@ -1873,7 +1876,47 @@ class StudioApp(QMainWindow):
     def open_execution_outputs_editor(self) -> None:
         app_dialogs.open_execution_outputs_editor(self)
 
+    def open_preflight_validation(self) -> None:
+        report = self._validate_scenario_preflight(log_issues=False)
+        app_dialogs.open_validation_report_dialog(
+            self,
+            report,
+            title=self._t("app.dialog.validation.title"),
+        )
+
+    def open_profile_diff_preview(self) -> None:
+        app_dialogs.open_profile_diff_preview_dialog(self)
+
+    def _validate_scenario_preflight(self, *, log_issues: bool) -> ValidationReport:
+        self._sync_scenario_header()
+        report = validate_scenario(
+            self.scenario,
+            active_profile=self._active_profile_value(),
+        )
+        if report.is_valid:
+            self.log(self._t("app.log.validation_ok"))
+        elif log_issues:
+            self.log(self._t("app.log.validation_failed"))
+            for issue in report.issues:
+                self.log(
+                    self._t(
+                        "app.log.validation_issue",
+                        code=issue.code,
+                        location=issue.location or "-",
+                        message=issue.message,
+                    )
+                )
+        return report
+
     def export_scenario(self) -> None:
+        report = self._validate_scenario_preflight(log_issues=True)
+        if not report.is_valid:
+            app_dialogs.open_validation_report_dialog(
+                self,
+                report,
+                title=self._t("app.dialog.validation.title"),
+            )
+            return
         self._sync_scenario_header()
         output_dir = Path(self.output_dir_edit.text()).resolve()
         suite_name = self.export_name_edit.text().strip() or "scenario"
@@ -1909,6 +1952,15 @@ class StudioApp(QMainWindow):
             return
         self._set_run_phase("precheck")
         self.log(self._t("app.log.preflight_checks"))
+        report = self._validate_scenario_preflight(log_issues=True)
+        if not report.is_valid:
+            app_dialogs.open_validation_report_dialog(
+                self,
+                report,
+                title=self._t("app.dialog.validation.title"),
+            )
+            self._set_run_phase("idle")
+            return
         self._sync_scenario_header()
         if not self._ensure_unity_bridge_dependency_if_configured("run"):
             self._set_run_phase("idle")

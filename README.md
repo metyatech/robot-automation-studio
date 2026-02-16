@@ -9,8 +9,15 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 - Unity hierarchy click recording via Unity bridge (`hierarchy_path`)
 - v2 scenario editing support:
   - step kind/action/control fields
-  - dedicated editors for `variables`, `profiles`, `execution`, `outputs`
+  - form-based editors for `variables` and `profiles` (no raw JSON required)
+  - dedicated editors for `execution`, `outputs`
   - full scenario JSON editor for complete v2 coverage
+- Preflight validation before export/run:
+  - fail-fast with issue list dialog when scenario is invalid
+  - explicit diagnostics for unresolved placeholders (with field path)
+- Profile diff preview:
+  - compare resolved scenario results between two profiles
+  - inspect changed paths and before/after values
 - Run Robot Framework suites directly from the app
 - Run diagnostics after Robot execution:
   - parses `output.xml` and logs keyword timing/failure summary
@@ -98,6 +105,8 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
    - `Profiles`
    - `Execution/Outputs`
    - `{} Full JSON` (full scenario object)
+   - `Validate` (preflight issue check)
+   - `Profile Diff` (resolved-value comparison)
 8. Choose output directory and export name.
 9. Click `Export` to generate:
    - `<name>.robot`
@@ -119,6 +128,7 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 - In `launch` mode, the generated `.robot` suite fails fast when project path is empty.
 - If `Unity Project Path` is set, exported `.robot` also ensures Unity bridge UPM dependency before attach/launch.
 - In `attach`, Studio also tries to auto-detect project path from the attached Unity process command line.
+- `Active Profile` lets you apply profile-specific variable overrides during export and run.
 
 ## Output Structure
 
@@ -152,6 +162,7 @@ Use this only when Unity Editor is running and a target project is available.
 set ROBOT_AUTOMATION_STUDIO_LIVE_E2E=1
 set ROBOT_AUTOMATION_STUDIO_LIVE_PROJECT_PATH=<your-unity-project-path>
 set ROBOT_AUTOMATION_STUDIO_LIVE_WINDOW_HINT=Unity
+set ROBOT_AUTOMATION_STUDIO_LIVE_HIERARCHY_PATH=<hierarchy-path-for-matrix>
 python -m pytest tests/test_live_unity_attach_e2e.py -q
 ```
 
@@ -159,6 +170,7 @@ The live suite covers:
 - attach mode bridge readiness
 - launch mode bridge readiness
 - Japanese locale smoke path
+- export matrix: `attach/launch × profile on/off × hierarchy_path on/off`
 
 ## Security Checks in CI
 

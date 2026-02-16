@@ -344,14 +344,11 @@ def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
     return _step_robot_lines_from_payload(step_payload, indent=indent)
 
 
-def generate_robot_suite(
-    scenario: Scenario,
-    suite_name: str | None = None,
+def _generate_robot_suite_from_resolved(
+    resolved_scenario: Scenario,
     *,
-    active_profile: str | None = None,
+    test_case_name: str,
 ) -> str:
-    resolved_scenario = resolve_scenario_variables(scenario, active_profile=active_profile)
-    test_case_name = suite_name or resolved_scenario.name
     execution_mode = _scenario_execution_mode(resolved_scenario)
     unity_project_path = _robot_safe_project_path(
         _scenario_project_path(resolved_scenario, execution_mode=execution_mode)
@@ -408,6 +405,36 @@ def generate_robot_suite(
     return "\n".join(lines)
 
 
+def validate_exportable_scenario(
+    scenario: Scenario,
+    *,
+    active_profile: str | None = None,
+) -> Scenario:
+    resolved_scenario = resolve_scenario_variables(scenario, active_profile=active_profile)
+    _ = _generate_robot_suite_from_resolved(
+        resolved_scenario,
+        test_case_name=resolved_scenario.name,
+    )
+    return resolved_scenario
+
+
+def generate_robot_suite(
+    scenario: Scenario,
+    suite_name: str | None = None,
+    *,
+    active_profile: str | None = None,
+) -> str:
+    resolved_scenario = validate_exportable_scenario(
+        scenario,
+        active_profile=active_profile,
+    )
+    test_case_name = suite_name or resolved_scenario.name
+    return _generate_robot_suite_from_resolved(
+        resolved_scenario,
+        test_case_name=test_case_name,
+    )
+
+
 def export_all(
     scenario: Scenario,
     output_dir: Path,
@@ -415,14 +442,20 @@ def export_all(
     *,
     active_profile: str | None = None,
 ) -> ExportResult:
-    resolved_scenario = resolve_scenario_variables(scenario, active_profile=active_profile)
+    resolved_scenario = validate_exportable_scenario(
+        scenario,
+        active_profile=active_profile,
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     safe_name = suite_name or _safe_suite_name(resolved_scenario.name)
     robot_path = output_dir / f"{safe_name}.robot"
     json_path = output_dir / f"{safe_name}.scenario.json"
 
     robot_path.write_text(
-        generate_robot_suite(resolved_scenario, suite_name=safe_name),
+        _generate_robot_suite_from_resolved(
+            resolved_scenario,
+            test_case_name=safe_name,
+        ),
         encoding="utf-8",
     )
     resolved_scenario.save_json(json_path)
