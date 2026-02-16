@@ -146,6 +146,75 @@ def build_help_tooltip_text(summary: str) -> str:
     return "No help available for this component."
 
 
+_FILE_MENU_ACTION_HELP: dict[str, tuple[str, str]] = {
+    "💾 Save": (
+        "Save current scenario file.",
+        "Write the current scenario model to a .scenario.json file.",
+    ),
+    "📂 Load": (
+        "Load scenario file.",
+        "Load a .scenario.json file into the editor and refresh the UI.",
+    ),
+    "{} Full JSON": (
+        "Open full JSON editor.",
+        "Edit the full v2 scenario JSON directly in one dialog.",
+    ),
+    "Help Guide (F1)": (
+        "Open full help guide.",
+        "Open searchable help for all registered UI controls.",
+    ),
+}
+
+_ADD_STEP_ACTION_HELP: dict[str, tuple[str, str]] = {
+    "🖱 Click": (
+        "Add click action step.",
+        "Insert an action step that clicks one target.",
+    ),
+    "↔ Drag": (
+        "Add drag/drop action step.",
+        "Insert an action step for drag-and-drop operations.",
+    ),
+    "⌨ Shortcut": (
+        "Add keyboard shortcut step.",
+        "Insert an action step that sends shortcut keys.",
+    ),
+    "≡ Menu": (
+        "Add menu navigation step.",
+        "Insert an action step that opens app menus.",
+    ),
+    "✎ Type": (
+        "Add text input step.",
+        "Insert an action step that types text input.",
+    ),
+    "IF": (
+        "Add control-flow step.",
+        "Insert a control step for conditions or loops.",
+    ),
+    "[] Group": (
+        "Add group container step.",
+        "Insert a group step to organize child steps.",
+    ),
+}
+
+_TARGET_OPTION_HELP: dict[str, str] = {
+    "unity": "Run steps against Unity Editor.",
+    "web": "Run steps against a web browser target.",
+    "desktop": "Run steps against a desktop app target.",
+    "hybrid": "Run steps across mixed app targets.",
+}
+
+_EXECUTION_MODE_OPTION_HELP: dict[str, str] = {
+    "attach": "Use an already-open target window.",
+    "launch": "Launch Unity project before running.",
+}
+
+_STEP_KIND_OPTION_HELP: dict[str, str] = {
+    "action": "Execute one operation step.",
+    "control": "Control flow with conditions/loops.",
+    "group": "Organize nested child steps.",
+}
+
+
 _STYLESHEET = f"""
 QMainWindow, QWidget {{
     background: {_BG};
@@ -490,6 +559,7 @@ class StudioApp(QMainWindow):
         self._help_entries_by_widget: dict[QWidget, HelpEntry] = {}
         self._help_entries_by_id: dict[str, HelpEntry] = {}
         self._help_dialog: QDialog | None = None
+        self._combo_tooltip_viewports: dict[QObject, QComboBox] = {}
 
         self._log_collapsed = False
 
@@ -591,11 +661,24 @@ class StudioApp(QMainWindow):
         self.file_menu_button.setText("File \u25be")
         self.file_menu_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         file_menu = QMenu(self.file_menu_button)
-        file_menu.addAction("\U0001f4be Save", self.save_json)
-        file_menu.addAction("\U0001f4c2 Load", self.load_json)
+        file_save_action = file_menu.addAction("\U0001f4be Save", self.save_json)
+        file_load_action = file_menu.addAction("\U0001f4c2 Load", self.load_json)
         file_menu.addSeparator()
-        file_menu.addAction("{} Full JSON", self.open_full_json_editor)
-        file_menu.addAction("Help Guide (F1)", self.open_help_guide)
+        file_json_action = file_menu.addAction("{} Full JSON", self.open_full_json_editor)
+        file_help_action = file_menu.addAction("Help Guide (F1)", self.open_help_guide)
+        for action in (
+            file_save_action,
+            file_load_action,
+            file_json_action,
+            file_help_action,
+        ):
+            summary, detail = _FILE_MENU_ACTION_HELP.get(
+                action.text(),
+                ("Run menu action.", "Runs the selected menu command."),
+            )
+            action.setToolTip(summary)
+            action.setStatusTip(summary)
+            action.setWhatsThis(detail)
         self.file_menu_button.setMenu(file_menu)
         header_layout.addWidget(self.file_menu_button)
 
@@ -623,14 +706,30 @@ class StudioApp(QMainWindow):
         self.add_step_button.setText("+ Add \u25be")
         self.add_step_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         add_step_menu = QMenu(self.add_step_button)
-        add_step_menu.addAction("\U0001f5b1 Click", self.add_click)
-        add_step_menu.addAction("\u2194 Drag", self.add_drag)
-        add_step_menu.addAction("\u2328 Shortcut", self.add_shortcut)
-        add_step_menu.addAction("\u2261 Menu", self.add_menu)
-        add_step_menu.addAction("\u270e Type", self.add_type)
+        add_click_action = add_step_menu.addAction("\U0001f5b1 Click", self.add_click)
+        add_drag_action = add_step_menu.addAction("\u2194 Drag", self.add_drag)
+        add_shortcut_action = add_step_menu.addAction("\u2328 Shortcut", self.add_shortcut)
+        add_menu_action = add_step_menu.addAction("\u2261 Menu", self.add_menu)
+        add_type_action = add_step_menu.addAction("\u270e Type", self.add_type)
         add_step_menu.addSeparator()
-        add_step_menu.addAction("IF", self.add_control)
-        add_step_menu.addAction("[] Group", self.add_group)
+        add_if_action = add_step_menu.addAction("IF", self.add_control)
+        add_group_action = add_step_menu.addAction("[] Group", self.add_group)
+        for action in (
+            add_click_action,
+            add_drag_action,
+            add_shortcut_action,
+            add_menu_action,
+            add_type_action,
+            add_if_action,
+            add_group_action,
+        ):
+            summary, detail = _ADD_STEP_ACTION_HELP.get(
+                action.text(),
+                ("Add step.", "Adds a new step to the scenario."),
+            )
+            action.setToolTip(summary)
+            action.setStatusTip(summary)
+            action.setWhatsThis(detail)
         self.add_step_button.setMenu(add_step_menu)
         step_toolbar.addWidget(self.add_step_button)
 
@@ -670,7 +769,8 @@ class StudioApp(QMainWindow):
 
         horizontal_splitter.addWidget(left_panel)
 
-        right_tabs = QTabWidget()
+        self.main_tabs = QTabWidget()
+        self.main_tabs.setObjectName("MainTabs")
 
         step_tab = QWidget()
         step_scroll = QScrollArea()
@@ -697,6 +797,7 @@ class StudioApp(QMainWindow):
         self.kind_combo.setObjectName("StepKindCombo")
         self.kind_combo.setToolTip("Kind")
         self.kind_combo.addItems(["action", "control", "group"])
+        self._configure_combo_option_help(self.kind_combo, _STEP_KIND_OPTION_HELP)
         self.kind_combo.currentTextChanged.connect(self._update_step_kind_fields_visibility)
         self.step_form.addRow("Kind", self.kind_combo)
 
@@ -759,7 +860,8 @@ class StudioApp(QMainWindow):
         step_tab_layout.setContentsMargins(0, 0, 0, 0)
         step_tab_layout.addWidget(step_scroll)
 
-        right_tabs.addTab(step_tab, "Step")
+        step_tab_index = self.main_tabs.addTab(step_tab, "Step")
+        self.main_tabs.setTabToolTip(step_tab_index, "Edit selected step fields.")
 
         scenario_tab = QWidget()
         scenario_scroll = QScrollArea()
@@ -779,6 +881,7 @@ class StudioApp(QMainWindow):
         self.target_combo.setObjectName("TargetCombo")
         self.target_combo.setToolTip("Target")
         self.target_combo.addItems(["unity", "web", "desktop", "hybrid"])
+        self._configure_combo_option_help(self.target_combo, _TARGET_OPTION_HELP)
         self.target_combo.setCurrentText(self.scenario.target)
         scenario_form.addRow("Target", self.target_combo)
 
@@ -791,6 +894,10 @@ class StudioApp(QMainWindow):
         self.execution_mode_combo.setObjectName("ExecutionModeCombo")
         self.execution_mode_combo.setToolTip("Execution Mode")
         self.execution_mode_combo.addItems(["attach", "launch"])
+        self._configure_combo_option_help(
+            self.execution_mode_combo,
+            _EXECUTION_MODE_OPTION_HELP,
+        )
         execution_mode = normalize_unity_execution_mode(
             self.scenario.metadata.get(UNITY_EXECUTION_MODE_KEY, "attach")
         )
@@ -837,7 +944,8 @@ class StudioApp(QMainWindow):
         scenario_tab_layout.setContentsMargins(0, 0, 0, 0)
         scenario_tab_layout.addWidget(scenario_scroll)
 
-        right_tabs.addTab(scenario_tab, "Scenario")
+        scenario_tab_index = self.main_tabs.addTab(scenario_tab, "Scenario")
+        self.main_tabs.setTabToolTip(scenario_tab_index, "Configure scenario settings.")
 
         export_tab = QWidget()
         export_scroll = QScrollArea()
@@ -869,9 +977,10 @@ class StudioApp(QMainWindow):
         export_tab_layout.setContentsMargins(0, 0, 0, 0)
         export_tab_layout.addWidget(export_scroll)
 
-        right_tabs.addTab(export_tab, "Export")
+        export_tab_index = self.main_tabs.addTab(export_tab, "Export")
+        self.main_tabs.setTabToolTip(export_tab_index, "Configure export outputs.")
 
-        horizontal_splitter.addWidget(right_tabs)
+        horizontal_splitter.addWidget(self.main_tabs)
 
         horizontal_splitter.setStretchFactor(0, 2)
         horizontal_splitter.setStretchFactor(1, 3)
@@ -940,6 +1049,25 @@ class StudioApp(QMainWindow):
     def _set_step_row_visible(self, label: QLabel, field: QWidget, visible: bool) -> None:
         label.setVisible(visible)
         field.setVisible(visible)
+
+    def _configure_combo_option_help(
+        self,
+        combo: QComboBox,
+        option_help: dict[str, str],
+    ) -> None:
+        view = combo.view()
+        viewport = view.viewport()
+        self._combo_tooltip_viewports[viewport] = combo
+        viewport.installEventFilter(self)
+        view.setMouseTracking(True)
+        viewport.setMouseTracking(True)
+
+        for row in range(combo.count()):
+            option_text = combo.itemText(row).strip()
+            summary = option_help.get(option_text, f"Select option: {option_text}.")
+            combo.setItemData(row, summary, Qt.ItemDataRole.ToolTipRole)
+            combo.setItemData(row, summary, Qt.ItemDataRole.StatusTipRole)
+            combo.setItemData(row, summary, Qt.ItemDataRole.WhatsThisRole)
 
     @Slot()
     def _update_step_kind_fields_visibility(self) -> None:
@@ -1799,6 +1927,16 @@ class StudioApp(QMainWindow):
             self._register_help_for_widget(child)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        combo = self._combo_tooltip_viewports.get(obj)
+        if combo is not None and event.type() == QEvent.Type.ToolTip:
+            if isinstance(event, QHelpEvent):
+                index = combo.view().indexAt(event.pos())
+                if index.isValid():
+                    tooltip = index.data(Qt.ItemDataRole.ToolTipRole)
+                    if tooltip:
+                        QToolTip.showText(event.globalPos(), str(tooltip), combo.view())
+                        return True
+            return False
         if isinstance(obj, QWidget) and event.type() == QEvent.Type.Enter:
             entry = self._help_entries_by_widget.get(obj)
             if entry is None:
