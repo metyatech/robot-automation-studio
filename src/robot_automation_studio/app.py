@@ -10,7 +10,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from pynput import keyboard as pynput_keyboard
-from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QCloseEvent, QFont, QKeySequence, QShortcut, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -22,16 +22,17 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLayout,
-    QLayoutItem,
     QLineEdit,
     QListWidget,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QSplitter,
+    QTabWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -84,77 +85,26 @@ _BTN_HOVER = "#585b70"
 _LOG_BG = "#1a1a2e"
 
 
-class _FlowLayout(QLayout):
-    """Layout that arranges child widgets left-to-right and wraps to the next line."""
-
-    def __init__(self, parent: QWidget | None = None, h_spacing: int = 4, v_spacing: int = 4):
-        super().__init__(parent)
-        self._h_spacing = h_spacing
-        self._v_spacing = v_spacing
-        self._items: list[QLayoutItem] = []
-
-    def addItem(self, item: QLayoutItem) -> None:
-        self._items.append(item)
-
-    def count(self) -> int:
-        return len(self._items)
-
-    def itemAt(self, index: int) -> QLayoutItem | None:
-        if 0 <= index < len(self._items):
-            return self._items[index]
-        return None
-
-    def takeAt(self, index: int) -> QLayoutItem | None:
-        if 0 <= index < len(self._items):
-            return self._items.pop(index)
-        return None
-
-    def expandingDirections(self) -> Qt.Orientation:
-        return Qt.Orientation(0)
-
-    def hasHeightForWidth(self) -> bool:
-        return True
-
-    def heightForWidth(self, width: int) -> int:
-        return self._do_layout(QRect(0, 0, width, 0), test_only=True)
-
-    def setGeometry(self, rect: QRect) -> None:
-        super().setGeometry(rect)
-        self._do_layout(rect, test_only=False)
-
-    def sizeHint(self) -> QSize:
-        return self.minimumSize()
-
-    def minimumSize(self) -> QSize:
-        size = QSize()
-        for item in self._items:
-            size = size.expandedTo(item.minimumSize())
-        margins = self.contentsMargins()
-        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
-        return size
-
-    def _do_layout(self, rect: QRect, test_only: bool) -> int:
-        margins = self.contentsMargins()
-        effective = rect.adjusted(
-            margins.left(), margins.top(), -margins.right(), -margins.bottom()
-        )
-        x = effective.x()
-        y = effective.y()
-        line_height = 0
-        for item in self._items:
-            space_x = self._h_spacing
-            space_y = self._v_spacing
-            next_x = x + item.sizeHint().width() + space_x
-            if next_x - space_x > effective.right() and line_height > 0:
-                x = effective.x()
-                y = y + line_height + space_y
-                next_x = x + item.sizeHint().width() + space_x
-                line_height = 0
-            if not test_only:
-                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
-            x = next_x
-            line_height = max(line_height, item.sizeHint().height())
-        return y + line_height - rect.y() + margins.bottom()
+def step_editor_visibility_for_kind(kind: str) -> dict[str, bool]:
+    """Return Step-tab field visibility flags for a given step kind."""
+    normalized = str(kind or "").strip().lower()
+    if normalized == "control":
+        return {
+            "show_action": False,
+            "show_control": True,
+            "show_condition": True,
+        }
+    if normalized == "group":
+        return {
+            "show_action": False,
+            "show_control": False,
+            "show_condition": False,
+        }
+    return {
+        "show_action": True,
+        "show_control": False,
+        "show_condition": False,
+    }
 
 
 _STYLESHEET = f"""
@@ -170,8 +120,7 @@ QPushButton {{
     color: {_FG};
     border: none;
     border-radius: 4px;
-    padding: 6px 12px;
-    min-width: 32px;
+    padding: 4px 10px;
 }}
 
 QPushButton:hover {{
@@ -252,13 +201,7 @@ QCheckBox::indicator:checked {{
 
 QSplitter::handle {{
     background: {_BG_LIGHT};
-}}
-
-QSplitter::handle:horizontal {{
     width: 6px;
-}}
-
-QSplitter::handle:vertical {{
     height: 6px;
 }}
 
@@ -294,6 +237,124 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
     width: 0px;
 }}
 
+QWidget#HeaderBar {{
+    background: {_LOG_BG};
+    border-bottom: 1px solid {_BG_LIGHT};
+    min-height: 44px;
+    max-height: 44px;
+}}
+
+QLineEdit#ScenarioNameEdit {{
+    background: transparent;
+    border: 1px solid transparent;
+    font-size: 12pt;
+    font-weight: bold;
+    color: {_ACCENT_BLUE};
+}}
+
+QLineEdit#ScenarioNameEdit:hover {{
+    border: 1px solid {_BTN_BG};
+}}
+
+QLineEdit#ScenarioNameEdit:focus {{
+    background: {_BG_MID};
+    border: 1px solid {_ACCENT_BLUE};
+}}
+
+QLabel#HeaderHelpLabel {{
+    color: {_FG_DIM};
+    font-size: 9pt;
+    padding-left: 4px;
+}}
+
+QTabWidget::pane {{
+    border: 1px solid {_BG_LIGHT};
+    border-radius: 4px;
+    background: {_BG};
+}}
+
+QTabBar::tab {{
+    background: {_BG_MID};
+    color: {_FG_DIM};
+    padding: 8px 16px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}}
+
+QTabBar::tab:selected {{
+    background: {_BG};
+    color: {_ACCENT_BLUE};
+    border-bottom: 2px solid {_ACCENT_BLUE};
+}}
+
+QTabBar::tab:hover:!selected {{
+    background: {_BG_LIGHT};
+    color: {_FG};
+}}
+
+QToolButton {{
+    background: {_BTN_BG};
+    color: {_FG};
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+}}
+
+QToolButton:hover {{
+    background: {_BTN_HOVER};
+}}
+
+QToolButton#AddStepButton {{
+    background: #2d3d5a;
+    color: {_ACCENT_BLUE};
+}}
+
+QToolButton#AddStepButton:hover {{
+    background: #3a4d7a;
+}}
+
+QMenu {{
+    background: {_BG_MID};
+    color: {_FG};
+    border: 1px solid {_BTN_BG};
+    border-radius: 4px;
+    padding: 4px;
+}}
+
+QMenu::item {{
+    padding: 6px 20px 6px 12px;
+    border-radius: 3px;
+}}
+
+QMenu::item:selected {{
+    background: {_BTN_BG};
+}}
+
+QMenu::separator {{
+    height: 1px;
+    background: {_BTN_BG};
+    margin: 4px 8px;
+}}
+
+QToolButton#LogToggleButton {{
+    background: transparent;
+}}
+
+QToolButton#LogToggleButton:hover {{
+    background: {_BG_LIGHT};
+}}
+
+QWidget#LogHeader {{
+    background: {_LOG_BG};
+    border-top: 1px solid {_BG_LIGHT};
+}}
+
+QLabel#PanelTitle {{
+    color: {_ACCENT_BLUE};
+    font-size: 10pt;
+    font-weight: bold;
+}}
+
 QPushButton#RecordButton {{
     background: #2d5a2d;
     color: {_ACCENT_GREEN};
@@ -312,24 +373,6 @@ QPushButton#StopButton:hover {{
     background: #7a3a3a;
 }}
 
-QPushButton#AddButton {{
-    background: #2d3d5a;
-    color: {_ACCENT_BLUE};
-}}
-
-QPushButton#AddButton:hover {{
-    background: #3a4d7a;
-}}
-
-QPushButton#DangerButton {{
-    background: #5a2d2d;
-    color: {_ACCENT_RED};
-}}
-
-QPushButton#DangerButton:hover {{
-    background: #7a3a3a;
-}}
-
 QPushButton#ApplyButton {{
     background: #2d4a7a;
     color: {_ACCENT_BLUE};
@@ -337,34 +380,6 @@ QPushButton#ApplyButton {{
 
 QPushButton#ApplyButton:hover {{
     background: #3a5a9a;
-}}
-
-QLabel#SectionLabel {{
-    color: {_ACCENT_BLUE};
-    font-size: 12pt;
-    font-weight: bold;
-}}
-
-QLabel#GroupLabel {{
-    color: {_FG_DIM};
-    font-size: 8pt;
-}}
-
-QFrame#CardFrame {{
-    background: {_BG_MID};
-    border-radius: 6px;
-    padding: 12px;
-}}
-
-QLabel#CardLabel {{
-    background: {_BG_MID};
-    color: {_FG};
-}}
-
-QLabel#CardHeaderLabel {{
-    background: {_BG_MID};
-    color: {_ACCENT_BLUE};
-    font-weight: bold;
 }}
 
 QLabel#StatusPill {{
@@ -384,6 +399,14 @@ QLabel#RecIndicator {{
 
 QPlainTextEdit#LogText {{
     background: {_LOG_BG};
+}}
+
+QToolButton#FileMenuButton {{
+    background: transparent;
+}}
+
+QToolButton#FileMenuButton:hover {{
+    background: {_BG_LIGHT};
 }}
 """
 
@@ -425,6 +448,8 @@ class StudioApp(QMainWindow):
         self._help_entries_by_id: dict[str, HelpEntry] = {}
         self._help_dialog: QDialog | None = None
 
+        self._log_collapsed = False
+
         self._status_timer = QTimer(self)
         self._status_timer.setInterval(160)
         self._status_timer.timeout.connect(self._tick_robot_status)
@@ -446,50 +471,254 @@ class StudioApp(QMainWindow):
         self.refresh_steps()
 
     def _build_ui(self) -> None:
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setCentralWidget(scroll_area)
         central = QWidget()
-        scroll_area.setWidget(central)
+        self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        config_header_layout = QHBoxLayout()
-        config_header_layout.setContentsMargins(12, 12, 12, 0)
-        config_header_label = QLabel("Scenario Configuration")
-        config_header_label.setObjectName("SectionLabel")
-        config_header_layout.addWidget(config_header_label)
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet(f"background: {_BG_LIGHT}; max-height: 1px;")
-        config_header_layout.addWidget(separator, 1)
-        self.open_guide_button = QPushButton("Open Guide (F1)")
-        self.open_guide_button.clicked.connect(self.open_help_guide)
-        config_header_layout.addWidget(self.open_guide_button)
-        main_layout.addLayout(config_header_layout)
+        header_bar = QWidget()
+        header_bar.setObjectName("HeaderBar")
+        header_bar.setFixedHeight(44)
+        header_layout = QHBoxLayout(header_bar)
+        header_layout.setContentsMargins(10, 0, 10, 0)
+        header_layout.setSpacing(8)
 
-        config_card = QFrame()
-        config_card.setObjectName("CardFrame")
-        config_card_layout = QFormLayout(config_card)
-        config_card_layout.setSpacing(8)
-        config_card_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        title_label = QLabel("Robot Automation Studio -")
+        title_label.setObjectName("PanelTitle")
+        header_layout.addWidget(title_label)
 
         self.name_edit = QLineEdit(self.scenario.name)
-        config_card_layout.addRow("Scenario Name", self.name_edit)
+        self.name_edit.setObjectName("ScenarioNameEdit")
+        self.name_edit.setMinimumWidth(260)
+        self.name_edit.setPlaceholderText("Scenario name")
+        header_layout.addWidget(self.name_edit)
+
+        header_layout.addStretch()
+
+        self.record_button = QPushButton("\u25cf Record")
+        self.record_button.setObjectName("RecordButton")
+        self.record_button.clicked.connect(self.start_recording)
+        header_layout.addWidget(self.record_button)
+
+        self.record_stop_button = QPushButton("\u25a0 Stop")
+        self.record_stop_button.setObjectName("StopButton")
+        self.record_stop_button.clicked.connect(self.stop_recording)
+        header_layout.addWidget(self.record_stop_button)
+
+        vline1 = QFrame()
+        vline1.setFrameShape(QFrame.Shape.VLine)
+        vline1.setStyleSheet(f"background: {_BG_LIGHT};")
+        header_layout.addWidget(vline1)
+
+        self.run_button = QPushButton("\u25b6 Run Robot")
+        self.run_button.setObjectName("RecordButton")
+        self.run_button.clicked.connect(self.run_robot_suite)
+        header_layout.addWidget(self.run_button)
+
+        self.stop_robot_button = QPushButton("Stop Robot")
+        self.stop_robot_button.setObjectName("StopButton")
+        self.stop_robot_button.setEnabled(False)
+        self.stop_robot_button.clicked.connect(self.stop_robot_suite)
+        header_layout.addWidget(self.stop_robot_button)
+
+        self._status_pill = QLabel(format_run_status("idle", SPINNER_FRAMES[0]))
+        self._status_pill.setObjectName("StatusPill")
+        header_layout.addWidget(self._status_pill)
+
+        vline2 = QFrame()
+        vline2.setFrameShape(QFrame.Shape.VLine)
+        vline2.setStyleSheet(f"background: {_BG_LIGHT};")
+        header_layout.addWidget(vline2)
+
+        self.help_status_label = QLabel(
+            "Hover or focus any UI component to view its explanation. Press F1 for full guide."
+        )
+        self.help_status_label.setObjectName("HeaderHelpLabel")
+        header_layout.addWidget(self.help_status_label, 1)
+
+        self._rec_indicator = QLabel(" IDLE ")
+        self._rec_indicator.setObjectName("RecIndicator")
+        header_layout.addWidget(self._rec_indicator)
+
+        self.file_menu_button = QToolButton()
+        self.file_menu_button.setObjectName("FileMenuButton")
+        self.file_menu_button.setText("File \u25be")
+        self.file_menu_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        file_menu = QMenu(self.file_menu_button)
+        file_menu.addAction("\U0001f4be Save", self.save_json)
+        file_menu.addAction("\U0001f4c2 Load", self.load_json)
+        file_menu.addSeparator()
+        file_menu.addAction("{} Full JSON", self.open_full_json_editor)
+        file_menu.addAction("Help Guide (F1)", self.open_help_guide)
+        self.file_menu_button.setMenu(file_menu)
+        header_layout.addWidget(self.file_menu_button)
+
+        main_layout.addWidget(header_bar)
+
+        main_splitter = QSplitter(Qt.Orientation.Vertical)
+        main_splitter.setObjectName("MainSplitter")
+
+        horizontal_splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        left_panel = QWidget()
+        left_panel.setMinimumWidth(200)
+        left_panel_layout = QVBoxLayout(left_panel)
+        left_panel_layout.setContentsMargins(8, 8, 8, 8)
+        left_panel_layout.setSpacing(6)
+
+        steps_label = QLabel("Steps")
+        steps_label.setObjectName("PanelTitle")
+        left_panel_layout.addWidget(steps_label)
+
+        step_toolbar = QHBoxLayout()
+
+        self.add_step_button = QToolButton()
+        self.add_step_button.setObjectName("AddStepButton")
+        self.add_step_button.setText("+ Add \u25be")
+        self.add_step_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        add_step_menu = QMenu(self.add_step_button)
+        add_step_menu.addAction("\U0001f5b1 Click", self.add_click)
+        add_step_menu.addAction("\u2194 Drag", self.add_drag)
+        add_step_menu.addAction("\u2328 Shortcut", self.add_shortcut)
+        add_step_menu.addAction("\u2261 Menu", self.add_menu)
+        add_step_menu.addAction("\u270e Type", self.add_type)
+        add_step_menu.addSeparator()
+        add_step_menu.addAction("IF", self.add_control)
+        add_step_menu.addAction("[] Group", self.add_group)
+        self.add_step_button.setMenu(add_step_menu)
+        step_toolbar.addWidget(self.add_step_button)
+
+        self.delete_step_button = QPushButton("\u2715")
+        self.delete_step_button.setToolTip("Delete step")
+        self.delete_step_button.clicked.connect(self.delete_selected)
+        step_toolbar.addWidget(self.delete_step_button)
+
+        self.move_up_button = QPushButton("\u25b2")
+        self.move_up_button.setToolTip("Move step up")
+        self.move_up_button.clicked.connect(self.move_up)
+        step_toolbar.addWidget(self.move_up_button)
+
+        self.move_down_button = QPushButton("\u25bc")
+        self.move_down_button.setToolTip("Move step down")
+        self.move_down_button.clicked.connect(self.move_down)
+        step_toolbar.addWidget(self.move_down_button)
+
+        self.duplicate_step_button = QPushButton("\u2398")
+        self.duplicate_step_button.setToolTip("Duplicate step")
+        self.duplicate_step_button.clicked.connect(self.duplicate_selected)
+        step_toolbar.addWidget(self.duplicate_step_button)
+        step_toolbar.addStretch()
+
+        left_panel_layout.addLayout(step_toolbar)
+
+        self.step_list = QListWidget()
+        self.step_list.setFont(QFont("Consolas", 11))
+        self.step_list.currentRowChanged.connect(self.on_select_step)
+        left_panel_layout.addWidget(self.step_list)
+
+        horizontal_splitter.addWidget(left_panel)
+
+        right_tabs = QTabWidget()
+
+        step_tab = QWidget()
+        step_scroll = QScrollArea()
+        step_scroll.setWidgetResizable(True)
+        step_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        step_scroll_widget = QWidget()
+        step_scroll_layout = QVBoxLayout(step_scroll_widget)
+
+        self.step_form = QFormLayout()
+        self.step_form.setSpacing(8)
+        self.step_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+
+        self.step_id_edit = QLineEdit()
+        self.step_id_edit.setPlaceholderText("step-1")
+        self.step_form.addRow("Step ID", self.step_id_edit)
+
+        self.title_edit = QLineEdit()
+        self.title_edit.setPlaceholderText("Step title")
+        self.step_form.addRow("Title", self.title_edit)
+
+        self.kind_combo = QComboBox()
+        self.kind_combo.addItems(["action", "control", "group"])
+        self.kind_combo.currentTextChanged.connect(self._update_step_kind_fields_visibility)
+        self.step_form.addRow("Kind", self.kind_combo)
+
+        self.action_edit = QLineEdit()
+        self.action_edit.setPlaceholderText("click / drag_drop / type_text ...")
+        self.action_label = QLabel("Action")
+        self.step_form.addRow(self.action_label, self.action_edit)
+
+        self.control_edit = QLineEdit()
+        self.control_edit.setPlaceholderText("if / for_each / while ...")
+        self.control_label = QLabel("Control")
+        self.step_form.addRow(self.control_label, self.control_edit)
+
+        self.step_description_edit = QLineEdit()
+        self.step_description_edit.setPlaceholderText("Optional description")
+        self.step_form.addRow("Description", self.step_description_edit)
+
+        self.step_condition_edit = QLineEdit()
+        self.step_condition_edit.setPlaceholderText("Optional condition expression")
+        self.condition_label = QLabel("Condition")
+        self.step_form.addRow(self.condition_label, self.step_condition_edit)
+
+        checks_layout = QHBoxLayout()
+        self.step_disabled_check = QCheckBox("Disabled")
+        checks_layout.addWidget(self.step_disabled_check)
+        self.step_continue_on_error_check = QCheckBox("Continue On Error")
+        checks_layout.addWidget(self.step_continue_on_error_check)
+        checks_layout.addStretch()
+        self.step_form.addRow(checks_layout)
+
+        self.annotations_text = QPlainTextEdit()
+        self.annotations_text.setFont(QFont("Consolas", 9))
+        self.annotations_text.setMaximumHeight(80)
+        self.step_form.addRow("Annotations", self.annotations_text)
+
+        self.params_text = QPlainTextEdit()
+        self.params_text.setFont(QFont("Consolas", 10))
+        self.params_text.setMaximumHeight(160)
+        self.step_form.addRow("Params", self.params_text)
+
+        step_scroll_layout.addLayout(self.step_form)
+
+        self.apply_step_button = QPushButton("Apply Step Changes")
+        self.apply_step_button.setObjectName("ApplyButton")
+        self.apply_step_button.clicked.connect(self.apply_step_changes)
+        step_scroll_layout.addWidget(self.apply_step_button)
+
+        step_scroll_layout.addStretch()
+
+        step_scroll.setWidget(step_scroll_widget)
+        step_tab_layout = QVBoxLayout(step_tab)
+        step_tab_layout.setContentsMargins(0, 0, 0, 0)
+        step_tab_layout.addWidget(step_scroll)
+
+        right_tabs.addTab(step_tab, "Step")
+
+        scenario_tab = QWidget()
+        scenario_scroll = QScrollArea()
+        scenario_scroll.setWidgetResizable(True)
+        scenario_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scenario_scroll_widget = QWidget()
+        scenario_form = QFormLayout(scenario_scroll_widget)
+        scenario_form.setSpacing(8)
+        scenario_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self.scenario_id_edit = QLineEdit(self.scenario.scenario_id)
-        config_card_layout.addRow("Scenario ID", self.scenario_id_edit)
+        self.scenario_id_edit.setPlaceholderText("scenario-id")
+        scenario_form.addRow("Scenario ID", self.scenario_id_edit)
 
         self.target_combo = QComboBox()
         self.target_combo.addItems(["unity", "web", "desktop", "hybrid"])
         self.target_combo.setCurrentText(self.scenario.target)
-        config_card_layout.addRow("Target", self.target_combo)
+        scenario_form.addRow("Target", self.target_combo)
 
         self.window_hint_edit = QLineEdit(self.scenario.target_window_hint)
-        config_card_layout.addRow("Window Hint", self.window_hint_edit)
+        self.window_hint_edit.setPlaceholderText("Unity")
+        scenario_form.addRow("Window Hint", self.window_hint_edit)
 
         self.execution_mode_combo = QComboBox()
         self.execution_mode_combo.addItems(["attach", "launch"])
@@ -498,303 +727,155 @@ class StudioApp(QMainWindow):
         )
         self.execution_mode_combo.setCurrentText(execution_mode)
         self.execution_mode_combo.currentTextChanged.connect(self.on_execution_mode_changed)
-        config_card_layout.addRow("Execution Mode", self.execution_mode_combo)
+        scenario_form.addRow("Execution Mode", self.execution_mode_combo)
 
         project_path_row = QHBoxLayout()
         self.project_path_edit = QLineEdit(
             str(self.scenario.metadata.get(UNITY_PROJECT_PATH_KEY, ""))
         )
+        self.project_path_edit.setPlaceholderText("Path to Unity project root")
         project_path_row.addWidget(self.project_path_edit, 1)
         self.project_path_browse_button = QPushButton("Browse")
         self.project_path_browse_button.clicked.connect(self.browse_unity_project_path)
         project_path_row.addWidget(self.project_path_browse_button)
-        config_card_layout.addRow("Unity Project Path", project_path_row)
+        scenario_form.addRow("Unity Project Path", project_path_row)
 
         self.description_edit = QLineEdit(self.scenario.description)
-        config_card_layout.addRow("Description", self.description_edit)
+        self.description_edit.setPlaceholderText("Optional scenario description")
+        scenario_form.addRow("Description", self.description_edit)
 
-        config_tools_layout = QHBoxLayout()
-        config_tools_layout.setContentsMargins(0, 4, 0, 0)
+        scenario_tools_layout = QHBoxLayout()
         variables_button = QPushButton("Variables")
         variables_button.clicked.connect(self.open_variables_editor)
-        config_tools_layout.addWidget(variables_button)
+        scenario_tools_layout.addWidget(variables_button)
         profiles_button = QPushButton("Profiles")
         profiles_button.clicked.connect(self.open_profiles_editor)
-        config_tools_layout.addWidget(profiles_button)
+        scenario_tools_layout.addWidget(profiles_button)
         execution_outputs_button = QPushButton("Execution/Outputs")
         execution_outputs_button.clicked.connect(self.open_execution_outputs_editor)
-        config_tools_layout.addWidget(execution_outputs_button)
-        config_tools_layout.addStretch()
-        config_card_layout.addRow(config_tools_layout)
+        scenario_tools_layout.addWidget(execution_outputs_button)
+        scenario_tools_layout.addStretch()
+        scenario_form.addRow(scenario_tools_layout)
 
-        config_card_wrapper = QWidget()
-        config_card_wrapper_layout = QVBoxLayout(config_card_wrapper)
-        config_card_wrapper_layout.setContentsMargins(12, 4, 12, 0)
-        config_card_wrapper_layout.addWidget(config_card)
-        main_layout.addWidget(config_card_wrapper)
+        scenario_scroll.setWidget(scenario_scroll_widget)
+        scenario_tab_layout = QVBoxLayout(scenario_tab)
+        scenario_tab_layout.setContentsMargins(0, 0, 0, 0)
+        scenario_tab_layout.addWidget(scenario_scroll)
 
-        help_card = QFrame()
-        help_card.setObjectName("CardFrame")
-        help_card_layout = QHBoxLayout(help_card)
-        help_header = QLabel("Context Help")
-        help_header.setObjectName("CardHeaderLabel")
-        help_card_layout.addWidget(help_header)
-        self.help_status_label = QLabel(
-            "Hover or focus any UI component to view its explanation. Press F1 for full guide."
-        )
-        self.help_status_label.setObjectName("CardLabel")
-        self.help_status_label.setWordWrap(True)
-        help_card_layout.addWidget(self.help_status_label, 1)
-        help_card_wrapper = QWidget()
-        help_card_wrapper_layout = QVBoxLayout(help_card_wrapper)
-        help_card_wrapper_layout.setContentsMargins(12, 8, 12, 0)
-        help_card_wrapper_layout.addWidget(help_card)
-        main_layout.addWidget(help_card_wrapper)
+        right_tabs.addTab(scenario_tab, "Scenario")
 
-        toolbar_outer = QWidget()
-        toolbar_flow = _FlowLayout(toolbar_outer, h_spacing=6, v_spacing=4)
-        toolbar_flow.setContentsMargins(12, 12, 12, 4)
-
-        rec_group_layout = self._make_toolbar_group(toolbar_flow, "Recording")
-        btn = QPushButton("\u25cf Start")
-        btn.setObjectName("RecordButton")
-        btn.setToolTip("Start recording UI actions")
-        btn.clicked.connect(self.start_recording)
-        rec_group_layout.addWidget(btn)
-        btn = QPushButton("\u25a0 Stop")
-        btn.setObjectName("StopButton")
-        btn.setToolTip("Stop recording")
-        btn.clicked.connect(self.stop_recording)
-        rec_group_layout.addWidget(btn)
-
-        add_group_layout = self._make_toolbar_group(toolbar_flow, "Add Step")
-        for label_text, tip, callback in [
-            ("\U0001f5b1 Click", "Add a click step", self.add_click),
-            ("\u2194 Drag", "Add a drag step", self.add_drag),
-            ("\u2328 Shortcut", "Add a keyboard shortcut step", self.add_shortcut),
-            ("\u2261 Menu", "Add a menu navigation step", self.add_menu),
-            ("\u270e Type", "Add a text typing step", self.add_type),
-            ("IF", "Add a control step", self.add_control),
-            ("[] Group", "Add a group step", self.add_group),
-        ]:
-            btn = QPushButton(label_text)
-            btn.setObjectName("AddButton")
-            btn.setToolTip(tip)
-            btn.clicked.connect(callback)
-            add_group_layout.addWidget(btn)
-
-        edit_group_layout = self._make_toolbar_group(toolbar_flow, "Edit")
-        btn = QPushButton("\u2715 Delete")
-        btn.setObjectName("DangerButton")
-        btn.setToolTip("Delete selected step")
-        btn.clicked.connect(self.delete_selected)
-        edit_group_layout.addWidget(btn)
-        btn = QPushButton("\u25b2 Up")
-        btn.setToolTip("Move step up")
-        btn.clicked.connect(self.move_up)
-        edit_group_layout.addWidget(btn)
-        btn = QPushButton("\u25bc Down")
-        btn.setToolTip("Move step down")
-        btn.clicked.connect(self.move_down)
-        edit_group_layout.addWidget(btn)
-        btn = QPushButton("\u2398 Duplicate")
-        btn.setToolTip("Duplicate selected step")
-        btn.clicked.connect(self.duplicate_selected)
-        edit_group_layout.addWidget(btn)
-
-        file_group_layout = self._make_toolbar_group(toolbar_flow, "File")
-        btn = QPushButton("\U0001f4be Save")
-        btn.setToolTip("Save scenario as JSON")
-        btn.clicked.connect(self.save_json)
-        file_group_layout.addWidget(btn)
-        btn = QPushButton("\U0001f4c2 Load")
-        btn.setToolTip("Load scenario from JSON")
-        btn.clicked.connect(self.load_json)
-        file_group_layout.addWidget(btn)
-        btn = QPushButton("{} Full JSON")
-        btn.setToolTip("Edit full v2 scenario JSON")
-        btn.clicked.connect(self.open_full_json_editor)
-        file_group_layout.addWidget(btn)
-
-        self._rec_indicator = QLabel(" IDLE ")
-        self._rec_indicator.setObjectName("RecIndicator")
-        toolbar_flow.addWidget(self._rec_indicator)
-
-        main_layout.addWidget(toolbar_outer)
-
-        steps_header_layout = QHBoxLayout()
-        steps_header_layout.setContentsMargins(12, 12, 12, 0)
-        steps_header_label = QLabel("Steps & Editor")
-        steps_header_label.setObjectName("SectionLabel")
-        steps_header_layout.addWidget(steps_header_label)
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet(f"background: {_BG_LIGHT}; max-height: 1px;")
-        steps_header_layout.addWidget(separator, 1)
-        main_layout.addLayout(steps_header_layout)
-
-        steps_body_wrapper = QWidget()
-        steps_body_layout = QHBoxLayout(steps_body_wrapper)
-        steps_body_layout.setContentsMargins(12, 4, 12, 0)
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        self.step_list = QListWidget()
-        self.step_list.setFont(QFont("Consolas", 11))
-        self.step_list.currentRowChanged.connect(self.on_select_step)
-        splitter.addWidget(self.step_list)
-
-        editor_card = QFrame()
-        editor_card.setObjectName("CardFrame")
-        editor_card_layout = QVBoxLayout(editor_card)
-        editor_header = QLabel("Step Details")
-        editor_header.setObjectName("CardHeaderLabel")
-        editor_card_layout.addWidget(editor_header)
-
-        edit_form = QFormLayout()
-        edit_form.setSpacing(8)
-        edit_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
-
-        self.step_id_edit = QLineEdit()
-        edit_form.addRow("Step ID", self.step_id_edit)
-
-        self.title_edit = QLineEdit()
-        edit_form.addRow("Title", self.title_edit)
-
-        self.kind_combo = QComboBox()
-        self.kind_combo.addItems(["action", "control", "group"])
-        edit_form.addRow("Kind", self.kind_combo)
-
-        self.action_edit = QLineEdit()
-        edit_form.addRow("Action", self.action_edit)
-
-        self.control_edit = QLineEdit()
-        edit_form.addRow("Control", self.control_edit)
-
-        self.step_description_edit = QLineEdit()
-        edit_form.addRow("Description", self.step_description_edit)
-
-        self.step_condition_edit = QLineEdit()
-        edit_form.addRow("Condition", self.step_condition_edit)
-
-        checks_layout = QHBoxLayout()
-        self.step_disabled_check = QCheckBox("Disabled")
-        checks_layout.addWidget(self.step_disabled_check)
-        self.step_continue_on_error_check = QCheckBox("Continue On Error")
-        checks_layout.addWidget(self.step_continue_on_error_check)
-        checks_layout.addStretch()
-        edit_form.addRow(checks_layout)
-
-        self.annotations_text = QPlainTextEdit()
-        self.annotations_text.setFont(QFont("Consolas", 9))
-        self.annotations_text.setMaximumHeight(80)
-        edit_form.addRow("Annotations (JSON)", self.annotations_text)
-
-        self.params_text = QPlainTextEdit()
-        self.params_text.setFont(QFont("Consolas", 10))
-        self.params_text.setMaximumHeight(160)
-        edit_form.addRow("Params (JSON)", self.params_text)
-
-        editor_card_layout.addLayout(edit_form)
-
-        self.apply_step_button = QPushButton("Apply Step Changes")
-        self.apply_step_button.setObjectName("ApplyButton")
-        self.apply_step_button.clicked.connect(self.apply_step_changes)
-        editor_card_layout.addWidget(self.apply_step_button)
-
-        splitter.addWidget(editor_card)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 2)
-
-        steps_body_layout.addWidget(splitter)
-        main_layout.addWidget(steps_body_wrapper, 1)
-
-        run_header_layout = QHBoxLayout()
-        run_header_layout.setContentsMargins(12, 12, 12, 0)
-        run_header_label = QLabel("Export & Run")
-        run_header_label.setObjectName("SectionLabel")
-        run_header_layout.addWidget(run_header_label)
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet(f"background: {_BG_LIGHT}; max-height: 1px;")
-        run_header_layout.addWidget(separator, 1)
-        main_layout.addLayout(run_header_layout)
-
-        run_card = QFrame()
-        run_card.setObjectName("CardFrame")
-        run_card_layout = QFormLayout(run_card)
-        run_card_layout.setSpacing(8)
-        run_card_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        export_tab = QWidget()
+        export_scroll = QScrollArea()
+        export_scroll.setWidgetResizable(True)
+        export_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        export_scroll_widget = QWidget()
+        export_form = QFormLayout(export_scroll_widget)
+        export_form.setSpacing(8)
+        export_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self.output_dir_edit = QLineEdit("artifacts/studio")
-        run_card_layout.addRow("Output Dir", self.output_dir_edit)
+        self.output_dir_edit.setPlaceholderText("Output directory")
+        export_form.addRow("Output Dir", self.output_dir_edit)
 
         export_name_row = QHBoxLayout()
         self.export_name_edit = QLineEdit("unity-editor-generated")
+        self.export_name_edit.setPlaceholderText("Export name")
         export_name_row.addWidget(self.export_name_edit, 1)
-        export_button = QPushButton("Export")
-        export_button.clicked.connect(self.export_scenario)
-        export_name_row.addWidget(export_button)
-        run_card_layout.addRow("Export Name", export_name_row)
+        self.export_button = QPushButton("Export")
+        self.export_button.clicked.connect(self.export_scenario)
+        export_name_row.addWidget(self.export_button)
+        export_form.addRow("Export Name", export_name_row)
 
-        run_buttons_layout = QHBoxLayout()
-        self.run_robot_button = QPushButton("Run Robot")
-        self.run_robot_button.setObjectName("RecordButton")
-        self.run_robot_button.clicked.connect(self.run_robot_suite)
-        run_buttons_layout.addWidget(self.run_robot_button)
-        self.stop_robot_button = QPushButton(f"Stop Robot ({STOP_HOTKEY_LABEL})")
-        self.stop_robot_button.setObjectName("StopButton")
-        self.stop_robot_button.setEnabled(False)
-        self.stop_robot_button.clicked.connect(self.stop_robot_suite)
-        run_buttons_layout.addWidget(self.stop_robot_button)
-        self._status_pill = QLabel(format_run_status("idle", SPINNER_FRAMES[0]))
-        self._status_pill.setObjectName("StatusPill")
-        run_buttons_layout.addWidget(self._status_pill)
-        run_buttons_layout.addStretch()
-        run_card_layout.addRow(run_buttons_layout)
+        export_scroll.setWidget(export_scroll_widget)
+        export_tab_layout = QVBoxLayout(export_tab)
+        export_tab_layout.setContentsMargins(0, 0, 0, 0)
+        export_tab_layout.addWidget(export_scroll)
 
-        run_card_wrapper = QWidget()
-        run_card_wrapper_layout = QVBoxLayout(run_card_wrapper)
-        run_card_wrapper_layout.setContentsMargins(12, 4, 12, 0)
-        run_card_wrapper_layout.addWidget(run_card)
-        main_layout.addWidget(run_card_wrapper)
+        right_tabs.addTab(export_tab, "Export")
 
-        log_header_layout = QHBoxLayout()
-        log_header_layout.setContentsMargins(12, 12, 12, 0)
-        log_header_label = QLabel("Output Log")
-        log_header_label.setObjectName("SectionLabel")
-        log_header_layout.addWidget(log_header_label)
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet(f"background: {_BG_LIGHT}; max-height: 1px;")
-        log_header_layout.addWidget(separator, 1)
-        main_layout.addLayout(log_header_layout)
+        horizontal_splitter.addWidget(right_tabs)
+
+        horizontal_splitter.setStretchFactor(0, 2)
+        horizontal_splitter.setStretchFactor(1, 3)
+
+        main_splitter.addWidget(horizontal_splitter)
+
+        bottom_panel = QWidget()
+        bottom_panel_layout = QVBoxLayout(bottom_panel)
+        bottom_panel_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_panel_layout.setSpacing(0)
+
+        log_header = QWidget()
+        log_header.setObjectName("LogHeader")
+        log_header.setFixedHeight(32)
+        log_header_layout = QHBoxLayout(log_header)
+        log_header_layout.setContentsMargins(8, 4, 8, 4)
+
+        log_label = QLabel("Output Log")
+        log_label.setObjectName("PanelTitle")
+        log_header_layout.addWidget(log_label)
+
+        log_header_layout.addStretch()
+
+        self._log_toggle_button = QToolButton()
+        self._log_toggle_button.setObjectName("LogToggleButton")
+        self._log_toggle_button.setText("\u25bc")
+        self._log_toggle_button.clicked.connect(self._toggle_log_collapse)
+        log_header_layout.addWidget(self._log_toggle_button)
+
+        bottom_panel_layout.addWidget(log_header)
+
+        self.log_text_container = QWidget()
+        log_text_container_layout = QVBoxLayout(self.log_text_container)
+        log_text_container_layout.setContentsMargins(8, 4, 8, 8)
 
         self.log_text = QPlainTextEdit()
         self.log_text.setObjectName("LogText")
         self.log_text.setReadOnly(True)
         self.log_text.setFont(QFont("Consolas", 9))
         self.log_text.setMaximumBlockCount(5000)
-        log_wrapper = QWidget()
-        log_wrapper_layout = QVBoxLayout(log_wrapper)
-        log_wrapper_layout.setContentsMargins(12, 4, 12, 12)
-        log_wrapper_layout.addWidget(self.log_text)
-        main_layout.addWidget(log_wrapper)
+        log_text_container_layout.addWidget(self.log_text)
+
+        bottom_panel_layout.addWidget(self.log_text_container)
+
+        main_splitter.addWidget(bottom_panel)
+
+        main_splitter.setStretchFactor(0, 4)
+        main_splitter.setStretchFactor(1, 1)
+        main_splitter.setSizes([620, 180])
+
+        main_layout.addWidget(main_splitter, 1)
 
         self.on_execution_mode_changed()
+        self._update_step_kind_fields_visibility()
 
-    def _make_toolbar_group(self, parent_layout: QLayout, label: str) -> QHBoxLayout:
-        group_widget = QWidget()
-        group_layout = QVBoxLayout(group_widget)
-        group_layout.setContentsMargins(4, 0, 4, 0)
-        group_layout.setSpacing(2)
-        group_label = QLabel(label)
-        group_label.setObjectName("GroupLabel")
-        group_layout.addWidget(group_label, 0, Qt.AlignmentFlag.AlignLeft)
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(2)
-        group_layout.addLayout(btn_layout)
-        parent_layout.addWidget(group_widget)
-        return btn_layout
+    def _toggle_log_collapse(self) -> None:
+        self._log_collapsed = not self._log_collapsed
+        if self._log_collapsed:
+            self.log_text_container.hide()
+            self._log_toggle_button.setText("\u25b2")
+        else:
+            self.log_text_container.show()
+            self._log_toggle_button.setText("\u25bc")
+
+    def _set_step_row_visible(self, label: QLabel, field: QWidget, visible: bool) -> None:
+        label.setVisible(visible)
+        field.setVisible(visible)
+
+    @Slot()
+    def _update_step_kind_fields_visibility(self) -> None:
+        visibility = step_editor_visibility_for_kind(self.kind_combo.currentText())
+        self._set_step_row_visible(self.action_label, self.action_edit, visibility["show_action"])
+        self._set_step_row_visible(
+            self.control_label,
+            self.control_edit,
+            visibility["show_control"],
+        )
+        self._set_step_row_visible(
+            self.condition_label,
+            self.step_condition_edit,
+            visibility["show_condition"],
+        )
 
     def _sync_scenario_header(self) -> None:
         self.scenario.name = self.name_edit.text().strip() or "Scenario"
@@ -884,14 +965,14 @@ class StudioApp(QMainWindow):
 
     def _set_run_controls(self, running: bool, stopping: bool = False) -> None:
         if running:
-            self.run_robot_button.setEnabled(False)
+            self.run_button.setEnabled(False)
             self.stop_robot_button.setEnabled(True)
             if stopping:
                 self._set_run_phase("stopping")
             elif self._run_phase == "idle":
                 self._set_run_phase("running")
             return
-        self.run_robot_button.setEnabled(True)
+        self.run_button.setEnabled(True)
         self.stop_robot_button.setEnabled(False)
         self._set_run_phase("idle")
 
@@ -987,6 +1068,7 @@ class StudioApp(QMainWindow):
             self.step_continue_on_error_check.setChecked(False)
             self.annotations_text.clear()
             self.params_text.clear()
+            self._update_step_kind_fields_visibility()
             return
         self.selected_index = row
         step = self.scenario.steps[row]
@@ -1003,6 +1085,7 @@ class StudioApp(QMainWindow):
             json.dumps(step.annotations, ensure_ascii=False, indent=2)
         )
         self.params_text.setPlainText(json.dumps(step.params, ensure_ascii=False, indent=2))
+        self._update_step_kind_fields_visibility()
 
     def on_execution_mode_changed(self) -> None:
         execution_mode = normalize_unity_execution_mode(self.execution_mode_combo.currentText())
@@ -1895,7 +1978,7 @@ class StudioApp(QMainWindow):
 
         top_layout = QHBoxLayout()
         header_label = QLabel("Execution / Outputs JSON")
-        header_label.setObjectName("CardHeaderLabel")
+        header_label.setObjectName("PanelTitle")
         top_layout.addWidget(header_label)
         top_layout.addStretch()
         layout.addLayout(top_layout)

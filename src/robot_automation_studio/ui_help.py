@@ -65,6 +65,22 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Stop recording.",
         "Ends recording and appends captured steps into the scenario list.",
     ),
+    "▶ Run Robot": (
+        "Run the current scenario with Robot.",
+        "Exports first, then starts Robot execution and writes run artifacts.",
+    ),
+    "Stop Robot": (
+        "Stop active Robot execution.",
+        "Stops the running Robot process immediately. You can also use Ctrl+Shift+F12.",
+    ),
+    "File ▾": (
+        "Open file/help menu.",
+        "Provides Save, Load, Full JSON editor, and Help Guide shortcuts.",
+    ),
+    "+ Add ▾": (
+        "Open step-add menu.",
+        "Add Click, Drag, Shortcut, Menu, Type, IF, or Group steps.",
+    ),
     "🖱 Click": (
         "Add a click step.",
         "Insert a click action step manually at the end of the step list.",
