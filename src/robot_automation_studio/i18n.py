@@ -327,6 +327,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "ja": "シナリオ JSON (*.scenario.json);;JSON (*.json)",
     },
     "app.log.record_error": {"en": "Record error: {message}", "ja": "記録エラー: {message}"},
+    "app.log.diagnostics_persist_failed": {
+        "en": "[diagnostics] Failed to persist record diagnostic to {path}: {error}",
+        "ja": "[diagnostics] 記録診断ログの保存に失敗しました: {path}: {error}",
+    },
     "app.log.recording_already_running": {
         "en": "Recording is already running.",
         "ja": "記録は既に実行中です。",

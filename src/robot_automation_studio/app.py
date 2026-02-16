@@ -11,7 +11,7 @@ import threading
 import warnings
 from contextlib import suppress
 from copy import deepcopy
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pynput import keyboard as pynput_keyboard
@@ -1488,11 +1488,20 @@ class StudioApp(QMainWindow):
             else "recording"
         )
         target_path = self._diagnostics_output_dir() / f"{channel}.log"
-        timestamp = datetime.now().isoformat(timespec="seconds")
+        timestamp = datetime.now(UTC).isoformat(timespec="seconds")
         line = f"[{timestamp}] {message}\n"
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        with target_path.open("a", encoding="utf-8") as stream:
-            stream.write(line)
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            with target_path.open("a", encoding="utf-8") as stream:
+                stream.write(line)
+        except OSError as error:
+            self.log(
+                self._t(
+                    "app.log.diagnostics_persist_failed",
+                    path=target_path,
+                    error=error,
+                )
+            )
 
     @Slot(str)
     def log(self, message: str) -> None:
