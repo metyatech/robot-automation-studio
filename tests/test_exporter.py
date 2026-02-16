@@ -325,6 +325,57 @@ def test_generate_robot_suite_supports_try_control_step() -> None:
     assert "Capture Unity Screenshot" in text
 
 
+def test_generate_robot_suite_condition_wrapper_preserves_nested_control_indent() -> None:
+    scenario = Scenario(
+        name="Condition wrapper",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                kind="control",
+                control="if",
+                title="Conditional",
+                condition="True",
+                params={
+                    "expression": "True",
+                    "steps": [
+                        Step(action="wait_for", title="Wait", params={"seconds": 0.1}).to_dict()
+                    ],
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="condition-wrapper")
+    assert "            IF    True" in text
+    assert "                Wait For Seconds    0.1" in text
+
+
+def test_generate_robot_suite_continue_on_error_preserves_nested_control_indent() -> None:
+    scenario = Scenario(
+        name="Continue wrapper",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                kind="control",
+                control="if",
+                title="Conditional",
+                continue_on_error=True,
+                params={
+                    "expression": "True",
+                    "steps": [
+                        Step(action="wait_for", title="Wait", params={"seconds": 0.1}).to_dict()
+                    ],
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="continue-wrapper")
+    assert "            IF    True" in text
+    assert "                Wait For Seconds    0.1" in text
+    assert "        EXCEPT" in text
+
+
 def test_generate_robot_suite_supports_double_click_coordinate() -> None:
     scenario = Scenario(
         name="Double Click",

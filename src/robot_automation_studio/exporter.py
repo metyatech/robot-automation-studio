@@ -221,17 +221,27 @@ def _apply_step_guards(
         return [f"{indent}# disabled: {title}"]
 
     wrapped = list(lines)
+
+    def _indent_block(block_lines: list[str]) -> list[str]:
+        indented: list[str] = []
+        for line in block_lines:
+            if line.startswith(indent):
+                indented.append(f"{indent}    {line[len(indent) :]}")
+            else:
+                indented.append(f"{indent}    {line}")
+        return indented
+
     condition = str(step_payload.get("condition") or "").strip()
     if condition != "":
         conditional_lines = [f"{indent}IF    {condition}"]
-        conditional_lines.extend(f"{indent}    {line.lstrip()}" for line in wrapped)
+        conditional_lines.extend(_indent_block(wrapped))
         conditional_lines.append(f"{indent}END")
         wrapped = conditional_lines
 
     if bool(step_payload.get("continue_on_error")):
         safe_title = title.replace("    ", " ").strip() or "step"
         continue_lines = [f"{indent}TRY"]
-        continue_lines.extend(f"{indent}    {line.lstrip()}" for line in wrapped)
+        continue_lines.extend(_indent_block(wrapped))
         continue_lines.append(f"{indent}EXCEPT")
         continue_lines.append(
             f"{indent}    Log    continue_on_error step failed at {path}: {safe_title}"
