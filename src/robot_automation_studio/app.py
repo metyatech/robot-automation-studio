@@ -177,6 +177,93 @@ def build_help_tooltip_text(summary: str, *, locale: str = DEFAULT_LOCALE) -> st
     return translate("app.help.tooltip.fallback", locale=locale)
 
 
+def _normalize_step_action_for_template(action: str) -> str:
+    normalized = str(action or "").strip().lower()
+    aliases = {
+        "drag": "drag_drop",
+        "type": "type_text",
+        "shortcut": "press_keys",
+        "keys": "press_keys",
+        "menu": "open_menu",
+        "wait": "wait_for",
+    }
+    return aliases.get(normalized, normalized)
+
+
+def default_params_template_for_action(action: str) -> dict[str, object] | None:
+    normalized = _normalize_step_action_for_template(action)
+    templates: dict[str, dict[str, object]] = {
+        "click": {
+            "target": {
+                "strategy": "uia",
+                "uia": {
+                    "title": "Inspector",
+                    "automation_id": "Inspector",
+                    "class_name": "Pane",
+                    "control_type": "Pane",
+                },
+            },
+            "timing": {"stability_ms": 0},
+        },
+        "drag_drop": {
+            "target": {
+                "strategy": "coordinate",
+                "coordinate": {"x_ratio": 0.6, "y_ratio": 0.5},
+            },
+            "input": {
+                "source": {
+                    "strategy": "coordinate",
+                    "coordinate": {"x_ratio": 0.4, "y_ratio": 0.5},
+                }
+            },
+            "timing": {"stability_ms": 0},
+        },
+        "press_keys": {"input": {"shortcut": "CTRL+S"}},
+        "open_menu": {"input": {"menu_path": "File>Save"}},
+        "type_text": {"input": {"text": "sample"}},
+        "wait_for": {"input": {"seconds": 1.0}},
+        "screenshot": {"input": {"path": "screenshots/step.png"}},
+        "select_hierarchy": {
+            "target": {
+                "strategy": "unity_hierarchy",
+                "unity_hierarchy": {"path": "Root/Object", "match_mode": "exact"},
+            }
+        },
+        "assert": {"expect": {"condition": "True", "message": "Assertion failed"}},
+        "open_url": {"input": {"url": "https://example.com"}},
+        "double_click": {
+            "target": {
+                "strategy": "uia",
+                "uia": {
+                    "title": "Inspector",
+                    "automation_id": "Inspector",
+                    "class_name": "Pane",
+                    "control_type": "Pane",
+                },
+            }
+        },
+        "right_click": {
+            "target": {
+                "strategy": "uia",
+                "uia": {
+                    "title": "Inspector",
+                    "automation_id": "Inspector",
+                    "class_name": "Pane",
+                    "control_type": "Pane",
+                },
+            }
+        },
+        "start_video": {"input": {"path": "videos/run.mp4"}},
+        "stop_video": {},
+        "emit_annotation": {"input": {"annotation": {"type": "click", "label": "Click"}}},
+        "run_subflow": {"input": {"path": "flows/subflow.scenario.json"}},
+    }
+    template = templates.get(normalized)
+    if template is None:
+        return None
+    return deepcopy(template)
+
+
 _STYLESHEET = f"""
 QMainWindow, QWidget {{
     background: {_BG};
@@ -529,6 +616,7 @@ class StudioApp(QMainWindow):
         annotations_label: QLabel
         params_text: QPlainTextEdit
         params_label: QLabel
+        params_template_button: QPushButton
         apply_step_button: QPushButton
         step_tab_index: int
         scenario_id_edit: QLineEdit
@@ -1625,6 +1713,29 @@ class StudioApp(QMainWindow):
             )
             return
         self.refresh_steps()
+
+    def insert_params_template_for_selected_action(self) -> None:
+        action = self.action_edit.text().strip()
+        if action == "" and self.selected_index is not None:
+            action = self.scenario.steps[self.selected_index].action
+        template = default_params_template_for_action(action)
+        if template is None:
+            QMessageBox.critical(
+                self,
+                self._t("app.error.params_template_unsupported.title"),
+                self._t(
+                    "app.error.params_template_unsupported.message",
+                    action=action or "-",
+                ),
+            )
+            return
+        self.params_text.setPlainText(json.dumps(template, ensure_ascii=False, indent=2))
+        self.log(
+            self._t(
+                "app.log.params_template_inserted",
+                action=_normalize_step_action_for_template(action),
+            )
+        )
 
     def start_recording(self) -> None:
         from .recorder import has_visible_window_with_hint

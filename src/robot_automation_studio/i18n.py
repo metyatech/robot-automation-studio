@@ -57,6 +57,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.button.execution_outputs": {"en": "Execution/Outputs", "ja": "実行/出力"},
     "app.button.validate": {"en": "Validate", "ja": "検証"},
     "app.button.profile_diff": {"en": "Profile Diff", "ja": "プロファイル差分"},
+    "app.button.params_template": {"en": "Insert Params Template", "ja": "パラメータ雛形を挿入"},
     "app.button.refresh_diff": {"en": "Refresh Diff", "ja": "差分を更新"},
     "app.button.add_override": {"en": "Add Override", "ja": "上書き追加"},
     "app.button.remove_override": {"en": "Remove Override", "ja": "上書き削除"},
@@ -84,6 +85,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.tooltip.go_to_issue": {
         "en": "Move focus to the UI field indicated by this validation issue.",
         "ja": "この検証エラーが示す UI 項目へフォーカスを移動します。",
+    },
+    "app.tooltip.params_template": {
+        "en": "Insert action-specific params template into Params (JSON).",
+        "ja": "アクション種別に対応する Params(JSON) の雛形を挿入します。",
     },
     "app.log.toggle.tooltip": {
         "en": "Collapse or expand Output Log.",
@@ -563,6 +568,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Failure screenshot capture failed.",
         "ja": "失敗時スクリーンショットの取得に失敗しました。",
     },
+    "app.log.params_template_inserted": {
+        "en": "Inserted params template for action: {action}",
+        "ja": "アクション {action} のパラメータ雛形を挿入しました",
+    },
     "app.log.robot_stopped": {"en": "Robot suite stopped.", "ja": "Robot を停止しました。"},
     "app.log.failed_register_hotkey": {
         "en": "Failed to register stop hotkey: {error}",
@@ -840,6 +849,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.error.step_apply_invalid.title": {
         "en": "Invalid Step",
         "ja": "ステップが不正です",
+    },
+    "app.error.params_template_unsupported.title": {
+        "en": "Template Not Available",
+        "ja": "雛形を作成できません",
+    },
+    "app.error.params_template_unsupported.message": {
+        "en": "No params template is defined for action: {action}",
+        "ja": "次のアクション用パラメータ雛形は未定義です: {action}",
     },
     "app.error.validation_navigation.title": {
         "en": "Validation Navigation Error",

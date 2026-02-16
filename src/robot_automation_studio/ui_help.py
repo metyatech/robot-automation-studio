@@ -192,6 +192,10 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Edit parameters.",
         "Action-specific payload such as selectors, coordinates, and options.",
     ),
+    "Insert Params Template": (
+        "Insert params template.",
+        "Auto-fills Params (JSON) with a safe starter template for the current action.",
+    ),
     "Apply Step Changes": (
         "Apply step edits.",
         "Validates and writes current Step Details values back into the model.",
@@ -355,6 +359,10 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
         "Choose active profile.",
         "Applies profile-specific variable overrides for export and run.",
     ),
+    "ParamsTemplateButton": (
+        "Insert params template.",
+        "Auto-fills Params (JSON) with a safe starter template for the current action.",
+    ),
     "LanguageCombo": (
         "Choose language.",
         "Switch UI language between English and Japanese.",
@@ -513,6 +521,10 @@ _KNOWN_TEXT_HELP_JA: dict[str, tuple[str, str]] = {
         "パラメータを編集します。",
         "セレクタや座標などアクション固有データです。",
     ),
+    "パラメータ雛形を挿入": (
+        "パラメータ雛形を挿入します。",
+        "現在のアクションに対応する Params(JSON) の初期雛形を自動入力します。",
+    ),
     "ステップ変更を適用": (
         "ステップ変更を適用します。",
         "現在の項目値を検証してモデルに反映します。",
@@ -611,6 +623,10 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
     "ActiveProfileCombo": (
         "適用プロファイルを選択します。",
         "エクスポート/実行時にプロファイル別の変数上書きを適用します。",
+    ),
+    "ParamsTemplateButton": (
+        "パラメータ雛形を挿入します。",
+        "現在のアクションに対応する Params(JSON) の初期雛形を自動入力します。",
     ),
     "LanguageCombo": (
         "表示言語を選択します。",

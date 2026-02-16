@@ -274,7 +274,7 @@ def _dedupe_issues(issues: list[ValidationIssue]) -> list[ValidationIssue]:
             continue
         seen.add(key)
         deduped.append(issue)
-    return deduped
+    return sorted(deduped, key=lambda item: (item.location, item.code, item.message))
 
 
 def _infer_issue_location(error_message: str) -> str:

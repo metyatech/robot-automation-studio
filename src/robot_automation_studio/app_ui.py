@@ -274,6 +274,11 @@ def build_ui(self, *, bg_light: str) -> None:
 
     step_scroll_layout.addLayout(self.step_form)
 
+    self.params_template_button = QPushButton()
+    self.params_template_button.setObjectName("ParamsTemplateButton")
+    self.params_template_button.clicked.connect(self.insert_params_template_for_selected_action)
+    step_scroll_layout.addWidget(self.params_template_button)
+
     self.apply_step_button = QPushButton()
     self.apply_step_button.setObjectName("ApplyButton")
     self.apply_step_button.clicked.connect(self.apply_step_changes)
@@ -598,6 +603,8 @@ def apply_localized_texts(self) -> None:
     self.step_continue_on_error_check.setText(self._t("app.field.step_continue_on_error"))
     self.annotations_label.setText(self._t("app.field.annotations.label"))
     self.params_label.setText(self._t("app.field.params.label"))
+    self.params_template_button.setText(self._t("app.button.params_template"))
+    self.params_template_button.setToolTip(self._t("app.tooltip.params_template"))
     self.apply_step_button.setText(self._t("app.button.apply_step"))
 
     current_step_kind = self._combo_value(self.kind_combo) or "action"
