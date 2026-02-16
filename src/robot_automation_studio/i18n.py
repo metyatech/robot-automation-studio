@@ -1020,6 +1020,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "ja": "{index}. [{code}] {message}",
     },
     "app.validation.issue.none": {"en": "No issues.", "ja": "問題はありません。"},
+    "app.validation.issue.none_clipboard": {
+        "en": "No validation issues.",
+        "ja": "検証エラーはありません。",
+    },
     "app.validation.issue.select_prompt": {
         "en": "Select an issue to view details.",
         "ja": "詳細を表示するには項目を選択してください。",

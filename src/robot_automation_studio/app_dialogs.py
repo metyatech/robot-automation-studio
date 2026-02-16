@@ -44,9 +44,13 @@ def _parse_json_or_text(raw_text: str) -> Any:
         return text
 
 
-def format_validation_issues_for_clipboard(issues: list[ValidationIssue]) -> str:
+def format_validation_issues_for_clipboard(
+    issues: list[ValidationIssue],
+    *,
+    no_issues_text: str = "No validation issues.",
+) -> str:
     if not issues:
-        return "No validation issues."
+        return str(no_issues_text or "No validation issues.")
     lines: list[str] = []
     for index, issue in enumerate(issues, start=1):
         location = str(issue.location or "").strip() or "-"
@@ -781,7 +785,10 @@ def open_validation_report_dialog(
         QApplication.clipboard().setText(line)
 
     def _copy_all_issues() -> None:
-        text = format_validation_issues_for_clipboard(report.issues)
+        text = format_validation_issues_for_clipboard(
+            report.issues,
+            no_issues_text=self._t("app.validation.issue.none_clipboard"),
+        )
         QApplication.clipboard().setText(text)
 
     issues_list.currentRowChanged.connect(_on_select)

@@ -26,3 +26,11 @@ def test_format_validation_issues_for_clipboard_with_items() -> None:
 def test_format_validation_issues_for_clipboard_without_items() -> None:
     text = format_validation_issues_for_clipboard([])
     assert text == "No validation issues."
+
+
+def test_format_validation_issues_for_clipboard_without_items_custom_text() -> None:
+    text = format_validation_issues_for_clipboard(
+        [],
+        no_issues_text="検証エラーはありません。",
+    )
+    assert text == "検証エラーはありません。"
