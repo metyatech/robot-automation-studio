@@ -107,3 +107,14 @@ def test_build_help_entry_supports_japanese_locale() -> None:
         locale="ja",
     )
     assert "種別" in entry.summary
+
+
+def test_build_help_entry_hides_generic_qlabel_fallback() -> None:
+    entry = build_help_entry(
+        widget_id="root.generic_label",
+        widget_class="QLabel",
+        widget_text="",
+        locale="ja",
+    )
+    assert entry.summary == ""
+    assert entry.detail == ""

@@ -38,3 +38,13 @@ def test_key_controls_have_actionable_help_summary() -> None:
         assert "delete step" in delete_entry.summary.lower()
     finally:
         studio.close()
+
+
+def test_help_entries_hide_generic_label_fallback_in_japanese() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="ja")
+    try:
+        summaries = [entry.summary.strip() for entry in studio._help_entries_by_id.values()]
+        assert "表示ラベルです。" not in summaries
+    finally:
+        studio.close()

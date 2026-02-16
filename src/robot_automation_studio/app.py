@@ -2145,6 +2145,8 @@ class StudioApp(QMainWindow):
             widget_text=widget_text,
             locale=self._translator.locale,
         )
+        if entry.summary.strip() == "":
+            return
         self._help_entries_by_widget[widget] = entry
         self._help_entries_by_id[entry.widget_id] = entry
         widget.setToolTip(build_help_tooltip_text(entry.summary, locale=self._translator.locale))
