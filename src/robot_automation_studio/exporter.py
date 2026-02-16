@@ -1161,8 +1161,15 @@ def _generate_robot_suite_from_resolved(
                 "    ${subflow_output}    --variable    OUTPUT_DIR:${OUTPUT DIR}"
                 "    ${resolved}    stdout=${subflow_output}${/}stdout.txt"
                 "    stderr=${subflow_output}${/}stderr.txt"
+                "    timeout=3600s    on_timeout=terminate"
             ),
-            "    Should Be Equal As Integers    ${result.rc}    0",
+            "    IF    ${result.rc} != 0",
+            (
+                "        Fail    Subflow failed rc=${result.rc}. "
+                "stdout=${subflow_output}${/}stdout.txt "
+                "stderr=${subflow_output}${/}stderr.txt"
+            ),
+            "    END",
             "",
             "Start Robot Subflow Process",
             "    [Arguments]    ${suite_path}    ${alias}",
@@ -1181,8 +1188,15 @@ def _generate_robot_suite_from_resolved(
             "Wait Robot Subflow Processes",
             "    [Arguments]    @{aliases}",
             "    FOR    ${alias}    IN    @{aliases}",
-            "        ${result}=    Wait For Process    ${alias}",
-            "        Should Be Equal As Integers    ${result.rc}    0",
+            "        ${subflow_output}=    Join Path    ${OUTPUT DIR}    subflows    ${alias}",
+            "        ${result}=    Wait For Process    ${alias}    timeout=3600s",
+            "        IF    ${result.rc} != 0",
+            (
+                "            Fail    Subflow process failed alias=${alias} rc=${result.rc}. "
+                "stdout=${subflow_output}${/}stdout.txt "
+                "stderr=${subflow_output}${/}stderr.txt"
+            ),
+            "        END",
             "    END",
             "",
             "Resolve Robot Subflow Path",

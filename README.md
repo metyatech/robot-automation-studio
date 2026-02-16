@@ -15,6 +15,10 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 - v2 Robot export coverage:
   - control flow: `if`, `for_each`, `while`, `try`, `parallel`, `break`, `continue`, `return`, `group`
   - action extensions: `open_url`, `select_hierarchy`, `double_click`, `right_click`, `assert`, `emit_annotation`, `run_subflow`, `start_video`, `stop_video`
+  - subflow execution diagnostics:
+    - captures subflow `stdout.txt` / `stderr.txt`
+    - reports rc + log paths on failure
+    - applies explicit `3600s` timeout for subflow execution/wait
 - Preflight validation before export/run:
   - fail-fast with issue list dialog when scenario is invalid
   - explicit diagnostics for unresolved placeholders (with field path)

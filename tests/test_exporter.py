@@ -625,6 +625,26 @@ def test_generate_robot_suite_subflow_execution_captures_stdout_and_stderr() -> 
     )
 
 
+def test_generate_robot_suite_subflow_failure_message_includes_log_paths() -> None:
+    scenario = Scenario(
+        name="Run Subflow Failure Message",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="run-subflow-failure-message")
+    assert "Fail    Subflow failed rc=${result.rc}." in text
+    assert "stdout=${subflow_output}${/}stdout.txt" in text
+    assert "stderr=${subflow_output}${/}stderr.txt" in text
+    assert "timeout=3600s    on_timeout=terminate" in text
+
+
 def test_generate_robot_suite_resolves_relative_subflow_paths_from_suite_dir() -> None:
     scenario = Scenario(
         name="Run Subflow Relative",
@@ -692,6 +712,8 @@ def test_generate_robot_suite_supports_parallel_control_with_subflow_branches() 
     assert "Wait Robot Subflow Processes" in text
     assert "flows/a.robot" in text
     assert "flows/b.robot" in text
+    assert "Fail    Subflow process failed alias=${alias}" in text
+    assert "Wait For Process    ${alias}    timeout=3600s" in text
 
 
 def test_generate_robot_suite_fails_fast_for_parallel_with_non_subflow_step() -> None:
