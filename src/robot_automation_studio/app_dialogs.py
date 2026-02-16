@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from .models import Scenario
-from .preflight_validation import ValidationReport
+from .preflight_validation import ValidationIssue, ValidationReport
 from .profile_diff import ProfileDiffEntry, build_profile_diff
 
 
@@ -41,6 +41,50 @@ def _parse_json_or_text(raw_text: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError:
         return text
+
+
+def _parse_variable_default_by_type(
+    *,
+    variable_type: str,
+    default_text: str,
+) -> Any:
+    normalized_type = str(variable_type or "").strip().lower()
+    raw = str(default_text or "")
+    stripped = raw.strip()
+
+    if normalized_type in {"string", "str", "path", ""}:
+        return raw
+    if normalized_type in {"int", "integer"}:
+        if stripped == "":
+            return ""
+        try:
+            return int(stripped)
+        except ValueError as error:
+            raise ValueError(f"Invalid int value: {raw}") from error
+    if normalized_type in {"float", "double", "number"}:
+        if stripped == "":
+            return ""
+        try:
+            return float(stripped)
+        except ValueError as error:
+            raise ValueError(f"Invalid float value: {raw}") from error
+    if normalized_type in {"bool", "boolean"}:
+        if stripped == "":
+            return ""
+        lowered = stripped.lower()
+        if lowered in {"true", "1", "yes", "on"}:
+            return True
+        if lowered in {"false", "0", "no", "off"}:
+            return False
+        raise ValueError(f"Invalid bool value: {raw}")
+    if normalized_type in {"json", "object", "array", "list", "dict", "map"}:
+        if stripped == "":
+            return ""
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError as error:
+            raise ValueError(f"Invalid json value: {raw}") from error
+    return raw
 
 
 def normalize_variable_form_payload(
@@ -60,7 +104,10 @@ def normalize_variable_form_payload(
         "id": normalized_id,
         "type": normalized_type,
         "required": bool(required),
-        "default": str(default_text or ""),
+        "default": _parse_variable_default_by_type(
+            variable_type=normalized_type,
+            default_text=default_text,
+        ),
     }
 
 
@@ -636,6 +683,10 @@ def open_validation_report_dialog(
     details = QPlainTextEdit()
     details.setReadOnly(True)
     details.setFont(QFont("Consolas", 9))
+    go_to_button = QPushButton(self._t("app.button.go_to_issue"))
+    go_to_button.setObjectName("ApplyButton")
+    go_to_button.setToolTip(self._t("app.tooltip.go_to_issue"))
+    go_to_button.setEnabled(False)
 
     splitter = QSplitter(Qt.Orientation.Horizontal)
     splitter.addWidget(issues_list)
@@ -657,28 +708,64 @@ def open_validation_report_dialog(
     else:
         issues_list.addItem(self._t("app.validation.issue.none"))
 
+    def _selected_issue() -> ValidationIssue | None:
+        row = issues_list.currentRow()
+        if row < 0 or row >= len(report.issues):
+            return None
+        return report.issues[row]
+
     def _on_select(row: int) -> None:
         if row < 0 or row >= len(report.issues):
             if report.issues:
                 details.setPlainText(self._t("app.validation.issue.select_prompt"))
             else:
                 details.setPlainText(self._t("app.validation.issue.none_detail"))
+            go_to_button.setEnabled(False)
             return
         issue = report.issues[row]
+        location = str(issue.location or "").strip()
         details.setPlainText(
             self._t(
                 "app.validation.issue.detail",
                 code=issue.code,
-                location=issue.location or "-",
+                location=location or "-",
                 message=issue.message,
             )
         )
+        go_to_button.setEnabled(location != "")
+
+    def _go_to_issue_location() -> None:
+        issue = _selected_issue()
+        if issue is None:
+            return
+        location = str(issue.location or "").strip()
+        if location == "":
+            return
+        try:
+            focused = bool(self.focus_validation_issue_location(location))
+        except Exception as error:
+            QMessageBox.critical(
+                dialog,
+                self._t("app.error.validation_navigation.title"),
+                str(error),
+            )
+            return
+        if focused:
+            dialog.accept()
+            return
+        QMessageBox.information(
+            dialog,
+            self._t("app.info.validation_navigation_unavailable.title"),
+            self._t("app.info.validation_navigation_unavailable.message", location=location),
+        )
 
     issues_list.currentRowChanged.connect(_on_select)
+    go_to_button.clicked.connect(_go_to_issue_location)
     issues_list.setCurrentRow(0)
     _on_select(0)
 
     footer = QHBoxLayout()
+    footer.addWidget(go_to_button)
     footer.addStretch()
     close_button = QPushButton(self._t("app.button.close"))
     close_button.clicked.connect(dialog.accept)

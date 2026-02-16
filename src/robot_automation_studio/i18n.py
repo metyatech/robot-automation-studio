@@ -61,6 +61,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.button.add_override": {"en": "Add Override", "ja": "上書き追加"},
     "app.button.remove_override": {"en": "Remove Override", "ja": "上書き削除"},
     "app.button.close": {"en": "Close", "ja": "閉じる"},
+    "app.button.go_to_issue": {"en": "Go To Location", "ja": "該当箇所へ移動"},
     "app.button.cancel": {"en": "Cancel", "ja": "キャンセル"},
     "app.button.apply": {"en": "Apply", "ja": "適用"},
     "app.button.format": {"en": "Format", "ja": "整形"},
@@ -79,6 +80,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.tooltip.stop_hotkey": {
         "en": "Configure emergency stop hotkey.",
         "ja": "緊急停止ホットキーを設定します。",
+    },
+    "app.tooltip.go_to_issue": {
+        "en": "Move focus to the UI field indicated by this validation issue.",
+        "ja": "この検証エラーが示す UI 項目へフォーカスを移動します。",
     },
     "app.log.toggle.tooltip": {
         "en": "Collapse or expand Output Log.",
@@ -315,6 +320,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.info.run_diagnostics_unavailable.message": {
         "en": "Run diagnostics are not available yet. Run Robot first.",
         "ja": "実行診断はまだありません。先に Robot を実行してください。",
+    },
+    "app.info.validation_navigation_unavailable.title": {
+        "en": "Navigation Not Available",
+        "ja": "移動先が見つかりません",
+    },
+    "app.info.validation_navigation_unavailable.message": {
+        "en": "Could not map this issue location to an editable UI field: {location}",
+        "ja": "このエラー位置を編集可能な UI 項目へ割り当てできませんでした: {location}",
     },
     "app.dialog.run_diagnostics.title": {
         "en": "Run Diagnostics",
@@ -820,6 +833,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     },
     "app.error.export.title": {"en": "Export Error", "ja": "エクスポートエラー"},
     "app.error.run.title": {"en": "Run Error", "ja": "実行エラー"},
+    "app.error.validation_navigation.title": {
+        "en": "Validation Navigation Error",
+        "ja": "検証エラー移動に失敗しました",
+    },
     "app.error.recording_in_progress.title": {"en": "Recording In Progress", "ja": "記録中です"},
     "app.error.hotkey_invalid.title": {"en": "Invalid Hotkey", "ja": "ホットキーが不正です"},
     "app.error.hotkey_register_failed.title": {

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from .exporter import validate_exportable_scenario
 from .models import Scenario
+
+_AT_PATH_RE = re.compile(r"\sat\s([A-Za-z0-9_.\[\]-]+)$")
+_MISSING_VARIABLE_RE = re.compile(r"required variable '([A-Za-z0-9_-]+)' is missing")
 
 
 @dataclass(slots=True)
@@ -23,6 +27,24 @@ class ValidationReport:
     @property
     def is_valid(self) -> bool:
         return len(self.issues) == 0
+
+
+def _infer_issue_location(error_message: str) -> str:
+    text = str(error_message or "").strip()
+    if text == "":
+        return "scenario"
+
+    at_path_match = _AT_PATH_RE.search(text)
+    if at_path_match is not None:
+        return at_path_match.group(1)
+
+    missing_variable_match = _MISSING_VARIABLE_RE.search(text)
+    if missing_variable_match is not None:
+        return f"variables.{missing_variable_match.group(1)}.default"
+
+    if text.startswith("Unknown profile:"):
+        return "execution.active_profile"
+    return "scenario"
 
 
 def validate_scenario(
@@ -43,7 +65,7 @@ def validate_scenario(
             ValidationIssue(
                 code="scenario.invalid",
                 message=str(error),
-                location="scenario",
+                location=_infer_issue_location(str(error)),
             )
         )
         return report

@@ -31,6 +31,41 @@ def test_normalize_variable_form_payload_rejects_empty_id() -> None:
         )
 
 
+def test_normalize_variable_form_payload_parses_typed_defaults() -> None:
+    int_payload = normalize_variable_form_payload(
+        variable_id="retry_count",
+        variable_type="int",
+        required=False,
+        default_text="3",
+    )
+    bool_payload = normalize_variable_form_payload(
+        variable_id="enabled",
+        variable_type="bool",
+        required=False,
+        default_text="true",
+    )
+    json_payload = normalize_variable_form_payload(
+        variable_id="settings",
+        variable_type="json",
+        required=False,
+        default_text='{"quality":"high"}',
+    )
+
+    assert int_payload["default"] == 3
+    assert bool_payload["default"] is True
+    assert json_payload["default"] == {"quality": "high"}
+
+
+def test_normalize_variable_form_payload_rejects_invalid_typed_default() -> None:
+    with pytest.raises(ValueError, match="Invalid int value"):
+        normalize_variable_form_payload(
+            variable_id="retry_count",
+            variable_type="int",
+            required=False,
+            default_text="abc",
+        )
+
+
 def test_normalize_profile_form_payload_parses_override_rows() -> None:
     payload = normalize_profile_form_payload(
         profile_name="vrchat",

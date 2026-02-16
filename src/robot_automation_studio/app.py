@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -1886,6 +1887,120 @@ class StudioApp(QMainWindow):
 
     def open_profile_diff_preview(self) -> None:
         app_dialogs.open_profile_diff_preview_dialog(self)
+
+    def _focus_widget_in_tab(self, widget: QWidget, *, tab_index: int | None = None) -> bool:
+        if tab_index is not None:
+            self.main_tabs.setCurrentIndex(tab_index)
+        widget.setFocus(Qt.FocusReason.OtherFocusReason)
+        return True
+
+    def focus_validation_issue_location(self, location: str) -> bool:
+        normalized = str(location or "").strip()
+        if normalized == "":
+            return False
+
+        step_match = re.match(r"^steps\[(\d+)\](?:\.(.*))?$", normalized)
+        if step_match is not None:
+            step_index = int(step_match.group(1))
+            if step_index < 0 or step_index >= len(self.scenario.steps):
+                return False
+            self.main_tabs.setCurrentIndex(self.step_tab_index)
+            self.step_list.setCurrentRow(step_index)
+            self.on_select_step(step_index)
+
+            field_path = str(step_match.group(2) or "").strip().lower()
+            if field_path.startswith("id"):
+                return self._focus_widget_in_tab(self.step_id_edit, tab_index=self.step_tab_index)
+            if field_path.startswith("title"):
+                return self._focus_widget_in_tab(self.title_edit, tab_index=self.step_tab_index)
+            if field_path.startswith("kind"):
+                return self._focus_widget_in_tab(self.kind_combo, tab_index=self.step_tab_index)
+            if field_path.startswith("action"):
+                return self._focus_widget_in_tab(self.action_edit, tab_index=self.step_tab_index)
+            if field_path.startswith("control"):
+                return self._focus_widget_in_tab(self.control_edit, tab_index=self.step_tab_index)
+            if field_path.startswith("description"):
+                return self._focus_widget_in_tab(
+                    self.step_description_edit, tab_index=self.step_tab_index
+                )
+            if field_path.startswith("condition"):
+                return self._focus_widget_in_tab(
+                    self.step_condition_edit, tab_index=self.step_tab_index
+                )
+            if field_path.startswith("disabled"):
+                return self._focus_widget_in_tab(
+                    self.step_disabled_check, tab_index=self.step_tab_index
+                )
+            if field_path.startswith("continue_on_error"):
+                return self._focus_widget_in_tab(
+                    self.step_continue_on_error_check, tab_index=self.step_tab_index
+                )
+            if field_path.startswith("annotations"):
+                return self._focus_widget_in_tab(
+                    self.annotations_text, tab_index=self.step_tab_index
+                )
+            return self._focus_widget_in_tab(self.params_text, tab_index=self.step_tab_index)
+
+        if normalized == "name":
+            self.name_edit.setFocus(Qt.FocusReason.OtherFocusReason)
+            return True
+        if normalized.startswith("description"):
+            return self._focus_widget_in_tab(
+                self.description_edit,
+                tab_index=self.scenario_tab_index,
+            )
+        if normalized.startswith("execution.active_profile"):
+            return self._focus_widget_in_tab(
+                self.active_profile_combo,
+                tab_index=self.scenario_tab_index,
+            )
+        if normalized.startswith("execution.mode") or normalized.startswith(
+            f"metadata.{UNITY_EXECUTION_MODE_KEY}"
+        ):
+            return self._focus_widget_in_tab(
+                self.execution_mode_combo,
+                tab_index=self.scenario_tab_index,
+            )
+        if normalized.startswith(f"metadata.{UNITY_PROJECT_PATH_KEY}") or normalized.startswith(
+            "variables.unity_project_path."
+        ):
+            return self._focus_widget_in_tab(
+                self.project_path_edit,
+                tab_index=self.scenario_tab_index,
+            )
+        if normalized.startswith("metadata.target_window_hint") or normalized.startswith(
+            "variables.unity_window_hint."
+        ):
+            return self._focus_widget_in_tab(
+                self.window_hint_edit,
+                tab_index=self.scenario_tab_index,
+            )
+        if normalized.startswith("execution") or normalized.startswith("metadata"):
+            return self._focus_widget_in_tab(
+                self.execution_mode_combo,
+                tab_index=self.scenario_tab_index,
+            )
+        if normalized.startswith("variables"):
+            return self._focus_widget_in_tab(
+                self.variables_button,
+                tab_index=self.scenario_tab_index,
+            )
+        if normalized.startswith("profiles"):
+            return self._focus_widget_in_tab(
+                self.profiles_button,
+                tab_index=self.scenario_tab_index,
+            )
+        if normalized.startswith("outputs"):
+            return self._focus_widget_in_tab(
+                self.export_name_edit,
+                tab_index=self.export_tab_index,
+            )
+        if normalized == "scenario":
+            return self._focus_widget_in_tab(
+                self.scenario_id_edit,
+                tab_index=self.scenario_tab_index,
+            )
+        return False
 
     def _validate_scenario_preflight(self, *, log_issues: bool) -> ValidationReport:
         self._sync_scenario_header()

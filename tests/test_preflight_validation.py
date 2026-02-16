@@ -49,3 +49,39 @@ def test_validate_scenario_reports_unresolved_placeholder() -> None:
     assert report.is_valid is False
     assert len(report.issues) >= 1
     assert "Unresolved placeholder" in report.issues[0].message
+    assert report.issues[0].location == "steps[0].target.uia.title"
+
+
+def test_validate_scenario_reports_required_variable_location() -> None:
+    scenario = Scenario(
+        name="Missing required variable",
+        variables=[
+            {
+                "id": "unity_project_path",
+                "type": "path",
+                "required": True,
+                "default": "",
+            }
+        ],
+        steps=[],
+    )
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is False
+    assert len(report.issues) >= 1
+    assert "required variable" in report.issues[0].message
+    assert report.issues[0].location == "variables.unity_project_path.default"
+
+
+def test_validate_scenario_reports_unknown_profile_location() -> None:
+    scenario = Scenario(
+        name="Unknown profile",
+        execution={"active_profile": "missing-profile"},
+        steps=[],
+    )
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is False
+    assert len(report.issues) >= 1
+    assert "Unknown profile" in report.issues[0].message
+    assert report.issues[0].location == "execution.active_profile"
