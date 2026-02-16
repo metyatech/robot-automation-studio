@@ -652,27 +652,65 @@ def _step_robot_lines_from_payload(
     if action == "double_click":
         target = _require_selector(step_payload, "double_click")
         strategy = str(target.get("strategy") or "").strip().lower()
-        if strategy != "coordinate":
-            raise ValueError("double_click currently supports coordinate target strategy only.")
-        coordinate = target.get("coordinate")
-        if not isinstance(coordinate, dict):
-            raise ValueError("double_click coordinate target must include coordinate object.")
-        x_ratio = coordinate.get("x_ratio")
-        y_ratio = coordinate.get("y_ratio")
-        if x_ratio is None or y_ratio is None:
-            raise ValueError("double_click coordinate target requires x_ratio and y_ratio.")
-        lines = [
-            f"{indent}${{annotation}}=    Double Click Unity Relative    {x_ratio}    {y_ratio}",
-            f"{indent}Wait For Seconds    {wait_seconds}",
-            f"{indent}Emit Annotation Metadata    ${{annotation}}",
-        ]
-        return _apply_step_guards(
-            step_payload=step_payload,
-            lines=lines,
-            indent=indent,
-            path=path,
-            title=title,
-        )
+        if strategy == "coordinate":
+            coordinate = target.get("coordinate")
+            if not isinstance(coordinate, dict):
+                raise ValueError("double_click coordinate target must include coordinate object.")
+            x_ratio = coordinate.get("x_ratio")
+            y_ratio = coordinate.get("y_ratio")
+            if x_ratio is None or y_ratio is None:
+                raise ValueError("double_click coordinate target requires x_ratio and y_ratio.")
+            lines = [
+                (
+                    f"{indent}${{annotation}}=    Double Click Unity Relative"
+                    f"    {x_ratio}    {y_ratio}"
+                ),
+                f"{indent}Wait For Seconds    {wait_seconds}",
+                f"{indent}Emit Annotation Metadata    ${{annotation}}",
+            ]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if strategy == "uia":
+            uia = target.get("uia")
+            if not isinstance(uia, dict):
+                raise ValueError("double_click uia target must include uia object.")
+            timeout_seconds = _timeout_seconds_from_step(step_payload, default=10.0)
+            args = _uia_selector_args(uia)
+            args["timeout_seconds"] = timeout_seconds
+            selector_args = _robot_named_args(
+                args,
+                (
+                    "title",
+                    "automation_id",
+                    "class_name",
+                    "control_type",
+                    "index",
+                    "timeout_seconds",
+                ),
+            )
+            if selector_args == "":
+                raise ValueError(
+                    "double_click uia target requires selector fields "
+                    "(title/automation_id/class_name/control_type)."
+                )
+            lines = [
+                f"{indent}${{annotation}}=    Double Click Unity Element{selector_args}",
+                f"{indent}Wait For Seconds    {wait_seconds}",
+                f"{indent}Emit Annotation Metadata    ${{annotation}}",
+            ]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        raise ValueError(f"Unsupported double_click target strategy: {strategy}")
 
     if action == "right_click":
         target = _require_selector(step_payload, "right_click")
@@ -946,29 +984,55 @@ def _generate_robot_suite_from_resolved(
                 path=f"steps[{index}]",
             )
         )
-    lines.extend(
-        [
-            "    FINALLY",
-            "        IF    '${unity_mode}' == 'launch'",
-            "            Stop Unity Editor",
-            "        END",
-            "    END",
-            "",
-            "*** Keywords ***",
-            "Emit Annotation Metadata",
-            "    [Arguments]    ${annotation}",
-            "    ${metadata}=    Create Dictionary    annotation=${annotation}",
-            "    Emit DOCMETA    ${metadata}",
-            "",
-            "Require Unity Project Path",
-            "    [Arguments]    ${project_path}",
-            "    ${normalized}=    Evaluate    str($project_path).strip()",
-            "    IF    '${normalized}' == ''",
-            "        Fail    unity_project_path is required when unity_mode is launch.",
-            "    END",
-            "",
-        ]
-    )
+        lines.extend(
+            [
+                "    FINALLY",
+                "        IF    '${unity_mode}' == 'launch'",
+                "            Stop Unity Editor",
+                "        END",
+                "    END",
+                "",
+                "*** Keywords ***",
+                "Emit Annotation Metadata",
+                "    [Arguments]    ${annotation}",
+                "    ${metadata}=    Create Dictionary    annotation=${annotation}",
+                "    Emit DOCMETA    ${metadata}",
+                "",
+                "Require Unity Project Path",
+                "    [Arguments]    ${project_path}",
+                "    ${normalized}=    Evaluate    str($project_path).strip()",
+                "    IF    '${normalized}' == ''",
+                "        Fail    unity_project_path is required when unity_mode is launch.",
+                "    END",
+                "",
+                "Double Click Unity Element",
+                (
+                    "    [Arguments]    ${title}=${None}    ${automation_id}=${None}"
+                    "    ${class_name}=${None}    ${control_type}=${None}"
+                    "    ${index}=${None}    ${timeout_seconds}=10.0"
+                ),
+                (
+                    "    ${rect}=    Get Unity Element Rect    title=${title}"
+                    "    automation_id=${automation_id}    class_name=${class_name}"
+                    "    control_type=${control_type}    index=${index}"
+                    "    timeout_seconds=${timeout_seconds}"
+                ),
+                "    ${window}=    Get Unity Window Rect",
+                (
+                    "    ${x_ratio}=    Evaluate"
+                    "    (float($rect['left']) + (float($rect['width']) / 2.0)"
+                    " - float($window['left'])) / max(1.0, float($window['width']))"
+                ),
+                (
+                    "    ${y_ratio}=    Evaluate"
+                    "    (float($rect['top']) + (float($rect['height']) / 2.0)"
+                    " - float($window['top'])) / max(1.0, float($window['height']))"
+                ),
+                "    ${annotation}=    Double Click Unity Relative    ${x_ratio}    ${y_ratio}",
+                "    RETURN    ${annotation}",
+                "",
+            ]
+        )
     return "\n".join(lines)
 
 

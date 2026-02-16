@@ -135,7 +135,7 @@ def test_generate_robot_suite_handles_hierarchy_path_click() -> None:
         "Wait Until Keyword Succeeds    45 sec    1 sec    Select Unity Hierarchy Object"
         "    hierarchy_path=AvatarRoot/Hair/Tail    timeout_seconds=4.0"
     ) in text
-    assert "Click Unity Element" not in text
+    assert "${annotation}=    Click Unity Element" not in text
 
 
 def test_generate_robot_suite_supports_coordinate_click() -> None:
@@ -347,6 +347,35 @@ def test_generate_robot_suite_supports_double_click_coordinate() -> None:
     assert "Double Click Unity Relative    0.4    0.7" in text
 
 
+def test_generate_robot_suite_supports_double_click_uia() -> None:
+    scenario = Scenario(
+        name="Double Click UIA",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="double_click",
+                title="Double click inspector",
+                params={
+                    "target": {
+                        "strategy": "uia",
+                        "uia": {
+                            "title": "Inspector",
+                            "automation_id": "Inspector",
+                            "class_name": "Pane",
+                            "control_type": "Pane",
+                        },
+                    },
+                    "timing": {"timeout_seconds": 8.0},
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="double-click-uia")
+    assert "Double Click Unity Element" in text
+    assert "timeout_seconds=8.0" in text
+
+
 def test_generate_robot_suite_supports_right_click_coordinate() -> None:
     scenario = Scenario(
         name="Right Click",
@@ -367,6 +396,34 @@ def test_generate_robot_suite_supports_right_click_coordinate() -> None:
 
     text = generate_robot_suite(scenario, suite_name="right-click")
     assert "Right Click Unity Relative    0.5    0.8" in text
+
+
+def test_generate_robot_suite_supports_right_click_uia() -> None:
+    scenario = Scenario(
+        name="Right Click UIA",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="right_click",
+                title="Right click inspector",
+                params={
+                    "target": {
+                        "strategy": "uia",
+                        "uia": {
+                            "title": "Inspector",
+                            "automation_id": "Inspector",
+                            "class_name": "Pane",
+                            "control_type": "Pane",
+                        },
+                    }
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="right-click-uia")
+    assert "Click Unity Element    title=Inspector" in text
+    assert "button=right" in text
 
 
 def test_generate_robot_suite_supports_assert_condition() -> None:
