@@ -606,6 +606,51 @@ def test_generate_robot_suite_supports_run_subflow_action() -> None:
     assert "Run Robot Subflow" in text
 
 
+def test_generate_robot_suite_uses_configured_subflow_timeout_seconds() -> None:
+    scenario = Scenario(
+        name="Run Subflow Timeout",
+        target_window_hint="Unity",
+        execution={"subflow_timeout_seconds": 90},
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="run-subflow-timeout")
+    assert "timeout=90s    on_timeout=terminate" in text
+    assert "Wait For Process    ${alias}    timeout=90s" in text
+    assert "Subflow timed out after 90s." in text
+    assert "Subflow process timed out alias=${alias} after 90s." in text
+
+
+def test_generate_robot_suite_fails_fast_for_invalid_subflow_timeout_seconds() -> None:
+    scenario = Scenario(
+        name="Run Subflow Timeout Invalid",
+        target_window_hint="Unity",
+        execution={"subflow_timeout_seconds": "abc"},
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"subflow_timeout_seconds must be a positive integer"
+            r" at execution\.subflow_timeout_seconds"
+        ),
+    ):
+        generate_robot_suite(scenario, suite_name="run-subflow-timeout-invalid")
+
+
 def test_generate_robot_suite_subflow_execution_captures_stdout_and_stderr() -> None:
     scenario = Scenario(
         name="Run Subflow Logs",

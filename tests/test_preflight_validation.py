@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+
 from robot_automation_studio.models import Scenario, Step
 from robot_automation_studio.preflight_validation import validate_scenario
 
@@ -132,3 +134,97 @@ def test_validate_scenario_reports_nested_control_step_location() -> None:
     assert report.is_valid is False
     assert len(report.issues) >= 1
     assert report.issues[0].location == "steps[0].steps"
+
+
+def test_validate_scenario_reports_invalid_subflow_timeout_location() -> None:
+    scenario = Scenario(
+        name="Invalid subflow timeout",
+        execution={"subflow_timeout_seconds": "abc"},
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is False
+    assert len(report.issues) >= 1
+    assert report.issues[0].code == "execution.subflow_timeout.invalid"
+    assert report.issues[0].location == "execution.subflow_timeout_seconds"
+
+
+def test_validate_scenario_reports_missing_ffmpeg_for_start_video(
+    monkeypatch,
+) -> None:
+    scenario = Scenario(
+        name="Missing ffmpeg",
+        steps=[
+            Step(
+                action="start_video",
+                title="Start capture",
+                params={"input": {"path": "videos/run.mp4"}},
+            )
+        ],
+    )
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is False
+    assert len(report.issues) >= 1
+    assert report.issues[0].code == "tooling.ffmpeg_missing"
+    assert report.issues[0].location == "steps[0].input.path"
+
+
+def test_validate_scenario_allows_start_video_when_ffmpeg_available(
+    monkeypatch,
+) -> None:
+    scenario = Scenario(
+        name="ffmpeg available",
+        steps=[
+            Step(
+                action="start_video",
+                title="Start capture",
+                params={"input": {"path": "videos/run.mp4"}},
+            )
+        ],
+    )
+    monkeypatch.setattr(shutil, "which", lambda _name: "C:/ffmpeg/bin/ffmpeg.exe")
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is True
+    assert report.issues == []
+
+
+def test_validate_scenario_reports_missing_ffmpeg_for_nested_start_video(
+    monkeypatch,
+) -> None:
+    scenario = Scenario(
+        name="Missing ffmpeg nested",
+        steps=[
+            Step(
+                kind="control",
+                control="if",
+                title="If",
+                params={
+                    "expression": "True",
+                    "steps": [
+                        Step(
+                            action="start_video",
+                            title="Start capture",
+                            params={"input": {"path": "videos/run.mp4"}},
+                        ).to_dict()
+                    ],
+                },
+            )
+        ],
+    )
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is False
+    assert len(report.issues) >= 1
+    assert report.issues[0].code == "tooling.ffmpeg_missing"
+    assert report.issues[0].location == "steps[0].steps[0].input.path"

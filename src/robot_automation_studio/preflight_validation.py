@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -187,6 +188,42 @@ def _collect_required_variable_issues(
     return issues
 
 
+def _collect_execution_issues(payload: dict[str, Any]) -> list[ValidationIssue]:
+    execution = payload.get("execution")
+    if not isinstance(execution, dict):
+        return []
+    raw_timeout = execution.get("subflow_timeout_seconds")
+    if raw_timeout in (None, ""):
+        return []
+    if isinstance(raw_timeout, bool):
+        return [
+            ValidationIssue(
+                code="execution.subflow_timeout.invalid",
+                location="execution.subflow_timeout_seconds",
+                message="subflow_timeout_seconds must be a positive integer.",
+            )
+        ]
+    try:
+        parsed = int(str(raw_timeout).strip())
+    except (TypeError, ValueError):
+        return [
+            ValidationIssue(
+                code="execution.subflow_timeout.invalid",
+                location="execution.subflow_timeout_seconds",
+                message="subflow_timeout_seconds must be a positive integer.",
+            )
+        ]
+    if parsed <= 0:
+        return [
+            ValidationIssue(
+                code="execution.subflow_timeout.invalid",
+                location="execution.subflow_timeout_seconds",
+                message="subflow_timeout_seconds must be a positive integer.",
+            )
+        ]
+    return []
+
+
 def _iter_string_leaves(value: Any, *, path: str) -> list[tuple[str, str]]:
     if isinstance(value, dict):
         pairs: list[tuple[str, str]] = []
@@ -268,6 +305,68 @@ def _collect_step_exportability_issues(scenario: Scenario) -> list[ValidationIss
     return issues
 
 
+def _iter_step_payloads(raw_steps: Any, *, path: str) -> list[tuple[str, dict[str, Any]]]:
+    if not isinstance(raw_steps, list):
+        return []
+    collected: list[tuple[str, dict[str, Any]]] = []
+    for index, item in enumerate(raw_steps):
+        if not isinstance(item, dict):
+            continue
+        step_path = f"{path}[{index}]"
+        collected.append((step_path, item))
+        kind = str(item.get("kind") or "action").strip().lower()
+        if kind == "group":
+            collected.extend(_iter_step_payloads(item.get("steps"), path=f"{step_path}.steps"))
+            continue
+        if kind != "control":
+            continue
+        collected.extend(_iter_step_payloads(item.get("steps"), path=f"{step_path}.steps"))
+        collected.extend(
+            _iter_step_payloads(item.get("catch_steps"), path=f"{step_path}.catch_steps")
+        )
+        collected.extend(
+            _iter_step_payloads(item.get("finally_steps"), path=f"{step_path}.finally_steps")
+        )
+        branches = item.get("branches")
+        if not isinstance(branches, list):
+            continue
+        for branch_index, branch in enumerate(branches):
+            if not isinstance(branch, dict):
+                continue
+            collected.extend(
+                _iter_step_payloads(
+                    branch.get("steps"),
+                    path=f"{step_path}.branches[{branch_index}].steps",
+                )
+            )
+    return collected
+
+
+def _collect_tooling_issues(scenario: Scenario) -> list[ValidationIssue]:
+    payload = scenario.to_dict()
+    step_payloads = _iter_step_payloads(payload.get("steps"), path="steps")
+    start_video_locations: list[str] = []
+    for step_path, step_payload in step_payloads:
+        kind = str(step_payload.get("kind") or "action").strip().lower()
+        if kind != "action":
+            continue
+        action = str(step_payload.get("action") or "").strip().lower()
+        if action != "start_video":
+            continue
+        start_video_locations.append(f"{step_path}.input.path")
+    if not start_video_locations:
+        return []
+    if shutil.which("ffmpeg") is not None:
+        return []
+    return [
+        ValidationIssue(
+            code="tooling.ffmpeg_missing",
+            location=start_video_locations[0],
+            message="ffmpeg not found in PATH. Install ffmpeg or add it to PATH.",
+        )
+    ]
+
+
 def _dedupe_issues(issues: list[ValidationIssue]) -> list[ValidationIssue]:
     deduped: list[ValidationIssue] = []
     seen: set[tuple[str, str, str]] = set()
@@ -318,10 +417,12 @@ def validate_scenario(
         variable_defs,
         overrides=profile_overrides,
     )
+    execution_issues = _collect_execution_issues(payload)
     unresolved_placeholder_issues = _collect_unresolved_placeholder_issues(
         payload,
         variable_defs=variable_defs,
     )
+    tooling_issues = _collect_tooling_issues(scenario)
     step_issues = _collect_step_exportability_issues(scenario)
 
     all_issues = _dedupe_issues(
@@ -329,7 +430,9 @@ def validate_scenario(
             *variable_issues,
             *profile_issues,
             *required_issues,
+            *execution_issues,
             *unresolved_placeholder_issues,
+            *tooling_issues,
             *step_issues,
         ]
     )

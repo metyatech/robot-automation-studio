@@ -80,6 +80,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Open Diagnostics Dir",
         "ja": "診断フォルダを開く",
     },
+    "app.button.open_subflow_logs_dir": {
+        "en": "Open Subflow Logs",
+        "ja": "子フローログを開く",
+    },
     "app.label.steps": {"en": "Steps", "ja": "ステップ"},
     "app.label.output_log": {"en": "Output Log", "ja": "出力ログ"},
     "app.tooltip.delete_step": {"en": "Delete step", "ja": "ステップを削除"},
@@ -102,6 +106,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.tooltip.open_output_dir": {
         "en": "Open the current output directory in file explorer.",
         "ja": "現在の出力フォルダをエクスプローラーで開きます。",
+    },
+    "app.tooltip.subflow_timeout": {
+        "en": "Timeout in seconds for run_subflow and parallel subflow waits.",
+        "ja": "run_subflow と parallel 子フロー待機のタイムアウト秒数です。",
     },
     "app.tooltip.step_validation": {
         "en": "Shows whether the current step is runnable/exportable.",
@@ -193,6 +201,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.field.window_hint.label": {"en": "Window Hint", "ja": "ウィンドウヒント"},
     "app.field.window_hint.placeholder": {"en": "Unity", "ja": "Unity"},
     "app.field.execution_mode.label": {"en": "Execution Mode", "ja": "実行モード"},
+    "app.field.subflow_timeout.label": {"en": "Subflow Timeout (s)", "ja": "子フロー待機 (秒)"},
+    "app.field.subflow_timeout.placeholder": {"en": "3600", "ja": "3600"},
     "app.field.active_profile.label": {"en": "Active Profile", "ja": "適用プロファイル"},
     "app.field.unity_project_path.label": {
         "en": "Unity Project Path",
@@ -616,6 +626,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Failed to open diagnostics directory: {error}",
         "ja": "診断フォルダを開けませんでした: {error}",
     },
+    "app.log.opened_subflow_logs_dir": {
+        "en": "Opened subflow logs directory: {path}",
+        "ja": "子フローログフォルダを開きました: {path}",
+    },
+    "app.log.open_subflow_logs_dir_failed": {
+        "en": "Failed to open subflow logs directory: {error}",
+        "ja": "子フローログフォルダを開けませんでした: {error}",
+    },
     "app.log.robot_stopped": {"en": "Robot suite stopped.", "ja": "Robot を停止しました。"},
     "app.log.failed_register_hotkey": {
         "en": "Failed to register stop hotkey: {error}",
@@ -917,6 +935,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.error.open_diagnostics_dir.message": {
         "en": "Failed to open diagnostics directory: {path}\n\n{error}",
         "ja": "診断フォルダを開けませんでした: {path}\n\n{error}",
+    },
+    "app.error.open_subflow_logs_dir.title": {
+        "en": "Open Subflow Logs Directory Error",
+        "ja": "子フローログフォルダを開けません",
+    },
+    "app.error.open_subflow_logs_dir.message": {
+        "en": "Failed to open subflow logs directory: {path}\n\n{error}",
+        "ja": "子フローログフォルダを開けませんでした: {path}\n\n{error}",
     },
     "app.confirm.params_template_overwrite.title": {
         "en": "Overwrite Params",

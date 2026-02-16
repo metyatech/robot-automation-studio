@@ -332,6 +332,13 @@ def build_ui(self, *, bg_light: str) -> None:
     self.execution_mode_combo.currentTextChanged.connect(self.on_execution_mode_changed)
     scenario_form.addRow(self.execution_mode_label, self.execution_mode_combo)
 
+    self.subflow_timeout_edit = QLineEdit(
+        str((self.scenario.execution or {}).get("subflow_timeout_seconds", ""))
+    )
+    self.subflow_timeout_edit.setObjectName("SubflowTimeoutEdit")
+    self.subflow_timeout_label = QLabel()
+    scenario_form.addRow(self.subflow_timeout_label, self.subflow_timeout_edit)
+
     self.active_profile_combo = QComboBox()
     self.active_profile_combo.setObjectName("ActiveProfileCombo")
     self.active_profile_label = QLabel()
@@ -689,6 +696,9 @@ def apply_localized_texts(self) -> None:
     self.window_hint_label.setText(self._t("app.field.window_hint.label"))
     self.window_hint_edit.setPlaceholderText(self._t("app.field.window_hint.placeholder"))
     self.execution_mode_label.setText(self._t("app.field.execution_mode.label"))
+    self.subflow_timeout_label.setText(self._t("app.field.subflow_timeout.label"))
+    self.subflow_timeout_edit.setPlaceholderText(self._t("app.field.subflow_timeout.placeholder"))
+    self.subflow_timeout_edit.setToolTip(self._t("app.tooltip.subflow_timeout"))
     self.active_profile_label.setText(self._t("app.field.active_profile.label"))
     self.unity_project_path_label.setText(self._t("app.field.unity_project_path.label"))
     self.project_path_edit.setPlaceholderText(self._t("app.field.unity_project_path.placeholder"))

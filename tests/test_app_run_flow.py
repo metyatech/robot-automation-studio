@@ -309,5 +309,6 @@ def test_build_run_diagnostics_context_captures_runtime_metadata(
         assert context["active_profile"] == "vrchat"
         assert context["window_hint"] == "Unity"
         assert context["unity_project_path"] == "D:/VRChatProjects/Ryuon"
+        assert context["subflow_logs_dir"] == str(tmp_path / "run" / "subflows")
     finally:
         studio.close()

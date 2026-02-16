@@ -44,6 +44,18 @@ def test_focus_validation_issue_location_handles_active_profile() -> None:
         studio.close()
 
 
+def test_focus_validation_issue_location_handles_subflow_timeout() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        focused = studio.focus_validation_issue_location("execution.subflow_timeout_seconds")
+
+        assert focused is True
+        assert studio.main_tabs.currentIndex() == studio.scenario_tab_index
+    finally:
+        studio.close()
+
+
 def test_focus_validation_issue_location_returns_false_for_unknown_location() -> None:
     _ensure_qapp()
     studio = StudioApp(initial_locale="en")

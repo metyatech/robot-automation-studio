@@ -634,6 +634,8 @@ class StudioApp(QMainWindow):
         window_hint_label: QLabel
         execution_mode_combo: QComboBox
         execution_mode_label: QLabel
+        subflow_timeout_edit: QLineEdit
+        subflow_timeout_label: QLabel
         active_profile_combo: QComboBox
         active_profile_label: QLabel
         project_path_edit: QLineEdit
@@ -1127,6 +1129,13 @@ class StudioApp(QMainWindow):
         )
         active_profile = self._active_profile_value()
         self.scenario.execution = dict(self.scenario.execution or {})
+        subflow_timeout_text = self.subflow_timeout_edit.text().strip()
+        if subflow_timeout_text == "":
+            self.scenario.execution.pop("subflow_timeout_seconds", None)
+        elif re.fullmatch(r"[0-9]+", subflow_timeout_text):
+            self.scenario.execution["subflow_timeout_seconds"] = int(subflow_timeout_text)
+        else:
+            self.scenario.execution["subflow_timeout_seconds"] = subflow_timeout_text
         if active_profile:
             self.scenario.execution["active_profile"] = active_profile
         else:
@@ -2016,6 +2025,9 @@ class StudioApp(QMainWindow):
             self.execution_mode_combo,
             normalize_unity_execution_mode(loaded.metadata.get(UNITY_EXECUTION_MODE_KEY, "attach")),
         )
+        self.subflow_timeout_edit.setText(
+            str(dict(loaded.execution or {}).get("subflow_timeout_seconds") or "").strip()
+        )
         self._refresh_active_profile_combo()
         self.project_path_edit.setText(str(loaded.metadata.get(UNITY_PROJECT_PATH_KEY, "")))
         self.on_execution_mode_changed()
@@ -2062,6 +2074,7 @@ class StudioApp(QMainWindow):
 
         footer = QHBoxLayout()
         open_diagnostics_dir_button = QPushButton(self._t("app.button.open_diagnostics_dir"))
+        open_diagnostics_dir_button.setObjectName("OpenDiagnosticsDirButton")
         open_diagnostics_dir_button.clicked.connect(
             lambda: self._open_directory_with_feedback(
                 target=path.parent,
@@ -2073,6 +2086,19 @@ class StudioApp(QMainWindow):
             )
         )
         footer.addWidget(open_diagnostics_dir_button)
+        open_subflow_logs_dir_button = QPushButton(self._t("app.button.open_subflow_logs_dir"))
+        open_subflow_logs_dir_button.setObjectName("OpenSubflowLogsDirButton")
+        open_subflow_logs_dir_button.clicked.connect(
+            lambda: self._open_directory_with_feedback(
+                target=path.parent / "subflows",
+                success_log_key="app.log.opened_subflow_logs_dir",
+                error_log_key="app.log.open_subflow_logs_dir_failed",
+                error_title_key="app.error.open_subflow_logs_dir.title",
+                error_message_key="app.error.open_subflow_logs_dir.message",
+                make_dirs=True,
+            )
+        )
+        footer.addWidget(open_subflow_logs_dir_button)
         copy_summary_button = QPushButton(self._t("app.button.copy_summary"))
         copy_summary_button.clicked.connect(lambda: QApplication.clipboard().setText(summary_text))
         footer.addWidget(copy_summary_button)
@@ -2207,6 +2233,11 @@ class StudioApp(QMainWindow):
         ):
             return self._focus_widget_in_tab(
                 self.execution_mode_combo,
+                tab_index=self.scenario_tab_index,
+            )
+        if normalized.startswith("execution.subflow_timeout_seconds"):
+            return self._focus_widget_in_tab(
+                self.subflow_timeout_edit,
                 tab_index=self.scenario_tab_index,
             )
         if normalized.startswith(f"metadata.{UNITY_PROJECT_PATH_KEY}") or normalized.startswith(
@@ -2553,6 +2584,7 @@ class StudioApp(QMainWindow):
             "window_hint": self.window_hint_edit.text().strip() or None,
             "unity_project_path": self.project_path_edit.text().strip() or None,
             "output_xml_path": str(output_xml_path),
+            "subflow_logs_dir": str(output_xml_path.parent / "subflows"),
             "captured_at_utc": datetime.now(UTC).isoformat(),
         }
         return context

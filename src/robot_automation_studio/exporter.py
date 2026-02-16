@@ -33,6 +33,7 @@ _ACTION_ALIASES = {
     "wait": "wait_for",
     "select_hierarchy": "select_hierarchy",
 }
+_DEFAULT_SUBFLOW_TIMEOUT_SECONDS = 3600
 
 
 def _safe_suite_name(name: str) -> str:
@@ -90,6 +91,32 @@ def _scenario_window_hint(scenario: Scenario) -> str:
     if from_variable:
         return from_variable
     return "Unity"
+
+
+def _scenario_subflow_timeout_seconds(scenario: Scenario) -> int:
+    execution = dict(scenario.execution or {})
+    raw_value = execution.get("subflow_timeout_seconds")
+    if raw_value in (None, ""):
+        return _DEFAULT_SUBFLOW_TIMEOUT_SECONDS
+    if isinstance(raw_value, bool):
+        raise ValueError(
+            "subflow_timeout_seconds must be a positive integer"
+            " at execution.subflow_timeout_seconds."
+        )
+
+    try:
+        parsed = int(str(raw_value).strip())
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "subflow_timeout_seconds must be a positive integer"
+            " at execution.subflow_timeout_seconds."
+        ) from error
+    if parsed <= 0:
+        raise ValueError(
+            "subflow_timeout_seconds must be a positive integer"
+            " at execution.subflow_timeout_seconds."
+        )
+    return parsed
 
 
 def _robot_safe_project_path(project_path: str) -> str:
@@ -1057,6 +1084,8 @@ def _generate_robot_suite_from_resolved(
     test_case_name: str,
 ) -> str:
     execution_mode = _scenario_execution_mode(resolved_scenario)
+    subflow_timeout_seconds = _scenario_subflow_timeout_seconds(resolved_scenario)
+    subflow_timeout_literal = f"{subflow_timeout_seconds}s"
     unity_project_path = _robot_safe_project_path(
         _scenario_project_path(resolved_scenario, execution_mode=execution_mode)
     )
@@ -1162,11 +1191,11 @@ def _generate_robot_suite_from_resolved(
                 "    ${subflow_output}    --variable    OUTPUT_DIR:${OUTPUT DIR}"
                 "    ${resolved}    stdout=${subflow_output}${/}stdout.txt"
                 "    stderr=${subflow_output}${/}stderr.txt"
-                "    timeout=3600s    on_timeout=terminate"
+                f"    timeout={subflow_timeout_literal}    on_timeout=terminate"
             ),
             "    IF    '${status}' == 'FAIL'",
             (
-                "        Fail    Subflow timed out after 3600s. "
+                f"        Fail    Subflow timed out after {subflow_timeout_literal}. "
                 "stdout=${subflow_output}${/}stdout.txt "
                 "stderr=${subflow_output}${/}stderr.txt"
             ),
@@ -1199,11 +1228,12 @@ def _generate_robot_suite_from_resolved(
             "        ${subflow_output}=    Join Path    ${OUTPUT DIR}    subflows    ${alias}",
             (
                 "        ${status}    ${result}=    Run Keyword And Ignore Error"
-                "    Wait For Process    ${alias}    timeout=3600s"
+                f"    Wait For Process    ${{alias}}    timeout={subflow_timeout_literal}"
             ),
             "        IF    '${status}' == 'FAIL'",
             (
-                "            Fail    Subflow process timed out alias=${alias} after 3600s. "
+                "            Fail    Subflow process timed out alias=${alias}"
+                f" after {subflow_timeout_literal}. "
                 "stdout=${subflow_output}${/}stdout.txt "
                 "stderr=${subflow_output}${/}stderr.txt"
             ),

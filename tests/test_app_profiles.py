@@ -63,6 +63,21 @@ def test_sync_scenario_header_persists_active_profile_selection() -> None:
         studio.close()
 
 
+def test_sync_scenario_header_persists_subflow_timeout_setting() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        studio.subflow_timeout_edit.setText("120")
+        studio._sync_scenario_header()
+        assert studio.scenario.execution.get("subflow_timeout_seconds") == 120
+
+        studio.subflow_timeout_edit.setText("")
+        studio._sync_scenario_header()
+        assert "subflow_timeout_seconds" not in studio.scenario.execution
+    finally:
+        studio.close()
+
+
 def test_export_scenario_passes_active_profile(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
     _ensure_qapp()

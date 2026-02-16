@@ -22,6 +22,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 - Preflight validation before export/run:
   - fail-fast with issue list dialog when scenario is invalid
   - explicit diagnostics for unresolved placeholders (with field path)
+  - `start_video` scenarios fail early when `ffmpeg` is not found in `PATH`
   - live step validation hint in Step tab (immediate export/run readiness feedback)
 - Profile diff preview:
   - compare resolved scenario results between two profiles
@@ -92,41 +93,43 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 2. Select execution mode:
    - `attach`: run against an already opened Unity Editor.
    - `launch`: open a Unity project path and then run the scenario.
-3. Select `Active Profile` when you need profile-specific variable overrides.
+3. Set `Subflow Timeout (s)` when your `run_subflow`/`parallel` children need custom timeout.
+   - blank value uses default `3600` seconds.
+4. Select `Active Profile` when you need profile-specific variable overrides.
    - `(none)` uses variable defaults.
    - Profile selection is applied during `Export` and `Run Robot`.
-4. Optionally set `Unity Project Path` (recommended for Unity Hierarchy bridge).
+5. Optionally set `Unity Project Path` (recommended for Unity Hierarchy bridge).
    - When set, Studio auto-adds `com.metyatech.unity-automation-bridge` to `Packages/manifest.json` before recording and before `Run Robot`.
    - This works for both `attach` and `launch`.
    - In `attach`, when empty, Studio auto-detects the attached Unity project's `-projectPath` from the running Unity process and then auto-adds the dependency.
-5. Click `● Record`, perform operations in Unity Editor, then click `■ Stop`.
+6. Click `● Record`, perform operations in Unity Editor, then click `■ Stop`.
    - In `attach`, `● Record` fails immediately with an error dialog if no visible window matches `Window Hint`.
    - `● Record` validates Unity bridge readiness before starting recording.
    - While recording, overlay highlight is enabled (distinct "recording" style from run mode).
    - Click/drag is recorded only when a UI Automation element selector is resolved.
    - If selector resolution fails, Studio logs a recording error and does not add the step.
    - For Unity Hierarchy pane clicks, Studio uses Unity bridge selection path when available.
-6. Fine-tune steps from the editor panel.
+7. Fine-tune steps from the editor panel.
    - update step kind/action/control and advanced params JSON.
    - confirm `Step Validation` status is `Ready for export/run.` before running.
-7. Open dedicated v2 editors when needed:
+8. Open dedicated v2 editors when needed:
    - `Variables`
    - `Profiles`
    - `Execution/Outputs`
    - `{} Full JSON` (full scenario object)
    - `Validate` (preflight issue check)
    - `Profile Diff` (resolved-value comparison)
-8. Choose output directory and export name.
-9. Click `Export` to generate:
+9. Choose output directory and export name.
+10. Click `Export` to generate:
    - `<name>.robot`
    - `<name>.scenario.json`
-10. Click `Run Robot` to execute the generated suite.
+11. Click `Run Robot` to execute the generated suite.
    - Studio first shows `Preflight checks` status while validating execution prerequisites.
-11. While running, use `Stop Robot`, the overlay `Stop Now` button, or the configured stop hotkey to stop immediately.
+12. While running, use `Stop Robot`, the overlay `Stop Now` button, or the configured stop hotkey to stop immediately.
     - Default stop hotkey is `Alt+Shift+F12`.
     - You can change it from the header `Hotkey: ...` button by pressing the target key combination directly.
     - If registration fails (for example shortcut conflict), Studio applies a fallback key and shows a warning.
-12. Use in-app help:
+13. Use in-app help:
    - hover/focus any UI component to read cursor-near tooltip help
    - press `F1` (or click `Help Guide`) to open searchable full GUI help
 
@@ -147,6 +150,7 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 - `<output>/run/robot/subflows/*/{stdout.txt,stderr.txt}`: subflow process logs (when using `run_subflow` or `parallel`)
 - `<output>/run/diagnostics/run-diagnostics.json`: parsed run diagnostics summary
 - `<output>/run/diagnostics/failure-YYYYMMDD-HHMMSS.png`: failure screenshot (when run fails)
+- Run Diagnostics dialog also provides direct button to open the `subflows` log directory.
 
 ## Unity Hierarchy Bridge
 
