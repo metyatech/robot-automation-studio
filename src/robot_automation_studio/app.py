@@ -2206,11 +2206,13 @@ class StudioApp(QMainWindow):
         target_path = self._last_run_diagnostics_path or (
             output_xml_path.parent / "diagnostics" / "run-diagnostics.json"
         )
+        run_context = self._build_run_diagnostics_context(output_xml_path)
         try:
             saved = write_run_diagnostics_file(
                 diagnostics,
                 target_path=target_path,
                 screenshot_path=screenshot_path,
+                run_context=run_context,
             )
             self._last_run_diagnostics_path = saved
             self.log(self._t("app.log.run_diag_saved", path=saved))
@@ -2250,6 +2252,23 @@ class StudioApp(QMainWindow):
                     payload=json.dumps(diagnostics.last_annotation, ensure_ascii=False),
                 )
             )
+
+    def _build_run_diagnostics_context(self, output_xml_path: Path) -> dict[str, object]:
+        execution_mode = normalize_unity_execution_mode(
+            self._combo_value(self.execution_mode_combo)
+        )
+        context: dict[str, object] = {
+            "scenario_name": self.scenario.name,
+            "scenario_id": self.scenario.scenario_id,
+            "target": self.scenario.target,
+            "execution_mode": execution_mode,
+            "active_profile": self._active_profile_value() or None,
+            "window_hint": self.window_hint_edit.text().strip() or None,
+            "unity_project_path": self.project_path_edit.text().strip() or None,
+            "output_xml_path": str(output_xml_path),
+            "captured_at_utc": datetime.now(UTC).isoformat(),
+        }
+        return context
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.recorder.is_recording:

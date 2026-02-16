@@ -154,9 +154,11 @@ def write_run_diagnostics_file(
     *,
     target_path: Path,
     screenshot_path: Path | None,
+    run_context: dict[str, Any] | None = None,
 ) -> Path:
     payload = diagnostics.to_dict()
     payload["failure_screenshot_path"] = str(screenshot_path) if screenshot_path else None
+    payload["run_context"] = dict(run_context) if isinstance(run_context, dict) else None
     target_path.parent.mkdir(parents=True, exist_ok=True)
     target_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return target_path

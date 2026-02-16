@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from robot_automation_studio.run_diagnostics import (
@@ -77,6 +78,41 @@ def test_write_run_diagnostics_file_writes_json_payload(tmp_path: Path) -> None:
     payload = target.read_text(encoding="utf-8")
     assert '"suite_name": "suite-b"' in payload
     assert '"test_status": "PASS"' in payload
+
+
+def test_write_run_diagnostics_file_includes_run_context(tmp_path: Path) -> None:
+    output_xml = tmp_path / "output.xml"
+    output_xml.write_text(
+        (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<robot generated="2026-02-16T10:00:00.000000">\n'
+            '  <suite name="suite-c">\n'
+            '    <test name="case-c">\n'
+            '      <kw name="Wait For Seconds" owner="lib">\n'
+            "        <arg>0.2</arg>\n"
+            '        <status status="PASS" elapsed="0.200000"/>\n'
+            "      </kw>\n"
+            '      <status status="PASS" elapsed="0.200000"/>\n'
+            "    </test>\n"
+            "  </suite>\n"
+            "</robot>\n"
+        ),
+        encoding="utf-8",
+    )
+    diagnostics = parse_robot_output(output_xml)
+    target = tmp_path / "run-diagnostics.json"
+    context = {"execution_mode": "attach", "active_profile": "vrchat"}
+
+    saved = write_run_diagnostics_file(
+        diagnostics,
+        target_path=target,
+        screenshot_path=None,
+        run_context=context,
+    )
+
+    assert saved == target
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    assert payload["run_context"] == context
 
 
 def test_capture_failure_screenshot_returns_none_on_capture_error(tmp_path: Path) -> None:

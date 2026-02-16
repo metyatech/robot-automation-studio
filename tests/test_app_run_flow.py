@@ -279,3 +279,35 @@ def test_run_robot_suite_passes_active_profile_to_export(
         assert captured["active_profile"] == "vrchat"
     finally:
         studio.close()
+
+
+def test_build_run_diagnostics_context_captures_runtime_metadata(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        studio.scenario.name = "Unity Flow"
+        studio.scenario.scenario_id = "scenario-1234"
+        studio.scenario.target = "unity"
+        studio.scenario.profiles = {"vrchat": {"description": "", "variables": {}}}
+        studio.scenario.execution = {"active_profile": "vrchat"}
+        studio._refresh_active_profile_combo()
+        studio._set_combo_value(studio.active_profile_combo, "vrchat")
+        studio._set_combo_value(studio.execution_mode_combo, "attach")
+        studio.window_hint_edit.setText("Unity")
+        studio.project_path_edit.setText("D:/VRChatProjects/Ryuon")
+
+        context = studio._build_run_diagnostics_context(tmp_path / "run" / "output.xml")
+
+        assert context["scenario_name"] == "Unity Flow"
+        assert context["scenario_id"] == "scenario-1234"
+        assert context["target"] == "unity"
+        assert context["execution_mode"] == "attach"
+        assert context["active_profile"] == "vrchat"
+        assert context["window_hint"] == "Unity"
+        assert context["unity_project_path"] == "D:/VRChatProjects/Ryuon"
+    finally:
+        studio.close()
