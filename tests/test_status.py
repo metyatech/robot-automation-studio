@@ -19,3 +19,8 @@ def test_format_run_status_for_known_phases() -> None:
 
 def test_format_run_status_for_unknown_phase_falls_back_to_running() -> None:
     assert format_run_status("unknown", spinner_frame="*") == "Running *"
+
+
+def test_format_run_status_supports_japanese_locale() -> None:
+    assert format_run_status("idle", spinner_frame="|", locale="ja") == "待機"
+    assert format_run_status("running", spinner_frame="/", locale="ja") == "実行中 /"

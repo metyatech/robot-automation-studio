@@ -97,3 +97,13 @@ def test_help_summary_texts_stay_concise_for_tooltips() -> None:
     assert all(len(summary) <= max_len for summary, _ in ui_help._KNOWN_TEXT_HELP.values())
     assert all(len(summary) <= max_len for summary, _ in ui_help._KNOWN_WIDGET_ID_HELP.values())
     assert all(len(summary) <= max_len for summary in ui_help._CLASS_FALLBACK_SUMMARY.values())
+
+
+def test_build_help_entry_supports_japanese_locale() -> None:
+    entry = build_help_entry(
+        widget_id="StepKindCombo",
+        widget_class="QComboBox",
+        widget_text="種別",
+        locale="ja",
+    )
+    assert "種別" in entry.summary

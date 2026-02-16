@@ -24,7 +24,7 @@ def test_build_help_tooltip_text_uses_fallback_for_blank_summary() -> None:
 
 def test_registered_widget_has_standard_qt_tooltip_text() -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         entry = studio._help_entries_by_widget[studio.run_button]
         assert studio.run_button.toolTip() == build_help_tooltip_text(entry.summary)
@@ -34,7 +34,7 @@ def test_registered_widget_has_standard_qt_tooltip_text() -> None:
 
 def test_event_filter_shows_tooltip_on_focus_in(monkeypatch) -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         captured: dict[str, object] = {}
 
@@ -60,7 +60,7 @@ def test_event_filter_shows_tooltip_on_focus_in(monkeypatch) -> None:
 
 def test_event_filter_handles_tooltip_event_with_cursor_anchor(monkeypatch) -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         captured: dict[str, object] = {}
 
@@ -90,7 +90,7 @@ def test_event_filter_handles_tooltip_event_with_cursor_anchor(monkeypatch) -> N
 
 def test_event_filter_handles_enter_event_with_cursor_anchor(monkeypatch) -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         captured: dict[str, object] = {}
 
@@ -120,7 +120,7 @@ def test_event_filter_handles_enter_event_with_cursor_anchor(monkeypatch) -> Non
 
 def test_event_filter_hides_tooltip_on_leave(monkeypatch) -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         called = {"count": 0}
 

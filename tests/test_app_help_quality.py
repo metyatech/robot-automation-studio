@@ -14,7 +14,7 @@ def _ensure_qapp() -> QApplication:
 
 def test_registered_help_entries_do_not_use_ui_component_summary() -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         entries = list(studio._help_entries_by_id.values())
         assert entries
@@ -25,7 +25,7 @@ def test_registered_help_entries_do_not_use_ui_component_summary() -> None:
 
 def test_key_controls_have_actionable_help_summary() -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         step_list_entry = studio._help_entries_by_widget[studio.step_list]
         target_combo_entry = studio._help_entries_by_widget[studio.target_combo]

@@ -20,8 +20,10 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - recording/run overlays use distinct style and banner text
 - In-app universal help system:
   - context help bar for the currently hovered/focused UI component
-  - `Open Guide (F1)` searchable GUI help dialog
+  - `Help Guide (F1)` searchable GUI help dialog
   - auto-generated explanations for all visible UI components (including editor dialogs)
+- Built-in localization switch (English / Japanese) for UI, status, dialogs, logs, and tooltips
+- Startup locale auto-detection (explicit `en`/`ja`, env override, then OS locale)
 - Export both `.robot` suites and machine-readable scenario spec JSON files
 - Designed for Unity Editor and other desktop targets on Windows
 
@@ -54,6 +56,12 @@ or:
 robot-automation-studio
 ```
 
+Optional startup locale override:
+
+```bash
+set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
+```
+
 ## End-to-End Workflow
 
 1. Set scenario name and window hint (for example `Unity`).
@@ -64,9 +72,9 @@ robot-automation-studio
    - When set, Studio auto-adds `com.metyatech.unity-automation-bridge` to `Packages/manifest.json` before recording and before `Run Robot`.
    - This works for both `attach` and `launch`.
    - In `attach`, when empty, Studio auto-detects the attached Unity project's `-projectPath` from the running Unity process and then auto-adds the dependency.
-4. Click `Start Recording`, perform operations in Unity Editor, then click `Stop Recording`.
-   - In `attach`, `Start Recording` fails immediately with an error dialog if no visible window matches `Window Hint`.
-   - `Start Recording` validates Unity bridge readiness before starting recording.
+4. Click `● Record`, perform operations in Unity Editor, then click `■ Stop`.
+   - In `attach`, `● Record` fails immediately with an error dialog if no visible window matches `Window Hint`.
+   - `● Record` validates Unity bridge readiness before starting recording.
    - While recording, overlay highlight is enabled (distinct "recording" style from run mode).
    - Click/drag is recorded only when a UI Automation element selector is resolved.
    - If selector resolution fails, Studio logs a recording error and does not add the step.
@@ -86,7 +94,7 @@ robot-automation-studio
 10. While running, use `Stop Robot` or press `Ctrl+Shift+F12` to stop immediately.
 11. Use in-app help:
    - hover/focus any UI component to read context help in the `Context Help` bar
-   - press `F1` (or click `Open Guide`) to open searchable full GUI help
+   - press `F1` (or click `Help Guide`) to open searchable full GUI help
 
 ## Execution Mode Notes
 

@@ -31,7 +31,7 @@ def _menu_actions_by_text(studio: StudioApp, menu_type: str) -> dict[str, QActio
 
 def test_file_menu_actions_have_per_action_tooltips() -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         actions = _menu_actions_by_text(studio, "file")
         assert actions["💾 Save"].toolTip() == "Save current scenario file."
@@ -44,7 +44,7 @@ def test_file_menu_actions_have_per_action_tooltips() -> None:
 
 def test_add_step_menu_actions_have_per_action_tooltips() -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         actions = _menu_actions_by_text(studio, "add_step")
         assert actions["🖱 Click"].toolTip() == "Add click action step."
@@ -60,7 +60,7 @@ def test_add_step_menu_actions_have_per_action_tooltips() -> None:
 
 def test_combo_options_have_per_option_tooltips() -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         expected_target = {
             "unity": "Run steps against Unity Editor.",
@@ -69,7 +69,7 @@ def test_combo_options_have_per_option_tooltips() -> None:
             "hybrid": "Run steps across mixed app targets.",
         }
         for row in range(studio.target_combo.count()):
-            item_text = studio.target_combo.itemText(row)
+            item_text = studio.target_combo.itemData(row, Qt.ItemDataRole.UserRole)
             item_tip = studio.target_combo.itemData(row, Qt.ItemDataRole.ToolTipRole)
             assert item_tip == expected_target[item_text]
 
@@ -78,7 +78,7 @@ def test_combo_options_have_per_option_tooltips() -> None:
             "launch": "Launch Unity project before running.",
         }
         for row in range(studio.execution_mode_combo.count()):
-            item_text = studio.execution_mode_combo.itemText(row)
+            item_text = studio.execution_mode_combo.itemData(row, Qt.ItemDataRole.UserRole)
             item_tip = studio.execution_mode_combo.itemData(row, Qt.ItemDataRole.ToolTipRole)
             assert item_tip == expected_mode[item_text]
 
@@ -88,7 +88,7 @@ def test_combo_options_have_per_option_tooltips() -> None:
             "group": "Organize nested child steps.",
         }
         for row in range(studio.kind_combo.count()):
-            item_text = studio.kind_combo.itemText(row)
+            item_text = studio.kind_combo.itemData(row, Qt.ItemDataRole.UserRole)
             item_tip = studio.kind_combo.itemData(row, Qt.ItemDataRole.ToolTipRole)
             assert item_tip == expected_kind[item_text]
     finally:
@@ -97,7 +97,7 @@ def test_combo_options_have_per_option_tooltips() -> None:
 
 def test_tabs_have_per_tab_tooltips() -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         tabs = studio.main_tabs
         assert tabs.tabToolTip(0) == "Edit selected step fields."
@@ -109,7 +109,7 @@ def test_tabs_have_per_tab_tooltips() -> None:
 
 def test_combo_popup_tooltip_event_shows_option_description(monkeypatch) -> None:
     _ensure_qapp()
-    studio = StudioApp()
+    studio = StudioApp(initial_locale="en")
     try:
         captured: dict[str, object] = {}
 

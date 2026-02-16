@@ -12,6 +12,8 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
+from .i18n import translate
+
 
 @dataclass(slots=True)
 class Rect:
@@ -118,8 +120,8 @@ class OverlayTheme:
     border_color: str
     banner_background: str
     banner_foreground: str
-    default_progress_text: str
-    stop_action_text: str
+    default_progress_key: str
+    stop_action_key: str
 
 
 def _overlay_theme(mode: OverlayMode) -> OverlayTheme:
@@ -128,15 +130,15 @@ def _overlay_theme(mode: OverlayMode) -> OverlayTheme:
             border_color="#1fb6ff",
             banner_background="#13293d",
             banner_foreground="#f4faff",
-            default_progress_text="Recording",
-            stop_action_text="stop recording",
+            default_progress_key="overlay.progress.recording",
+            stop_action_key="overlay.stop_action.recording",
         )
     return OverlayTheme(
         border_color="#ff2b2b",
         banner_background="#1a1a1a",
         banner_foreground="#ffffff",
-        default_progress_text="Running",
-        stop_action_text="stop",
+        default_progress_key="overlay.progress.running",
+        stop_action_key="overlay.stop_action.run",
     )
 
 
@@ -145,10 +147,20 @@ def build_banner_text(
     stop_hotkey_label: str,
     *,
     mode: OverlayMode = "run",
+    locale: str = "en",
 ) -> str:
     theme = _overlay_theme(mode)
-    normalized_progress = str(progress_text or "").strip() or theme.default_progress_text
-    return f"{normalized_progress}  |  Press {stop_hotkey_label} to {theme.stop_action_text}"
+    normalized_progress = str(progress_text or "").strip() or translate(
+        theme.default_progress_key,
+        locale=locale,
+    )
+    return translate(
+        "overlay.banner",
+        locale=locale,
+        progress=normalized_progress,
+        hotkey=stop_hotkey_label,
+        action=translate(theme.stop_action_key, locale=locale),
+    )
 
 
 _OVERLAY_FLAGS = (
@@ -182,13 +194,15 @@ class AutomationRunOverlay:
         window_hint: str,
         stop_hotkey_label: str,
         mode: OverlayMode = "run",
+        locale: str = "en",
     ) -> None:
         self._parent = parent
         self._window_hint = window_hint
         self._stop_hotkey_label = stop_hotkey_label
         self._mode: OverlayMode = mode
+        self._locale = locale
         self._theme = _overlay_theme(mode)
-        self._progress_text = self._theme.default_progress_text
+        self._progress_text = translate(self._theme.default_progress_key, locale=self._locale)
         self._dim_windows: list[QWidget] = []
         self._border_windows: list[QWidget] = []
         self._banner_window: QWidget | None = None
@@ -229,7 +243,12 @@ class AutomationRunOverlay:
         layout = QVBoxLayout(banner)
         layout.setContentsMargins(0, 0, 0, 0)
         label = QLabel(
-            build_banner_text(self._progress_text, self._stop_hotkey_label, mode=self._mode)
+            build_banner_text(
+                self._progress_text,
+                self._stop_hotkey_label,
+                mode=self._mode,
+                locale=self._locale,
+            )
         )
         label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         label.setStyleSheet(
@@ -243,12 +262,24 @@ class AutomationRunOverlay:
         self._banner_label = label
 
     def set_progress_text(self, progress_text: str) -> None:
-        self._progress_text = str(progress_text or "").strip() or self._theme.default_progress_text
+        self._progress_text = str(progress_text or "").strip() or translate(
+            self._theme.default_progress_key,
+            locale=self._locale,
+        )
         if self._banner_label is None:
             return
         self._banner_label.setText(
-            build_banner_text(self._progress_text, self._stop_hotkey_label, mode=self._mode)
+            build_banner_text(
+                self._progress_text,
+                self._stop_hotkey_label,
+                mode=self._mode,
+                locale=self._locale,
+            )
         )
+
+    def set_locale(self, locale: str) -> None:
+        self._locale = locale
+        self.set_progress_text(self._progress_text)
 
     def _update(self) -> None:
         if not self._running:

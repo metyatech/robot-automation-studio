@@ -54,3 +54,8 @@ def test_build_banner_text_for_recording_mode() -> None:
 def test_build_banner_text_for_recording_mode_normalizes_blank_progress() -> None:
     text = build_banner_text("", "Ctrl+Shift+F12", mode="recording")
     assert text == "Recording  |  Press Ctrl+Shift+F12 to stop recording"
+
+
+def test_build_banner_text_supports_japanese_locale() -> None:
+    text = build_banner_text("", "Ctrl+Shift+F12", locale="ja")
+    assert text == "実行中  |  Ctrl+Shift+F12 で 停止"

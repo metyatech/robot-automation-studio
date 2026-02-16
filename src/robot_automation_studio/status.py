@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+from .i18n import translate
+
 SPINNER_FRAMES = ("|", "/", "-", "\\")
 
 _PHASE_LABELS = {
-    "idle": "Idle",
-    "exporting": "Exporting scenario",
-    "starting_robot": "Starting Robot",
-    "attaching_unity": "Attaching to Unity",
-    "running": "Running",
-    "stopping": "Stopping...",
+    "idle": "status.phase.idle",
+    "exporting": "status.phase.exporting",
+    "starting_robot": "status.phase.starting_robot",
+    "attaching_unity": "status.phase.attaching_unity",
+    "running": "status.phase.running",
+    "stopping": "status.phase.stopping",
 }
 
 
@@ -20,12 +22,12 @@ def next_spinner_index(current: int, size: int = len(SPINNER_FRAMES)) -> int:
     return (max(0, int(current)) + 1) % size
 
 
-def format_run_status(phase: str, spinner_frame: str) -> str:
+def format_run_status(phase: str, spinner_frame: str, *, locale: str = "en") -> str:
     normalized = str(phase or "").strip().lower()
     if normalized == "idle":
-        return _PHASE_LABELS["idle"]
+        return translate(_PHASE_LABELS["idle"], locale=locale)
     if normalized == "stopping":
-        return _PHASE_LABELS["stopping"]
+        return translate(_PHASE_LABELS["stopping"], locale=locale)
     if normalized in _PHASE_LABELS:
-        return f"{_PHASE_LABELS[normalized]} {spinner_frame}"
-    return f"{_PHASE_LABELS['running']} {spinner_frame}"
+        return f"{translate(_PHASE_LABELS[normalized], locale=locale)} {spinner_frame}"
+    return f"{translate(_PHASE_LABELS['running'], locale=locale)} {spinner_frame}"

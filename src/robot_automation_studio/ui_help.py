@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .i18n import normalize_locale
+
 
 @dataclass(frozen=True)
 class HelpEntry:
@@ -329,6 +331,264 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
         "Choose attach or launch.",
         "attach uses an already-open app. launch opens the configured Unity project first.",
     ),
+    "LanguageCombo": (
+        "Choose language.",
+        "Switch UI language between English and Japanese.",
+    ),
+    "VariablesButton": (
+        "Edit variables.",
+        "Open Variables Editor for reusable scenario variables.",
+    ),
+    "ProfilesButton": (
+        "Edit profiles.",
+        "Open Profiles Editor for profile-specific overrides.",
+    ),
+    "ExecutionOutputsButton": (
+        "Edit execution/outputs.",
+        "Open execution and outputs JSON editor.",
+    ),
+    "DeleteStepButton": (
+        "Delete step.",
+        "Removes the currently selected step from the scenario.",
+    ),
+    "MoveStepUpButton": (
+        "Move step up.",
+        "Changes step order by moving the selected step one position earlier.",
+    ),
+    "MoveStepDownButton": (
+        "Move step down.",
+        "Changes step order by moving the selected step one position later.",
+    ),
+    "DuplicateStepButton": (
+        "Duplicate step.",
+        "Creates a copy of the selected step and inserts it nearby.",
+    ),
+}
+
+_KNOWN_TEXT_HELP_JA: dict[str, tuple[str, str]] = {
+    "シナリオ名": (
+        "シナリオ名を設定します。",
+        "エクスポートされる Robot とシナリオ出力で使う表示名です。",
+    ),
+    "シナリオID": (
+        "シナリオIDを設定します。",
+        "シナリオのキーや出力ファイル名に使う識別子です。",
+    ),
+    "対象": (
+        "対象プラットフォームを選択します。",
+        "unity/web/desktop/hybrid の実行対象を選びます。",
+    ),
+    "ウィンドウヒント": (
+        "ウィンドウ名のヒントを設定します。",
+        "記録/実行時に対象ウィンドウを特定するために使います。",
+    ),
+    "実行モード": (
+        "実行モードを選択します。",
+        "attach は既存アプリへ接続、launch は Unity を起動して実行します。",
+    ),
+    "Unity プロジェクトパス": (
+        "Unity プロジェクトパスを設定します。",
+        "bridge 設定や attach 時の自動検出フォールバックに使います。",
+    ),
+    "説明": (
+        "説明を設定します。",
+        "目的、前提条件、運用メモに使います。",
+    ),
+    "変数": (
+        "変数を編集します。",
+        "再利用できるシナリオ変数とデフォルト値を管理します。",
+    ),
+    "プロファイル": (
+        "プロファイルを編集します。",
+        "プロファイル単位の変数上書きを管理します。",
+    ),
+    "実行/出力": (
+        "実行/出力設定を編集します。",
+        "実行設定と出力メタデータを JSON で編集します。",
+    ),
+    "● 記録開始": (
+        "記録を開始します。",
+        "現在の対象ウィンドウの操作記録を開始します。",
+    ),
+    "■ 記録停止": (
+        "記録を停止します。",
+        "記録した操作をステップとしてシナリオに追加します。",
+    ),
+    "▶ Robot 実行": (
+        "シナリオを実行します。",
+        "エクスポート後に Robot 実行を開始します。",
+    ),
+    "Robot 停止": (
+        "Robot 実行を停止します。",
+        "実行中の Robot プロセスを即時停止します。",
+    ),
+    "ファイル ▾": (
+        "ファイルメニューを開きます。",
+        "保存、読込、全体 JSON、ヘルプガイドを開きます。",
+    ),
+    "+ 追加 ▾": (
+        "ステップを追加します。",
+        "Click、Drag、Shortcut、Menu、Type、IF、Group を追加します。",
+    ),
+    "ステップID": (
+        "ステップIDを設定します。",
+        "成果物やメタデータで使う安定IDです。",
+    ),
+    "タイトル": (
+        "ステップタイトルを設定します。",
+        "一覧表示やガイド出力で使う読みやすい名前です。",
+    ),
+    "種別": (
+        "ステップ種別を設定します。",
+        "action/control/group を選択します。",
+    ),
+    "アクション": (
+        "アクション種別を設定します。",
+        "kind=action のときの実行操作を指定します。",
+    ),
+    "制御": (
+        "制御種別を設定します。",
+        "kind=control のときの制御フロー種別を指定します。",
+    ),
+    "条件": (
+        "実行条件を設定します。",
+        "制御ロジックで使う条件式です。",
+    ),
+    "無効": (
+        "このステップをスキップします。",
+        "有効化すると互換ランナーでこのステップをスキップします。",
+    ),
+    "エラー時も継続": (
+        "エラー後も継続します。",
+        "有効化すると失敗後も実行継続できる場合があります。",
+    ),
+    "注釈": (
+        "注釈を編集します。",
+        "可視化オーバーレイやガイド生成用メタデータです。",
+    ),
+    "パラメータ": (
+        "パラメータを編集します。",
+        "セレクタや座標などアクション固有データです。",
+    ),
+    "ステップ変更を適用": (
+        "ステップ変更を適用します。",
+        "現在の項目値を検証してモデルに反映します。",
+    ),
+    "出力先": (
+        "出力フォルダを設定します。",
+        "エクスポート/実行成果物の保存先です。",
+    ),
+    "出力名": (
+        "出力名を設定します。",
+        ".robot / .scenario.json のベース名です。",
+    ),
+    "エクスポート": (
+        "シナリオを出力します。",
+        ".robot と .scenario.json を生成します。",
+    ),
+    "出力ログ": (
+        "出力ログを表示します。",
+        "記録/実行の診断ログやエラーを表示します。",
+    ),
+    "ステップを削除": (
+        "ステップを削除します。",
+        "現在選択中のステップをシナリオから削除します。",
+    ),
+    "ステップを上へ移動": (
+        "ステップを上へ移動します。",
+        "選択中のステップを1つ前へ移動します。",
+    ),
+    "ステップを下へ移動": (
+        "ステップを下へ移動します。",
+        "選択中のステップを1つ後ろへ移動します。",
+    ),
+    "ステップを複製": (
+        "ステップを複製します。",
+        "選択中のステップを複製して近くに挿入します。",
+    ),
+    "ステップ一覧": (
+        "ステップを選択します。",
+        "ステップ順を表示し、選択した項目を編集できます。",
+    ),
+}
+
+_KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
+    "ScenarioNameEdit": (
+        "シナリオ名を設定します。",
+        "エクスポートされる Robot とシナリオ出力で使う表示名です。",
+    ),
+    "FileMenuButton": (
+        "ファイルメニューを開きます。",
+        "保存、読込、全体 JSON、ヘルプガイドを開きます。",
+    ),
+    "AddStepButton": (
+        "ステップを追加します。",
+        "Click、Drag、Shortcut、Menu、Type、IF、Group を追加します。",
+    ),
+    "StatusPill": (
+        "実行状態を表示します。",
+        "idle/running/stopping とスピナーの状態を表示します。",
+    ),
+    "RecIndicator": (
+        "記録状態を表示します。",
+        "記録中か待機中かを表示します。",
+    ),
+    "LogToggleButton": (
+        "ログ表示を切り替えます。",
+        "出力ログの折りたたみ/展開を切り替えます。",
+    ),
+    "LogText": (
+        "出力ログを表示します。",
+        "記録/実行の診断ログやエラーを表示します。",
+    ),
+    "StepList": (
+        "ステップを選択します。",
+        "表示順のステップを選んで編集できます。",
+    ),
+    "StepKindCombo": (
+        "ステップ種別を設定します。",
+        "action/control/group を選択します。",
+    ),
+    "TargetCombo": (
+        "対象プラットフォームを選択します。",
+        "unity/web/desktop/hybrid を選びます。",
+    ),
+    "ExecutionModeCombo": (
+        "実行モードを選択します。",
+        "attach は既存接続、launch は起動実行です。",
+    ),
+    "LanguageCombo": (
+        "表示言語を選択します。",
+        "English / 日本語 の UI 表示を切り替えます。",
+    ),
+    "VariablesButton": (
+        "変数を編集します。",
+        "再利用可能なシナリオ変数を編集します。",
+    ),
+    "ProfilesButton": (
+        "プロファイルを編集します。",
+        "プロファイル別の上書き設定を編集します。",
+    ),
+    "ExecutionOutputsButton": (
+        "実行/出力設定を編集します。",
+        "execution と outputs の JSON を編集します。",
+    ),
+    "DeleteStepButton": (
+        "ステップを削除します。",
+        "現在選択中のステップをシナリオから削除します。",
+    ),
+    "MoveStepUpButton": (
+        "ステップを上へ移動します。",
+        "選択中のステップを1つ前へ移動します。",
+    ),
+    "MoveStepDownButton": (
+        "ステップを下へ移動します。",
+        "選択中のステップを1つ後ろへ移動します。",
+    ),
+    "DuplicateStepButton": (
+        "ステップを複製します。",
+        "選択中のステップを複製して近くに挿入します。",
+    ),
 }
 
 _CLASS_FALLBACK_SUMMARY: dict[str, str] = {
@@ -372,12 +632,35 @@ _CLASS_FALLBACK_SUMMARY: dict[str, str] = {
     "TSeparator": "Visual separator.",
 }
 
-_STOP_ROBOT_KEY = "stop robot"
-_NORMALIZE_HELP_KEY_RE = re.compile(r"[^a-z0-9]+")
+_CLASS_FALLBACK_SUMMARY_JA: dict[str, str] = {
+    "QPushButton": "この操作を実行します。",
+    "QToolButton": "メニュー操作を開きます。",
+    "QLineEdit": "文字列を編集します。",
+    "QPlainTextEdit": "複数行テキストを編集します。",
+    "QComboBox": "項目を選択します。",
+    "QCheckBox": "オプションを切り替えます。",
+    "QListWidget": "一覧項目を選択します。",
+    "QLabel": "表示ラベルです。",
+    "QSplitter": "ペインサイズを変更します。",
+    "QScrollArea": "スクロール可能領域です。",
+    "QScrollBar": "スクロールします。",
+    "QTabWidget": "タブを切り替えます。",
+    "QMenu": "メニュー項目を選択します。",
+    "QWidget": "UIコンテナです。",
+    "QFrame": "区切り要素です。",
+    "QListView": "一覧選択ビューです。",
+    "QStackedWidget": "切替表示コンテナです。",
+    "QTabBar": "タブを選択します。",
+    "QSplitterHandle": "ドラッグしてサイズを変更します。",
+}
+
+_STOP_ROBOT_KEY_EN = "stop robot"
+_STOP_ROBOT_KEY_JA = "robot 停止"
+_NORMALIZE_HELP_KEY_RE = re.compile(r"[^\w]+", re.UNICODE)
 
 
 def _normalize_help_key(value: str) -> str:
-    text = str(value or "").strip().lower()
+    text = str(value or "").strip().casefold()
     if text == "":
         return ""
     return _NORMALIZE_HELP_KEY_RE.sub(" ", text).strip()
@@ -385,6 +668,9 @@ def _normalize_help_key(value: str) -> str:
 
 _KNOWN_TEXT_HELP_BY_KEY: dict[str, tuple[str, str]] = {
     _normalize_help_key(key): value for key, value in _KNOWN_TEXT_HELP.items()
+}
+_KNOWN_TEXT_HELP_BY_KEY_JA: dict[str, tuple[str, str]] = {
+    _normalize_help_key(key): value for key, value in _KNOWN_TEXT_HELP_JA.items()
 }
 
 
@@ -394,13 +680,19 @@ def build_help_entry(
     widget_text: str,
     explicit_summary: str | None = None,
     explicit_detail: str | None = None,
+    locale: str = "en",
 ) -> HelpEntry:
     """Build one normalized help entry from explicit text and fallbacks."""
 
     title = _normalize_title(widget_text, widget_class)
-    known_summary, known_detail = _lookup_known_help(title, widget_id)
+    normalized_locale = normalize_locale(locale)
+    known_summary, known_detail = _lookup_known_help(title, widget_id, locale=normalized_locale)
 
-    summary = _normalize_text(explicit_summary) or known_summary or _fallback_summary(widget_class)
+    summary = (
+        _normalize_text(explicit_summary)
+        or known_summary
+        or _fallback_summary(widget_class, locale=normalized_locale)
+    )
     detail = _normalize_text(explicit_detail) or known_detail or summary
 
     return HelpEntry(
@@ -427,20 +719,30 @@ def filter_help_entries(entries: list[HelpEntry], query: str) -> list[HelpEntry]
     return result
 
 
-def _lookup_known_help(title: str, widget_id: str) -> tuple[str, str]:
-    widget_help = _KNOWN_WIDGET_ID_HELP.get(widget_id)
+def _lookup_known_help(title: str, widget_id: str, *, locale: str) -> tuple[str, str]:
+    widget_help_map = _KNOWN_WIDGET_ID_HELP if locale == "en" else _KNOWN_WIDGET_ID_HELP_JA
+    text_help_map = _KNOWN_TEXT_HELP if locale == "en" else _KNOWN_TEXT_HELP_JA
+    text_help_by_key_map = _KNOWN_TEXT_HELP_BY_KEY if locale == "en" else _KNOWN_TEXT_HELP_BY_KEY_JA
+
+    widget_help = widget_help_map.get(widget_id)
     if widget_help is not None:
         return widget_help
 
-    if title in _KNOWN_TEXT_HELP:
-        return _KNOWN_TEXT_HELP[title]
+    if title in text_help_map:
+        return text_help_map[title]
 
     normalized_title = _normalize_help_key(title)
-    normalized_match = _KNOWN_TEXT_HELP_BY_KEY.get(normalized_title)
+    normalized_match = text_help_by_key_map.get(normalized_title)
     if normalized_match is not None:
         return normalized_match
 
-    if normalized_title.startswith(_STOP_ROBOT_KEY):
+    if locale == "ja":
+        if normalized_title.startswith(_normalize_help_key(_STOP_ROBOT_KEY_JA)):
+            return (
+                "Robot 実行を停止します。",
+                "実行中の Robot プロセスを停止します。緊急停止は Ctrl+Shift+F12 を使用します。",
+            )
+    elif normalized_title.startswith(_normalize_help_key(_STOP_ROBOT_KEY_EN)):
         return (
             "Stop robot run.",
             "Stops the running Robot process immediately. Use Ctrl+Shift+F12 as emergency stop.",
@@ -448,11 +750,10 @@ def _lookup_known_help(title: str, widget_id: str) -> tuple[str, str]:
     return ("", "")
 
 
-def _fallback_summary(widget_class: str) -> str:
-    return _CLASS_FALLBACK_SUMMARY.get(
-        widget_class,
-        "Interactive UI element.",
-    )
+def _fallback_summary(widget_class: str, *, locale: str) -> str:
+    if locale == "ja":
+        return _CLASS_FALLBACK_SUMMARY_JA.get(widget_class, "操作可能な UI 要素です。")
+    return _CLASS_FALLBACK_SUMMARY.get(widget_class, "Interactive UI element.")
 
 
 def _normalize_title(widget_text: str, widget_class: str) -> str:
