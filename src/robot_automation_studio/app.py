@@ -10,49 +10,35 @@ import sys
 import threading
 import warnings
 from contextlib import suppress
-from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pynput import keyboard as pynput_keyboard
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
-    QEnterEvent,
-    QFont,
-    QHelpEvent,
     QKeySequence,
     QShortcut,
     QTextCursor,
 )
 from PySide6.QtWidgets import (
     QApplication,
-    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
-    QFormLayout,
-    QFrame,
     QHBoxLayout,
     QKeySequenceEdit,
     QLabel,
-    QLineEdit,
-    QListWidget,
     QMainWindow,
-    QMenu,
     QMessageBox,
-    QPlainTextEdit,
     QPushButton,
-    QScrollArea,
-    QSplitter,
-    QTabWidget,
-    QToolButton,
-    QToolTip,
     QVBoxLayout,
     QWidget,
 )
 
+from . import app_dialogs, app_help, app_ui
 from .bridge_readiness import build_recording_readiness_timeouts
 from .editor import ScenarioEditor
 from .exporter import export_all
@@ -85,9 +71,20 @@ from .settings_store import (
     save_ui_settings,
 )
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
-from .ui_help import HelpEntry, build_help_entry, filter_help_entries
+from .ui_help import HelpEntry
 from .unity_bridge import UnityBridgeClient
 from .unity_diagnostics import get_recent_unity_compile_errors
+
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import (
+        QCheckBox,
+        QFormLayout,
+        QLineEdit,
+        QListWidget,
+        QPlainTextEdit,
+        QTabWidget,
+        QToolButton,
+    )
 
 BRIDGE_READY_TIMEOUT_SECONDS = 15.0
 BRIDGE_READY_CHECK_TIMEOUT_SECONDS = 3.0
@@ -474,6 +471,82 @@ QToolButton#FileMenuButton:hover {{
 
 
 class StudioApp(QMainWindow):
+    if TYPE_CHECKING:
+        title_label: QLabel
+        name_edit: QLineEdit
+        record_button: QPushButton
+        record_stop_button: QPushButton
+        run_button: QPushButton
+        stop_robot_button: QPushButton
+        _status_pill: QLabel
+        help_status_label: QLabel
+        _rec_indicator: QLabel
+        file_menu_button: QToolButton
+        file_save_action: QAction
+        file_load_action: QAction
+        file_json_action: QAction
+        file_help_action: QAction
+        hotkey_button: QPushButton
+        language_combo: QComboBox
+        steps_label: QLabel
+        add_step_button: QToolButton
+        delete_step_button: QPushButton
+        move_up_button: QPushButton
+        move_down_button: QPushButton
+        duplicate_step_button: QPushButton
+        step_list: QListWidget
+        main_tabs: QTabWidget
+        step_form: QFormLayout
+        step_id_edit: QLineEdit
+        step_id_label: QLabel
+        title_edit: QLineEdit
+        step_title_label: QLabel
+        kind_combo: QComboBox
+        step_kind_label: QLabel
+        action_edit: QLineEdit
+        action_label: QLabel
+        control_edit: QLineEdit
+        control_label: QLabel
+        step_description_edit: QLineEdit
+        step_description_label: QLabel
+        step_condition_edit: QLineEdit
+        condition_label: QLabel
+        step_disabled_check: QCheckBox
+        step_continue_on_error_check: QCheckBox
+        annotations_text: QPlainTextEdit
+        annotations_label: QLabel
+        params_text: QPlainTextEdit
+        params_label: QLabel
+        apply_step_button: QPushButton
+        step_tab_index: int
+        scenario_id_edit: QLineEdit
+        scenario_id_label: QLabel
+        target_combo: QComboBox
+        target_label: QLabel
+        window_hint_edit: QLineEdit
+        window_hint_label: QLabel
+        execution_mode_combo: QComboBox
+        execution_mode_label: QLabel
+        project_path_edit: QLineEdit
+        project_path_browse_button: QPushButton
+        unity_project_path_label: QLabel
+        description_edit: QLineEdit
+        description_label: QLabel
+        variables_button: QPushButton
+        profiles_button: QPushButton
+        execution_outputs_button: QPushButton
+        scenario_tab_index: int
+        output_dir_edit: QLineEdit
+        output_dir_label: QLabel
+        export_name_edit: QLineEdit
+        export_button: QPushButton
+        export_name_label: QLabel
+        export_tab_index: int
+        log_label: QLabel
+        _log_toggle_button: QToolButton
+        log_text_container: QWidget
+        log_text: QPlainTextEdit
+
     _log_signal = Signal(str)
     _phase_signal = Signal(str)
     _run_finished_signal = Signal(object, object)
@@ -752,648 +825,10 @@ class StudioApp(QMainWindow):
         self._persist_ui_settings()
 
     def _build_ui(self) -> None:
-        central = QWidget()
-        self.setCentralWidget(central)
-        main_layout = QVBoxLayout(central)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-
-        header_bar = QWidget()
-        header_bar.setObjectName("HeaderBar")
-        header_bar.setFixedHeight(44)
-        header_layout = QHBoxLayout(header_bar)
-        header_layout.setContentsMargins(10, 0, 10, 0)
-        header_layout.setSpacing(8)
-
-        self.title_label = QLabel()
-        self.title_label.setObjectName("PanelTitle")
-        header_layout.addWidget(self.title_label)
-
-        self.name_edit = QLineEdit(self.scenario.name)
-        self.name_edit.setObjectName("ScenarioNameEdit")
-        self.name_edit.setMinimumWidth(260)
-        header_layout.addWidget(self.name_edit)
-
-        header_layout.addStretch()
-
-        self.record_button = QPushButton()
-        self.record_button.setObjectName("RecordButton")
-        self.record_button.clicked.connect(self.start_recording)
-        header_layout.addWidget(self.record_button)
-
-        self.record_stop_button = QPushButton()
-        self.record_stop_button.setObjectName("StopButton")
-        self.record_stop_button.clicked.connect(self.stop_recording)
-        header_layout.addWidget(self.record_stop_button)
-
-        vline1 = QFrame()
-        vline1.setFrameShape(QFrame.Shape.VLine)
-        vline1.setStyleSheet(f"background: {_BG_LIGHT};")
-        header_layout.addWidget(vline1)
-
-        self.run_button = QPushButton()
-        self.run_button.setObjectName("RecordButton")
-        self.run_button.clicked.connect(self.run_robot_suite)
-        header_layout.addWidget(self.run_button)
-
-        self.stop_robot_button = QPushButton()
-        self.stop_robot_button.setObjectName("StopButton")
-        self.stop_robot_button.setEnabled(False)
-        self.stop_robot_button.clicked.connect(self.stop_robot_suite)
-        header_layout.addWidget(self.stop_robot_button)
-
-        self._status_pill = QLabel(
-            format_run_status("idle", SPINNER_FRAMES[0], locale=self._translator.locale)
-        )
-        self._status_pill.setObjectName("StatusPill")
-        header_layout.addWidget(self._status_pill)
-
-        vline2 = QFrame()
-        vline2.setFrameShape(QFrame.Shape.VLine)
-        vline2.setStyleSheet(f"background: {_BG_LIGHT};")
-        header_layout.addWidget(vline2)
-
-        self.help_status_label = QLabel()
-        self.help_status_label.setObjectName("HeaderHelpLabel")
-        header_layout.addWidget(self.help_status_label, 1)
-
-        self._rec_indicator = QLabel()
-        self._rec_indicator.setObjectName("RecIndicator")
-        header_layout.addWidget(self._rec_indicator)
-
-        self.file_menu_button = QToolButton()
-        self.file_menu_button.setObjectName("FileMenuButton")
-        self.file_menu_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        file_menu = QMenu(self.file_menu_button)
-        self.file_save_action = file_menu.addAction("")
-        self.file_save_action.triggered.connect(self.save_json)
-        self.file_load_action = file_menu.addAction("")
-        self.file_load_action.triggered.connect(self.load_json)
-        file_menu.addSeparator()
-        self.file_json_action = file_menu.addAction("")
-        self.file_json_action.triggered.connect(self.open_full_json_editor)
-        self.file_help_action = file_menu.addAction("")
-        self.file_help_action.triggered.connect(self.open_help_guide)
-        self.file_menu_button.setMenu(file_menu)
-        header_layout.addWidget(self.file_menu_button)
-
-        self.hotkey_button = QPushButton()
-        self.hotkey_button.setObjectName("HotkeyButton")
-        self.hotkey_button.clicked.connect(self.open_hotkey_dialog)
-        header_layout.addWidget(self.hotkey_button)
-
-        self.language_combo = QComboBox()
-        self.language_combo.setObjectName("LanguageCombo")
-        self.language_combo.currentIndexChanged.connect(self._on_locale_changed)
-        header_layout.addWidget(self.language_combo)
-
-        main_layout.addWidget(header_bar)
-
-        main_splitter = QSplitter(Qt.Orientation.Vertical)
-        main_splitter.setObjectName("MainSplitter")
-
-        horizontal_splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        left_panel = QWidget()
-        left_panel.setMinimumWidth(200)
-        left_panel_layout = QVBoxLayout(left_panel)
-        left_panel_layout.setContentsMargins(8, 8, 8, 8)
-        left_panel_layout.setSpacing(6)
-
-        self.steps_label = QLabel()
-        self.steps_label.setObjectName("PanelTitle")
-        left_panel_layout.addWidget(self.steps_label)
-
-        step_toolbar = QHBoxLayout()
-
-        self.add_step_button = QToolButton()
-        self.add_step_button.setObjectName("AddStepButton")
-        self.add_step_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        add_step_menu = QMenu(self.add_step_button)
-        self.add_click_action = add_step_menu.addAction("")
-        self.add_click_action.triggered.connect(self.add_click)
-        self.add_drag_action = add_step_menu.addAction("")
-        self.add_drag_action.triggered.connect(self.add_drag)
-        self.add_shortcut_action = add_step_menu.addAction("")
-        self.add_shortcut_action.triggered.connect(self.add_shortcut)
-        self.add_menu_action = add_step_menu.addAction("")
-        self.add_menu_action.triggered.connect(self.add_menu)
-        self.add_type_action = add_step_menu.addAction("")
-        self.add_type_action.triggered.connect(self.add_type)
-        add_step_menu.addSeparator()
-        self.add_if_action = add_step_menu.addAction("")
-        self.add_if_action.triggered.connect(self.add_control)
-        self.add_group_action = add_step_menu.addAction("")
-        self.add_group_action.triggered.connect(self.add_group)
-        self.add_step_button.setMenu(add_step_menu)
-        step_toolbar.addWidget(self.add_step_button)
-
-        self.delete_step_button = QPushButton()
-        self.delete_step_button.setObjectName("DeleteStepButton")
-        self.delete_step_button.clicked.connect(self.delete_selected)
-        step_toolbar.addWidget(self.delete_step_button)
-
-        self.move_up_button = QPushButton()
-        self.move_up_button.setObjectName("MoveStepUpButton")
-        self.move_up_button.clicked.connect(self.move_up)
-        step_toolbar.addWidget(self.move_up_button)
-
-        self.move_down_button = QPushButton()
-        self.move_down_button.setObjectName("MoveStepDownButton")
-        self.move_down_button.clicked.connect(self.move_down)
-        step_toolbar.addWidget(self.move_down_button)
-
-        self.duplicate_step_button = QPushButton()
-        self.duplicate_step_button.setObjectName("DuplicateStepButton")
-        self.duplicate_step_button.clicked.connect(self.duplicate_selected)
-        step_toolbar.addWidget(self.duplicate_step_button)
-        step_toolbar.addStretch()
-
-        left_panel_layout.addLayout(step_toolbar)
-
-        self.step_list = QListWidget()
-        self.step_list.setObjectName("StepList")
-        self.step_list.setFont(QFont("Consolas", 11))
-        self.step_list.currentRowChanged.connect(self.on_select_step)
-        left_panel_layout.addWidget(self.step_list)
-
-        horizontal_splitter.addWidget(left_panel)
-
-        self.main_tabs = QTabWidget()
-        self.main_tabs.setObjectName("MainTabs")
-
-        step_tab = QWidget()
-        step_scroll = QScrollArea()
-        step_scroll.setWidgetResizable(True)
-        step_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        step_scroll_widget = QWidget()
-        step_scroll_layout = QVBoxLayout(step_scroll_widget)
-
-        self.step_form = QFormLayout()
-        self.step_form.setSpacing(8)
-        self.step_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
-
-        self.step_id_edit = QLineEdit()
-        self.step_id_edit.setObjectName("StepIdEdit")
-        self.step_id_label = QLabel()
-        self.step_form.addRow(self.step_id_label, self.step_id_edit)
-
-        self.title_edit = QLineEdit()
-        self.title_edit.setObjectName("StepTitleEdit")
-        self.step_title_label = QLabel()
-        self.step_form.addRow(self.step_title_label, self.title_edit)
-
-        self.kind_combo = QComboBox()
-        self.kind_combo.setObjectName("StepKindCombo")
-        self.step_kind_label = QLabel()
-        self.kind_combo.currentTextChanged.connect(self._update_step_kind_fields_visibility)
-        self.step_form.addRow(self.step_kind_label, self.kind_combo)
-
-        self.action_edit = QLineEdit()
-        self.action_edit.setObjectName("StepActionEdit")
-        self.action_label = QLabel()
-        self.step_form.addRow(self.action_label, self.action_edit)
-
-        self.control_edit = QLineEdit()
-        self.control_edit.setObjectName("StepControlEdit")
-        self.control_label = QLabel()
-        self.step_form.addRow(self.control_label, self.control_edit)
-
-        self.step_description_edit = QLineEdit()
-        self.step_description_edit.setObjectName("StepDescriptionEdit")
-        self.step_description_label = QLabel()
-        self.step_form.addRow(self.step_description_label, self.step_description_edit)
-
-        self.step_condition_edit = QLineEdit()
-        self.step_condition_edit.setObjectName("StepConditionEdit")
-        self.condition_label = QLabel()
-        self.step_form.addRow(self.condition_label, self.step_condition_edit)
-
-        checks_layout = QHBoxLayout()
-        self.step_disabled_check = QCheckBox()
-        self.step_disabled_check.setObjectName("StepDisabledCheck")
-        checks_layout.addWidget(self.step_disabled_check)
-        self.step_continue_on_error_check = QCheckBox()
-        self.step_continue_on_error_check.setObjectName("StepContinueOnErrorCheck")
-        checks_layout.addWidget(self.step_continue_on_error_check)
-        checks_layout.addStretch()
-        self.step_form.addRow(checks_layout)
-
-        self.annotations_text = QPlainTextEdit()
-        self.annotations_text.setObjectName("StepAnnotationsText")
-        self.annotations_text.setFont(QFont("Consolas", 9))
-        self.annotations_text.setMaximumHeight(80)
-        self.annotations_label = QLabel()
-        self.step_form.addRow(self.annotations_label, self.annotations_text)
-
-        self.params_text = QPlainTextEdit()
-        self.params_text.setObjectName("StepParamsText")
-        self.params_text.setFont(QFont("Consolas", 10))
-        self.params_text.setMaximumHeight(160)
-        self.params_label = QLabel()
-        self.step_form.addRow(self.params_label, self.params_text)
-
-        step_scroll_layout.addLayout(self.step_form)
-
-        self.apply_step_button = QPushButton()
-        self.apply_step_button.setObjectName("ApplyButton")
-        self.apply_step_button.clicked.connect(self.apply_step_changes)
-        step_scroll_layout.addWidget(self.apply_step_button)
-
-        step_scroll_layout.addStretch()
-
-        step_scroll.setWidget(step_scroll_widget)
-        step_tab_layout = QVBoxLayout(step_tab)
-        step_tab_layout.setContentsMargins(0, 0, 0, 0)
-        step_tab_layout.addWidget(step_scroll)
-
-        self.step_tab_index = self.main_tabs.addTab(step_tab, "")
-
-        scenario_tab = QWidget()
-        scenario_scroll = QScrollArea()
-        scenario_scroll.setWidgetResizable(True)
-        scenario_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scenario_scroll_widget = QWidget()
-        scenario_form = QFormLayout(scenario_scroll_widget)
-        scenario_form.setSpacing(8)
-        scenario_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
-
-        self.scenario_id_edit = QLineEdit(self.scenario.scenario_id)
-        self.scenario_id_edit.setObjectName("ScenarioIdEdit")
-        self.scenario_id_label = QLabel()
-        scenario_form.addRow(self.scenario_id_label, self.scenario_id_edit)
-
-        self.target_combo = QComboBox()
-        self.target_combo.setObjectName("TargetCombo")
-        self.target_label = QLabel()
-        scenario_form.addRow(self.target_label, self.target_combo)
-
-        self.window_hint_edit = QLineEdit(self.scenario.target_window_hint)
-        self.window_hint_edit.setObjectName("WindowHintEdit")
-        self.window_hint_label = QLabel()
-        scenario_form.addRow(self.window_hint_label, self.window_hint_edit)
-
-        self.execution_mode_combo = QComboBox()
-        self.execution_mode_combo.setObjectName("ExecutionModeCombo")
-        self.execution_mode_label = QLabel()
-        self.execution_mode_combo.currentTextChanged.connect(self.on_execution_mode_changed)
-        scenario_form.addRow(self.execution_mode_label, self.execution_mode_combo)
-
-        project_path_row = QHBoxLayout()
-        self.project_path_edit = QLineEdit(
-            str(self.scenario.metadata.get(UNITY_PROJECT_PATH_KEY, ""))
-        )
-        self.project_path_edit.setObjectName("ProjectPathEdit")
-        project_path_row.addWidget(self.project_path_edit, 1)
-        self.project_path_browse_button = QPushButton()
-        self.project_path_browse_button.setObjectName("ProjectPathBrowseButton")
-        self.project_path_browse_button.clicked.connect(self.browse_unity_project_path)
-        project_path_row.addWidget(self.project_path_browse_button)
-        self.unity_project_path_label = QLabel()
-        scenario_form.addRow(self.unity_project_path_label, project_path_row)
-
-        self.description_edit = QLineEdit(self.scenario.description)
-        self.description_edit.setObjectName("ScenarioDescriptionEdit")
-        self.description_label = QLabel()
-        scenario_form.addRow(self.description_label, self.description_edit)
-
-        scenario_tools_layout = QHBoxLayout()
-        self.variables_button = QPushButton()
-        self.variables_button.setObjectName("VariablesButton")
-        self.variables_button.clicked.connect(self.open_variables_editor)
-        scenario_tools_layout.addWidget(self.variables_button)
-        self.profiles_button = QPushButton()
-        self.profiles_button.setObjectName("ProfilesButton")
-        self.profiles_button.clicked.connect(self.open_profiles_editor)
-        scenario_tools_layout.addWidget(self.profiles_button)
-        self.execution_outputs_button = QPushButton()
-        self.execution_outputs_button.setObjectName("ExecutionOutputsButton")
-        self.execution_outputs_button.clicked.connect(self.open_execution_outputs_editor)
-        scenario_tools_layout.addWidget(self.execution_outputs_button)
-        scenario_tools_layout.addStretch()
-        scenario_form.addRow(scenario_tools_layout)
-
-        scenario_scroll.setWidget(scenario_scroll_widget)
-        scenario_tab_layout = QVBoxLayout(scenario_tab)
-        scenario_tab_layout.setContentsMargins(0, 0, 0, 0)
-        scenario_tab_layout.addWidget(scenario_scroll)
-
-        self.scenario_tab_index = self.main_tabs.addTab(scenario_tab, "")
-
-        export_tab = QWidget()
-        export_scroll = QScrollArea()
-        export_scroll.setWidgetResizable(True)
-        export_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        export_scroll_widget = QWidget()
-        export_form = QFormLayout(export_scroll_widget)
-        export_form.setSpacing(8)
-        export_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
-
-        self.output_dir_edit = QLineEdit("artifacts/studio")
-        self.output_dir_edit.setObjectName("OutputDirEdit")
-        self.output_dir_label = QLabel()
-        export_form.addRow(self.output_dir_label, self.output_dir_edit)
-
-        export_name_row = QHBoxLayout()
-        self.export_name_edit = QLineEdit("unity-editor-generated")
-        self.export_name_edit.setObjectName("ExportNameEdit")
-        export_name_row.addWidget(self.export_name_edit, 1)
-        self.export_button = QPushButton()
-        self.export_button.setObjectName("ExportButton")
-        self.export_button.clicked.connect(self.export_scenario)
-        export_name_row.addWidget(self.export_button)
-        self.export_name_label = QLabel()
-        export_form.addRow(self.export_name_label, export_name_row)
-
-        export_scroll.setWidget(export_scroll_widget)
-        export_tab_layout = QVBoxLayout(export_tab)
-        export_tab_layout.setContentsMargins(0, 0, 0, 0)
-        export_tab_layout.addWidget(export_scroll)
-
-        self.export_tab_index = self.main_tabs.addTab(export_tab, "")
-
-        horizontal_splitter.addWidget(self.main_tabs)
-
-        horizontal_splitter.setStretchFactor(0, 2)
-        horizontal_splitter.setStretchFactor(1, 3)
-
-        main_splitter.addWidget(horizontal_splitter)
-
-        bottom_panel = QWidget()
-        bottom_panel_layout = QVBoxLayout(bottom_panel)
-        bottom_panel_layout.setContentsMargins(0, 0, 0, 0)
-        bottom_panel_layout.setSpacing(0)
-
-        log_header = QWidget()
-        log_header.setObjectName("LogHeader")
-        log_header.setFixedHeight(32)
-        log_header_layout = QHBoxLayout(log_header)
-        log_header_layout.setContentsMargins(8, 4, 8, 4)
-
-        self.log_label = QLabel()
-        self.log_label.setObjectName("PanelTitle")
-        log_header_layout.addWidget(self.log_label)
-
-        log_header_layout.addStretch()
-
-        self._log_toggle_button = QToolButton()
-        self._log_toggle_button.setObjectName("LogToggleButton")
-        self._log_toggle_button.setText("\u25bc")
-        self._log_toggle_button.clicked.connect(self._toggle_log_collapse)
-        log_header_layout.addWidget(self._log_toggle_button)
-
-        bottom_panel_layout.addWidget(log_header)
-
-        self.log_text_container = QWidget()
-        log_text_container_layout = QVBoxLayout(self.log_text_container)
-        log_text_container_layout.setContentsMargins(8, 4, 8, 8)
-
-        self.log_text = QPlainTextEdit()
-        self.log_text.setObjectName("LogText")
-        self.log_text.setReadOnly(True)
-        self.log_text.setFont(QFont("Consolas", 9))
-        self.log_text.setMaximumBlockCount(5000)
-        log_text_container_layout.addWidget(self.log_text)
-
-        bottom_panel_layout.addWidget(self.log_text_container)
-
-        main_splitter.addWidget(bottom_panel)
-
-        main_splitter.setStretchFactor(0, 4)
-        main_splitter.setStretchFactor(1, 1)
-        main_splitter.setSizes([620, 180])
-
-        main_layout.addWidget(main_splitter, 1)
-
-        self.on_execution_mode_changed()
-        self._update_step_kind_fields_visibility()
+        app_ui.build_ui(self, bg_light=_BG_LIGHT)
 
     def _apply_localized_texts(self) -> None:
-        self.setWindowTitle(
-            self._t("app.window.title.recording")
-            if self.recorder.is_recording
-            else self._t("app.window.title")
-        )
-        self.title_label.setText(self._t("app.window.header_prefix"))
-        self.name_edit.setPlaceholderText(self._t("app.field.scenario_name.placeholder"))
-
-        self.record_button.setText(self._t("app.button.record_start"))
-        self.record_stop_button.setText(self._t("app.button.record_stop"))
-        self.run_button.setText(self._t("app.button.run_robot"))
-        self.stop_robot_button.setText(self._t("app.button.stop_robot"))
-        self._status_pill.setToolTip(self._t("app.status.run_tooltip"))
-        self.help_status_label.setText(self._t("app.help.header"))
-        self._rec_indicator.setToolTip(self._t("app.status.record_tooltip"))
-        self._rec_indicator.setText(
-            self._t("app.status.recording")
-            if self.recorder.is_recording
-            else self._t("app.status.record_idle")
-        )
-
-        self.file_menu_button.setText(self._t("app.button.file_menu"))
-        self.file_save_action.setText(self._t("app.menu.file.save"))
-        self.file_load_action.setText(self._t("app.menu.file.load"))
-        self.file_json_action.setText(self._t("app.menu.file.full_json"))
-        self.file_help_action.setText(self._t("app.menu.file.help"))
-        self.hotkey_button.setText(
-            self._t("app.button.hotkey_with_value", hotkey=self._stop_hotkey_spec.label)
-        )
-        self.hotkey_button.setToolTip(self._t("app.tooltip.stop_hotkey"))
-        self._set_action_help(
-            self.file_save_action,
-            "app.help.menu.file.save.summary",
-            "app.help.menu.file.save.detail",
-        )
-        self._set_action_help(
-            self.file_load_action,
-            "app.help.menu.file.load.summary",
-            "app.help.menu.file.load.detail",
-        )
-        self._set_action_help(
-            self.file_json_action,
-            "app.help.menu.file.full_json.summary",
-            "app.help.menu.file.full_json.detail",
-        )
-        self._set_action_help(
-            self.file_help_action,
-            "app.help.menu.file.help.summary",
-            "app.help.menu.file.help.detail",
-        )
-
-        current_locale = self._translator.locale
-        self.language_combo.blockSignals(True)
-        self.language_combo.clear()
-        self.language_combo.addItem(self._t("locale.en.label"), "en")
-        self.language_combo.addItem(self._t("locale.ja.label"), "ja")
-        self._set_combo_value(self.language_combo, current_locale)
-        self.language_combo.blockSignals(False)
-        self.language_combo.setToolTip(self._t("app.button.language_menu"))
-
-        self.steps_label.setText(self._t("app.label.steps"))
-        self.add_step_button.setText(self._t("app.button.add_step"))
-        self.add_click_action.setText(self._t("app.menu.add.click"))
-        self.add_drag_action.setText(self._t("app.menu.add.drag"))
-        self.add_shortcut_action.setText(self._t("app.menu.add.shortcut"))
-        self.add_menu_action.setText(self._t("app.menu.add.menu"))
-        self.add_type_action.setText(self._t("app.menu.add.type"))
-        self.add_if_action.setText(self._t("app.menu.add.if"))
-        self.add_group_action.setText(self._t("app.menu.add.group"))
-        self._set_action_help(
-            self.add_click_action,
-            "app.help.menu.add.click.summary",
-            "app.help.menu.add.click.detail",
-        )
-        self._set_action_help(
-            self.add_drag_action,
-            "app.help.menu.add.drag.summary",
-            "app.help.menu.add.drag.detail",
-        )
-        self._set_action_help(
-            self.add_shortcut_action,
-            "app.help.menu.add.shortcut.summary",
-            "app.help.menu.add.shortcut.detail",
-        )
-        self._set_action_help(
-            self.add_menu_action,
-            "app.help.menu.add.menu.summary",
-            "app.help.menu.add.menu.detail",
-        )
-        self._set_action_help(
-            self.add_type_action,
-            "app.help.menu.add.type.summary",
-            "app.help.menu.add.type.detail",
-        )
-        self._set_action_help(
-            self.add_if_action,
-            "app.help.menu.add.if.summary",
-            "app.help.menu.add.if.detail",
-        )
-        self._set_action_help(
-            self.add_group_action,
-            "app.help.menu.add.group.summary",
-            "app.help.menu.add.group.detail",
-        )
-
-        self.delete_step_button.setText(self._t("app.button.delete"))
-        self.move_up_button.setText(self._t("app.button.move_up"))
-        self.move_down_button.setText(self._t("app.button.move_down"))
-        self.duplicate_step_button.setText(self._t("app.button.duplicate"))
-        self.delete_step_button.setToolTip(self._t("app.tooltip.delete_step"))
-        self.move_up_button.setToolTip(self._t("app.tooltip.move_step_up"))
-        self.move_down_button.setToolTip(self._t("app.tooltip.move_step_down"))
-        self.duplicate_step_button.setToolTip(self._t("app.tooltip.duplicate_step"))
-        self.step_list.setToolTip(self._t("app.tooltip.steps_list"))
-
-        self.step_id_label.setText(self._t("app.field.step_id.label"))
-        self.step_id_edit.setPlaceholderText(self._t("app.field.step_id.placeholder"))
-        self.step_title_label.setText(self._t("app.field.step_title.label"))
-        self.title_edit.setPlaceholderText(self._t("app.field.step_title.placeholder"))
-        self.step_kind_label.setText(self._t("app.field.step_kind.label"))
-        self.action_label.setText(self._t("app.field.step_action.label"))
-        self.action_edit.setPlaceholderText(self._t("app.field.step_action.placeholder"))
-        self.control_label.setText(self._t("app.field.step_control.label"))
-        self.control_edit.setPlaceholderText(self._t("app.field.step_control.placeholder"))
-        self.step_description_label.setText(self._t("app.field.step_description.label"))
-        self.step_description_edit.setPlaceholderText(
-            self._t("app.field.step_description.placeholder")
-        )
-        self.condition_label.setText(self._t("app.field.step_condition.label"))
-        self.step_condition_edit.setPlaceholderText(self._t("app.field.step_condition.placeholder"))
-        self.step_disabled_check.setText(self._t("app.field.step_disabled"))
-        self.step_continue_on_error_check.setText(self._t("app.field.step_continue_on_error"))
-        self.annotations_label.setText(self._t("app.field.annotations.label"))
-        self.params_label.setText(self._t("app.field.params.label"))
-        self.apply_step_button.setText(self._t("app.button.apply_step"))
-
-        current_step_kind = self._combo_value(self.kind_combo) or "action"
-        current_target = self._combo_value(self.target_combo) or "unity"
-        current_mode = self._combo_value(self.execution_mode_combo) or "attach"
-
-        self.kind_combo.blockSignals(True)
-        self.kind_combo.clear()
-        self.kind_combo.addItem(self._t("app.option.kind.action"), "action")
-        self.kind_combo.addItem(self._t("app.option.kind.control"), "control")
-        self.kind_combo.addItem(self._t("app.option.kind.group"), "group")
-        self.kind_combo.blockSignals(False)
-        self._set_combo_value(self.kind_combo, current_step_kind)
-        self._configure_combo_option_help(
-            self.kind_combo,
-            {
-                "action": self._t("app.option.help.kind.action"),
-                "control": self._t("app.option.help.kind.control"),
-                "group": self._t("app.option.help.kind.group"),
-            },
-        )
-
-        self.target_combo.blockSignals(True)
-        self.target_combo.clear()
-        self.target_combo.addItem(self._t("app.option.target.unity"), "unity")
-        self.target_combo.addItem(self._t("app.option.target.web"), "web")
-        self.target_combo.addItem(self._t("app.option.target.desktop"), "desktop")
-        self.target_combo.addItem(self._t("app.option.target.hybrid"), "hybrid")
-        self.target_combo.blockSignals(False)
-        self._set_combo_value(self.target_combo, current_target)
-        self._configure_combo_option_help(
-            self.target_combo,
-            {
-                "unity": self._t("app.option.help.target.unity"),
-                "web": self._t("app.option.help.target.web"),
-                "desktop": self._t("app.option.help.target.desktop"),
-                "hybrid": self._t("app.option.help.target.hybrid"),
-            },
-        )
-
-        self.execution_mode_combo.blockSignals(True)
-        self.execution_mode_combo.clear()
-        self.execution_mode_combo.addItem(self._t("app.option.execution.attach"), "attach")
-        self.execution_mode_combo.addItem(self._t("app.option.execution.launch"), "launch")
-        self.execution_mode_combo.blockSignals(False)
-        self._set_combo_value(self.execution_mode_combo, current_mode)
-        self._configure_combo_option_help(
-            self.execution_mode_combo,
-            {
-                "attach": self._t("app.option.help.execution.attach"),
-                "launch": self._t("app.option.help.execution.launch"),
-            },
-        )
-
-        self.main_tabs.setTabText(self.step_tab_index, self._t("app.tab.step"))
-        self.main_tabs.setTabText(self.scenario_tab_index, self._t("app.tab.scenario"))
-        self.main_tabs.setTabText(self.export_tab_index, self._t("app.tab.export"))
-        self.main_tabs.setTabToolTip(self.step_tab_index, self._t("app.tab.step.tooltip"))
-        self.main_tabs.setTabToolTip(self.scenario_tab_index, self._t("app.tab.scenario.tooltip"))
-        self.main_tabs.setTabToolTip(self.export_tab_index, self._t("app.tab.export.tooltip"))
-
-        self.scenario_id_label.setText(self._t("app.field.scenario_id.label"))
-        self.scenario_id_edit.setPlaceholderText(self._t("app.field.scenario_id.placeholder"))
-        self.target_label.setText(self._t("app.field.target.label"))
-        self.window_hint_label.setText(self._t("app.field.window_hint.label"))
-        self.window_hint_edit.setPlaceholderText(self._t("app.field.window_hint.placeholder"))
-        self.execution_mode_label.setText(self._t("app.field.execution_mode.label"))
-        self.unity_project_path_label.setText(self._t("app.field.unity_project_path.label"))
-        self.project_path_edit.setPlaceholderText(
-            self._t("app.field.unity_project_path.placeholder")
-        )
-        self.project_path_browse_button.setText(self._t("app.button.browse"))
-        self.description_label.setText(self._t("app.field.description.label"))
-        self.description_edit.setPlaceholderText(self._t("app.field.description.placeholder"))
-        self.variables_button.setText(self._t("app.button.variables"))
-        self.profiles_button.setText(self._t("app.button.profiles"))
-        self.execution_outputs_button.setText(self._t("app.button.execution_outputs"))
-
-        self.output_dir_label.setText(self._t("app.field.output_dir.label"))
-        self.output_dir_edit.setPlaceholderText(self._t("app.field.output_dir.placeholder"))
-        self.export_name_label.setText(self._t("app.field.export_name.label"))
-        self.export_name_edit.setPlaceholderText(self._t("app.field.export_name.placeholder"))
-        self.export_button.setText(self._t("app.button.export"))
-
-        self.log_label.setText(self._t("app.label.output_log"))
-        self._log_toggle_button.setToolTip(self._t("app.log.toggle.tooltip"))
-
-        self.on_execution_mode_changed()
-        self._update_step_kind_fields_visibility()
-        self._render_robot_status()
-        self.refresh_steps()
+        app_ui.apply_localized_texts(self)
 
     def _toggle_log_collapse(self) -> None:
         self._log_collapsed = not self._log_collapsed
@@ -2304,721 +1739,40 @@ class StudioApp(QMainWindow):
         self.on_select_step(-1)
 
     def open_help_guide(self) -> None:
-        if self._help_dialog is not None:
-            self._help_dialog.raise_()
-            self._help_dialog.activateWindow()
-            return
-
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self._t("app.help.dialog.title"))
-        dialog.resize(980, 640)
-        self._help_dialog = dialog
-
-        layout = QVBoxLayout(dialog)
-
-        top_layout = QHBoxLayout()
-        top_layout.addWidget(QLabel(self._t("app.log.search")))
-        search_edit = QLineEdit()
-        search_edit.setMinimumWidth(340)
-        top_layout.addWidget(search_edit)
-        summary_label = QLabel(
-            self._t("app.help.dialog.summary", count=len(self._help_entries_by_id))
-        )
-        top_layout.addWidget(summary_label)
-        top_layout.addStretch()
-        layout.addLayout(top_layout)
-
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        listbox = QListWidget()
-        listbox.setFont(QFont("Segoe UI", 10))
-        splitter.addWidget(listbox)
-
-        detail_text = QPlainTextEdit()
-        detail_text.setReadOnly(True)
-        detail_text.setFont(QFont("Consolas", 9))
-        splitter.addWidget(detail_text)
-
-        splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 3)
-        layout.addWidget(splitter, 1)
-
-        footer_layout = QHBoxLayout()
-        footer_layout.addStretch()
-        close_button = QPushButton(self._t("app.button.close"))
-        close_button.clicked.connect(self._close_help_dialog)
-        footer_layout.addWidget(close_button)
-        layout.addLayout(footer_layout)
-
-        visible_entries: list[HelpEntry] = []
-
-        def _render_details(entry: HelpEntry) -> None:
-            detail_text.setPlainText(
-                self._t(
-                    "app.help.dialog.details",
-                    title=entry.title,
-                    widget_class=entry.widget_class,
-                    widget_id=entry.widget_id,
-                    summary=entry.summary,
-                    detail=entry.detail,
-                )
-            )
-
-        def _refresh_list() -> None:
-            visible_entries.clear()
-            listbox.clear()
-            filtered = filter_help_entries(self._sorted_help_entries(), search_edit.text())
-            for entry in filtered:
-                visible_entries.append(entry)
-                listbox.addItem(
-                    self._t(
-                        "app.list.item.help_entry",
-                        title=entry.title,
-                        widget_class=entry.widget_class,
-                    )
-                )
-            summary_label.setText(
-                self._t(
-                    "app.help.dialog.shown",
-                    shown=len(filtered),
-                    total=len(self._help_entries_by_id),
-                )
-            )
-            if visible_entries:
-                listbox.setCurrentRow(0)
-                _render_details(visible_entries[0])
-            else:
-                detail_text.setPlainText(self._t("app.help.dialog.no_match"))
-
-        def _on_select(row: int) -> None:
-            if row < 0 or row >= len(visible_entries):
-                return
-            _render_details(visible_entries[row])
-
-        search_edit.textChanged.connect(lambda: _refresh_list())
-        listbox.currentRowChanged.connect(_on_select)
-
-        dialog.finished.connect(lambda: setattr(self, "_help_dialog", None))
-
-        _refresh_list()
-        search_edit.setFocus()
-
-        dialog.exec()
+        app_help.open_help_guide(self)
 
     def _close_help_dialog(self) -> None:
-        if self._help_dialog is None:
-            return
-        self._help_dialog.close()
-        self._help_dialog = None
+        app_help._close_help_dialog(self)
 
     def _widget_text(self, widget: QWidget) -> str:
-        if isinstance(widget, QPushButton):
-            text = widget.text().strip()
-            if text and any(char.isalnum() for char in text):
-                return text
-            tooltip = widget.toolTip().strip()
-            if tooltip:
-                return tooltip
-            return text
-        if isinstance(widget, QToolButton):
-            text = widget.text().strip()
-            if text:
-                return text
-            tooltip = widget.toolTip().strip()
-            if tooltip:
-                return tooltip
-            return widget.objectName()
-        if isinstance(widget, QLabel):
-            tooltip = widget.toolTip().strip()
-            if tooltip:
-                return tooltip
-            return widget.text()
-        if isinstance(widget, QLineEdit):
-            placeholder = widget.placeholderText().strip()
-            if placeholder:
-                return placeholder
-            tooltip = widget.toolTip().strip()
-            if tooltip:
-                return tooltip
-            text = widget.text().strip()
-            if text:
-                return text
-            return widget.objectName()
-        if isinstance(widget, QComboBox):
-            tooltip = widget.toolTip().strip()
-            if tooltip:
-                return tooltip
-            text = widget.currentText().strip()
-            if text:
-                return text
-            return widget.objectName()
-        if isinstance(widget, QCheckBox):
-            return widget.text()
-        if isinstance(widget, QListWidget):
-            tooltip = widget.toolTip().strip()
-            if tooltip:
-                return tooltip
-            return widget.objectName()
-        if isinstance(widget, QPlainTextEdit):
-            tooltip = widget.toolTip().strip()
-            if tooltip:
-                return tooltip
-            return widget.objectName()
-        return ""
+        return app_help._widget_text(self, widget)
 
     def _should_skip_help_widget(self, widget: QWidget) -> bool:
-        if widget is self:
-            return True
-        object_name = widget.objectName()
-        if object_name.startswith("qt_"):
-            return True
-        return type(widget).__name__ in {
-            "QFrame",
-            "QListView",
-            "QMenu",
-            "QScrollArea",
-            "QScrollBar",
-            "QSplitter",
-            "QSplitterHandle",
-            "QStackedWidget",
-            "QTabBar",
-            "QWidget",
-        }
+        return app_help._should_skip_help_widget(self, widget)
 
     def _register_help_for_widget(self, widget: QWidget) -> None:
-        if widget in self._help_entries_by_widget:
-            return
-        if self._should_skip_help_widget(widget):
-            return
-        widget_id = widget.objectName() or str(id(widget))
-        widget_class = type(widget).__name__
-        widget_text = self._widget_text(widget)
-        entry = build_help_entry(
-            widget_id=widget_id,
-            widget_class=widget_class,
-            widget_text=widget_text,
-            locale=self._translator.locale,
-        )
-        if entry.summary.strip() == "":
-            return
-        self._help_entries_by_widget[widget] = entry
-        self._help_entries_by_id[entry.widget_id] = entry
-        widget.setToolTip(build_help_tooltip_text(entry.summary, locale=self._translator.locale))
-        widget.installEventFilter(self)
+        app_help._register_help_for_widget(self, widget)
 
     def _register_help_for_widget_tree(self, root: QWidget) -> None:
-        for child in root.findChildren(QWidget):
-            self._register_help_for_widget(child)
+        app_help._register_help_for_widget_tree(self, root)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        combo = self._combo_tooltip_viewports.get(obj)
-        if combo is not None and event.type() == QEvent.Type.ToolTip:
-            if isinstance(event, QHelpEvent):
-                index = combo.view().indexAt(event.pos())
-                if index.isValid():
-                    tooltip = index.data(Qt.ItemDataRole.ToolTipRole)
-                    if tooltip:
-                        QToolTip.showText(event.globalPos(), str(tooltip), combo.view())
-                        return True
-            return False
-        if isinstance(obj, QWidget) and event.type() == QEvent.Type.Enter:
-            entry = self._help_entries_by_widget.get(obj)
-            if entry is None:
-                return False
-            if isinstance(event, QEnterEvent):
-                QToolTip.showText(event.globalPosition().toPoint(), obj.toolTip(), obj)
-                return False
-            QToolTip.showText(obj.mapToGlobal(obj.rect().center()), obj.toolTip(), obj)
-            return False
-        if isinstance(obj, QWidget) and event.type() == QEvent.Type.ToolTip:
-            entry = self._help_entries_by_widget.get(obj)
-            if entry is None:
-                return False
-            if isinstance(event, QHelpEvent):
-                QToolTip.showText(event.globalPos(), obj.toolTip(), obj)
-                return True
-            return False
-        if isinstance(obj, QWidget) and event.type() == QEvent.Type.FocusIn:
-            entry = self._help_entries_by_widget.get(obj)
-            if entry is not None:
-                QToolTip.showText(obj.mapToGlobal(obj.rect().center()), obj.toolTip(), obj)
-        if isinstance(obj, QWidget) and event.type() == QEvent.Type.Leave:
-            QToolTip.hideText()
-        return False
+        return app_help.eventFilter(self, obj, event)
 
     def _sorted_help_entries(self) -> list[HelpEntry]:
-        return sorted(
-            self._help_entries_by_id.values(),
-            key=lambda item: (item.title.lower(), item.widget_class.lower(), item.widget_id),
-        )
+        return app_help._sorted_help_entries(self)
 
     def open_full_json_editor(self) -> None:
-        self._sync_scenario_header()
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self._t("app.dialog.full_json.title"))
-        dialog.resize(960, 720)
-
-        layout = QVBoxLayout(dialog)
-
-        top_layout = QHBoxLayout()
-        format_button = QPushButton(self._t("app.button.format"))
-        top_layout.addWidget(format_button)
-        reload_button = QPushButton(self._t("app.button.reload_model"))
-        top_layout.addWidget(reload_button)
-        top_layout.addStretch()
-        cancel_button = QPushButton(self._t("app.button.cancel"))
-        top_layout.addWidget(cancel_button)
-        apply_button = QPushButton(self._t("app.button.apply"))
-        apply_button.setObjectName("ApplyButton")
-        top_layout.addWidget(apply_button)
-        layout.addLayout(top_layout)
-
-        text = QPlainTextEdit()
-        text.setFont(QFont("Consolas", 9))
-        text.setPlainText(json.dumps(self.scenario.to_dict(), ensure_ascii=False, indent=2))
-        layout.addWidget(text, 1)
-
-        def _format_json() -> None:
-            try:
-                payload = json.loads(text.toPlainText().strip() or "{}")
-            except json.JSONDecodeError as error:
-                QMessageBox.critical(
-                    dialog, self._t("app.error.full_json_invalid.title"), str(error)
-                )
-                return
-            text.setPlainText(json.dumps(payload, ensure_ascii=False, indent=2))
-
-        def _reload_model() -> None:
-            self._sync_scenario_header()
-            text.setPlainText(json.dumps(self.scenario.to_dict(), ensure_ascii=False, indent=2))
-
-        def _apply_json() -> None:
-            try:
-                payload = json.loads(text.toPlainText().strip() or "{}")
-            except json.JSONDecodeError as error:
-                QMessageBox.critical(
-                    dialog, self._t("app.error.full_json_invalid.title"), str(error)
-                )
-                return
-            try:
-                loaded = Scenario.from_dict(payload)
-            except Exception as error:
-                QMessageBox.critical(
-                    dialog, self._t("app.error.full_json_validation.title"), str(error)
-                )
-                return
-            self._apply_loaded_scenario(loaded)
-            self.log(self._t("app.log.applied_full_json"))
-            dialog.accept()
-
-        format_button.clicked.connect(_format_json)
-        reload_button.clicked.connect(_reload_model)
-        apply_button.clicked.connect(_apply_json)
-        cancel_button.clicked.connect(dialog.reject)
-
-        self._register_help_for_widget_tree(dialog)
-        dialog.exec()
+        app_dialogs.open_full_json_editor(self)
 
     def open_variables_editor(self) -> None:
-        self._sync_scenario_header()
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self._t("app.dialog.variables.title"))
-        dialog.resize(980, 620)
-
-        variables = [deepcopy(item) for item in self.scenario.variables if isinstance(item, dict)]
-
-        layout = QVBoxLayout(dialog)
-
-        body_layout = QHBoxLayout()
-        listbox = QListWidget()
-        listbox.setMinimumWidth(260)
-        body_layout.addWidget(listbox)
-
-        text = QPlainTextEdit()
-        text.setFont(QFont("Consolas", 9))
-        body_layout.addWidget(text, 1)
-        layout.addLayout(body_layout, 1)
-
-        def _refresh_list() -> None:
-            listbox.clear()
-            for index, variable in enumerate(variables):
-                variable_id = str(variable.get("id") or f"var-{index + 1}")
-                variable_type = str(variable.get("type") or "string")
-                listbox.addItem(
-                    self._t(
-                        "app.list.item.variable",
-                        index=index + 1,
-                        id=variable_id,
-                        type=variable_type,
-                    )
-                )
-
-        def _select(index: int) -> None:
-            if index < 0 or index >= len(variables):
-                return
-            listbox.setCurrentRow(index)
-            text.setPlainText(json.dumps(variables[index], ensure_ascii=False, indent=2))
-
-        def _on_select(row: int) -> None:
-            if row < 0 or row >= len(variables):
-                return
-            _select(row)
-
-        def _apply_current() -> bool:
-            row = listbox.currentRow()
-            if row < 0:
-                return True
-            try:
-                payload = json.loads(text.toPlainText().strip() or "{}")
-            except json.JSONDecodeError as error:
-                QMessageBox.critical(
-                    dialog, self._t("app.error.variable_json_invalid.title"), str(error)
-                )
-                return False
-            if not isinstance(payload, dict):
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.variable_json_invalid.title"),
-                    self._t("app.error.variable_json_object"),
-                )
-                return False
-            if str(payload.get("id") or "").strip() == "":
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.variable_json_invalid.title"),
-                    self._t("app.error.variable_id_required"),
-                )
-                return False
-            if str(payload.get("type") or "").strip() == "":
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.variable_json_invalid.title"),
-                    self._t("app.error.variable_type_required"),
-                )
-                return False
-            variables[row] = payload
-            _refresh_list()
-            _select(row)
-            return True
-
-        def _add_variable() -> None:
-            if not _apply_current():
-                return
-            next_index = len(variables) + 1
-            variables.append(
-                {
-                    "id": f"var_{next_index}",
-                    "type": "string",
-                    "required": False,
-                    "default": "",
-                }
-            )
-            _refresh_list()
-            _select(len(variables) - 1)
-
-        def _delete_variable() -> None:
-            row = listbox.currentRow()
-            if row < 0:
-                return
-            variables.pop(row)
-            _refresh_list()
-            if variables:
-                _select(min(row, len(variables) - 1))
-            else:
-                text.clear()
-
-        def _save_and_close() -> None:
-            if not _apply_current():
-                return
-            self.scenario.variables = variables
-            self.log(self._t("app.log.updated_variables"))
-            dialog.accept()
-
-        footer_layout = QHBoxLayout()
-        add_button = QPushButton(self._t("app.button.add"))
-        add_button.clicked.connect(_add_variable)
-        footer_layout.addWidget(add_button)
-        delete_button = QPushButton(self._t("app.button.delete_word"))
-        delete_button.clicked.connect(_delete_variable)
-        footer_layout.addWidget(delete_button)
-        apply_button = QPushButton(self._t("app.button.apply_current"))
-        apply_button.setObjectName("ApplyButton")
-        apply_button.clicked.connect(_apply_current)
-        footer_layout.addWidget(apply_button)
-        footer_layout.addStretch()
-        cancel_button = QPushButton(self._t("app.button.cancel"))
-        cancel_button.clicked.connect(dialog.reject)
-        footer_layout.addWidget(cancel_button)
-        save_button = QPushButton(self._t("app.button.save"))
-        save_button.setObjectName("ApplyButton")
-        save_button.clicked.connect(_save_and_close)
-        footer_layout.addWidget(save_button)
-        layout.addLayout(footer_layout)
-
-        listbox.currentRowChanged.connect(_on_select)
-        _refresh_list()
-        if variables:
-            _select(0)
-
-        self._register_help_for_widget_tree(dialog)
-        dialog.exec()
+        app_dialogs.open_variables_editor(self)
 
     def open_profiles_editor(self) -> None:
-        self._sync_scenario_header()
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self._t("app.dialog.profiles.title"))
-        dialog.resize(980, 620)
-
-        profiles = dict(self.scenario.profiles or {})
-        profile_names = sorted(profiles.keys())
-
-        layout = QVBoxLayout(dialog)
-
-        body_layout = QHBoxLayout()
-        listbox = QListWidget()
-        listbox.setMinimumWidth(260)
-        body_layout.addWidget(listbox)
-
-        text = QPlainTextEdit()
-        text.setFont(QFont("Consolas", 9))
-        body_layout.addWidget(text, 1)
-        layout.addLayout(body_layout, 1)
-
-        def _refresh_list() -> None:
-            listbox.clear()
-            for index, name in enumerate(profile_names):
-                listbox.addItem(self._t("app.list.item.profile", index=index + 1, name=name))
-
-        def _select(index: int) -> None:
-            if index < 0 or index >= len(profile_names):
-                return
-            name = profile_names[index]
-            payload = deepcopy(profiles.get(name, {}))
-            profile_payload = {"name": name, "profile": payload}
-            listbox.setCurrentRow(index)
-            text.setPlainText(json.dumps(profile_payload, ensure_ascii=False, indent=2))
-
-        def _on_select(row: int) -> None:
-            if row < 0 or row >= len(profile_names):
-                return
-            _select(row)
-
-        def _apply_current() -> bool:
-            row = listbox.currentRow()
-            if row < 0:
-                return True
-            current_name = profile_names[row]
-            try:
-                payload = json.loads(text.toPlainText().strip() or "{}")
-            except json.JSONDecodeError as error:
-                QMessageBox.critical(
-                    dialog, self._t("app.error.profile_json_invalid.title"), str(error)
-                )
-                return False
-            if not isinstance(payload, dict):
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.profile_json_invalid.title"),
-                    self._t("app.error.profile_payload_object"),
-                )
-                return False
-            name = str(payload.get("name") or "").strip()
-            profile = payload.get("profile")
-            if name == "":
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.profile_json_invalid.title"),
-                    self._t("app.error.profile_name_required"),
-                )
-                return False
-            if not isinstance(profile, dict):
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.profile_json_invalid.title"),
-                    self._t("app.error.profile_field_object"),
-                )
-                return False
-            profiles.pop(current_name, None)
-            profiles[name] = profile
-            profile_names[:] = sorted(profiles.keys())
-            _refresh_list()
-            _select(profile_names.index(name))
-            return True
-
-        def _add_profile() -> None:
-            if not _apply_current():
-                return
-            next_index = len(profile_names) + 1
-            name = f"profile-{next_index}"
-            profiles[name] = {"description": "", "variables": {}}
-            profile_names[:] = sorted(profiles.keys())
-            _refresh_list()
-            _select(profile_names.index(name))
-
-        def _delete_profile() -> None:
-            row = listbox.currentRow()
-            if row < 0:
-                return
-            name = profile_names[row]
-            profiles.pop(name, None)
-            profile_names[:] = sorted(profiles.keys())
-            _refresh_list()
-            if profile_names:
-                _select(min(row, len(profile_names) - 1))
-            else:
-                text.clear()
-
-        def _save_and_close() -> None:
-            if not _apply_current():
-                return
-            self.scenario.profiles = profiles
-            self.log(self._t("app.log.updated_profiles"))
-            dialog.accept()
-
-        footer_layout = QHBoxLayout()
-        add_button = QPushButton(self._t("app.button.add"))
-        add_button.clicked.connect(_add_profile)
-        footer_layout.addWidget(add_button)
-        delete_button = QPushButton(self._t("app.button.delete_word"))
-        delete_button.clicked.connect(_delete_profile)
-        footer_layout.addWidget(delete_button)
-        apply_button = QPushButton(self._t("app.button.apply_current"))
-        apply_button.setObjectName("ApplyButton")
-        apply_button.clicked.connect(_apply_current)
-        footer_layout.addWidget(apply_button)
-        footer_layout.addStretch()
-        cancel_button = QPushButton(self._t("app.button.cancel"))
-        cancel_button.clicked.connect(dialog.reject)
-        footer_layout.addWidget(cancel_button)
-        save_button = QPushButton(self._t("app.button.save"))
-        save_button.setObjectName("ApplyButton")
-        save_button.clicked.connect(_save_and_close)
-        footer_layout.addWidget(save_button)
-        layout.addLayout(footer_layout)
-
-        listbox.currentRowChanged.connect(_on_select)
-        _refresh_list()
-        if profile_names:
-            _select(0)
-
-        self._register_help_for_widget_tree(dialog)
-        dialog.exec()
+        app_dialogs.open_profiles_editor(self)
 
     def open_execution_outputs_editor(self) -> None:
-        self._sync_scenario_header()
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self._t("app.dialog.execution_outputs.title"))
-        dialog.resize(980, 720)
-
-        layout = QVBoxLayout(dialog)
-
-        top_layout = QHBoxLayout()
-        header_label = QLabel(self._t("app.dialog.execution_outputs.header"))
-        header_label.setObjectName("PanelTitle")
-        top_layout.addWidget(header_label)
-        top_layout.addStretch()
-        layout.addLayout(top_layout)
-
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        execution_widget = QWidget()
-        execution_layout = QVBoxLayout(execution_widget)
-        execution_layout.addWidget(QLabel(self._t("app.dialog.execution_outputs.execution")))
-        execution_text = QPlainTextEdit()
-        execution_text.setFont(QFont("Consolas", 9))
-        execution_text.setPlainText(
-            json.dumps(self.scenario.execution, ensure_ascii=False, indent=2)
-        )
-        execution_layout.addWidget(execution_text)
-        splitter.addWidget(execution_widget)
-
-        outputs_widget = QWidget()
-        outputs_layout = QVBoxLayout(outputs_widget)
-        outputs_layout.addWidget(QLabel(self._t("app.dialog.execution_outputs.outputs")))
-        outputs_text = QPlainTextEdit()
-        outputs_text.setFont(QFont("Consolas", 9))
-        outputs_text.setPlainText(json.dumps(self.scenario.outputs, ensure_ascii=False, indent=2))
-        outputs_layout.addWidget(outputs_text)
-        splitter.addWidget(outputs_widget)
-
-        layout.addWidget(splitter, 1)
-
-        def _apply() -> bool:
-            try:
-                execution_payload = json.loads(execution_text.toPlainText().strip() or "{}")
-            except json.JSONDecodeError as error:
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.execution_json_invalid.title"),
-                    str(error),
-                )
-                return False
-            try:
-                outputs_payload = json.loads(outputs_text.toPlainText().strip() or "{}")
-            except json.JSONDecodeError as error:
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.outputs_json_invalid.title"),
-                    str(error),
-                )
-                return False
-            if not isinstance(execution_payload, dict):
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.execution_json_invalid.title"),
-                    self._t("app.error.execution_object"),
-                )
-                return False
-            if not isinstance(outputs_payload, dict):
-                QMessageBox.critical(
-                    dialog,
-                    self._t("app.error.outputs_json_invalid.title"),
-                    self._t("app.error.outputs_object"),
-                )
-                return False
-            self.scenario.execution = execution_payload
-            self.scenario.outputs = outputs_payload
-            mode = str(execution_payload.get("mode") or "").strip().lower()
-            if mode in {"attach", "launch"}:
-                self._set_combo_value(self.execution_mode_combo, mode)
-            self.log(self._t("app.log.updated_execution_outputs"))
-            return True
-
-        def _format() -> None:
-            try:
-                execution_payload = json.loads(execution_text.toPlainText().strip() or "{}")
-                outputs_payload = json.loads(outputs_text.toPlainText().strip() or "{}")
-            except json.JSONDecodeError as error:
-                QMessageBox.critical(
-                    dialog, self._t("app.error.full_json_invalid.title"), str(error)
-                )
-                return
-            execution_text.setPlainText(json.dumps(execution_payload, ensure_ascii=False, indent=2))
-            outputs_text.setPlainText(json.dumps(outputs_payload, ensure_ascii=False, indent=2))
-
-        def _save_and_close() -> None:
-            if _apply():
-                dialog.accept()
-
-        footer_layout = QHBoxLayout()
-        format_button = QPushButton(self._t("app.button.format"))
-        format_button.clicked.connect(_format)
-        footer_layout.addWidget(format_button)
-        footer_layout.addStretch()
-        cancel_button = QPushButton(self._t("app.button.cancel"))
-        cancel_button.clicked.connect(dialog.reject)
-        footer_layout.addWidget(cancel_button)
-        save_button = QPushButton(self._t("app.button.save"))
-        save_button.setObjectName("ApplyButton")
-        save_button.clicked.connect(_save_and_close)
-        footer_layout.addWidget(save_button)
-        apply_button = QPushButton(self._t("app.button.apply"))
-        apply_button.setObjectName("ApplyButton")
-        apply_button.clicked.connect(_apply)
-        footer_layout.addWidget(apply_button)
-        layout.addLayout(footer_layout)
-
-        self._register_help_for_widget_tree(dialog)
-        dialog.exec()
+        app_dialogs.open_execution_outputs_editor(self)
 
     def export_scenario(self) -> None:
         self._sync_scenario_header()
