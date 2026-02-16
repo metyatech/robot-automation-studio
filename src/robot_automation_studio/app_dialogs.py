@@ -674,7 +674,7 @@ def open_validation_report_dialog(
     status_label = QLabel(
         self._t("app.validation.status.ok")
         if report.is_valid
-        else self._t("app.validation.status.ng")
+        else self._t("app.validation.status.ng_with_count", count=len(report.issues))
     )
     status_label.setObjectName("PanelTitle")
     layout.addWidget(status_label)
@@ -760,6 +760,7 @@ def open_validation_report_dialog(
         )
 
     issues_list.currentRowChanged.connect(_on_select)
+    issues_list.itemDoubleClicked.connect(lambda _item: _go_to_issue_location())
     go_to_button.clicked.connect(_go_to_issue_location)
     issues_list.setCurrentRow(0)
     _on_select(0)

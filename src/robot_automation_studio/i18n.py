@@ -949,6 +949,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Validation issues detected.",
         "ja": "検証エラーを検出しました。",
     },
+    "app.validation.status.ng_with_count": {
+        "en": "Validation issues detected: {count}",
+        "ja": "検証エラー件数: {count}",
+    },
     "app.validation.issue.item": {
         "en": "{index}. [{code}] {message}",
         "ja": "{index}. [{code}] {message}",
