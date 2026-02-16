@@ -2,7 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from robot_automation_studio.exporter import export_all, generate_robot_suite
+from robot_automation_studio.exporter import (
+    export_all,
+    generate_robot_suite,
+    validate_step_exportability,
+)
 from robot_automation_studio.models import (
     UNITY_EXECUTION_MODE_KEY,
     UNITY_PROJECT_PATH_KEY,
@@ -183,6 +187,13 @@ def test_generate_robot_suite_fails_fast_for_control_step() -> None:
 
     with pytest.raises(ValueError, match="Unsupported control step"):
         generate_robot_suite(scenario, suite_name="control-scenario")
+
+
+def test_validate_step_exportability_fails_for_missing_click_target() -> None:
+    step = Step(action="click", title="invalid-click", params={})
+
+    with pytest.raises(ValueError, match="requires target selector"):
+        validate_step_exportability(step)
 
 
 def test_export_all_writes_robot_and_json(tmp_path: Path) -> None:
