@@ -1,4 +1,5 @@
-from PySide6.QtCore import QEvent
+from PySide6.QtCore import QEvent, QPoint, QPointF
+from PySide6.QtGui import QCursor, QEnterEvent, QHelpEvent
 from PySide6.QtWidgets import QApplication, QToolTip
 
 from robot_automation_studio.app import (
@@ -66,5 +67,57 @@ def test_event_filter_hides_tooltip_on_leave(monkeypatch) -> None:
         monkeypatch.setattr(QToolTip, "hideText", fake_hide_text)
         studio.eventFilter(studio.run_button, QEvent(QEvent.Type.Leave))
         assert called["count"] == 1
+    finally:
+        studio.close()
+
+
+def test_event_filter_prefers_enter_event_global_position_over_cursor(monkeypatch) -> None:
+    _ensure_qapp()
+    studio = StudioApp()
+    try:
+        captured: dict[str, object] = {}
+
+        def fake_show_text(pos, text, *args, **kwargs):
+            captured["x"] = pos.x()
+            captured["y"] = pos.y()
+
+        monkeypatch.setattr(QToolTip, "showText", fake_show_text)
+        monkeypatch.setattr(QCursor, "pos", lambda: QPoint(9000, 9000))
+
+        enter_event = QEnterEvent(
+            QPointF(2, 2),
+            QPointF(10, 20),
+            QPointF(10, 20),
+        )
+        studio.eventFilter(studio.run_button, enter_event)
+
+        assert captured["x"] == 24
+        assert captured["y"] == 42
+    finally:
+        studio.close()
+
+
+def test_event_filter_handles_tooltip_event_at_event_global_position(monkeypatch) -> None:
+    _ensure_qapp()
+    studio = StudioApp()
+    try:
+        captured: dict[str, object] = {}
+
+        def fake_show_text(pos, text, *args, **kwargs):
+            captured["x"] = pos.x()
+            captured["y"] = pos.y()
+
+        monkeypatch.setattr(QToolTip, "showText", fake_show_text)
+
+        tooltip_event = QHelpEvent(
+            QEvent.Type.ToolTip,
+            QPoint(4, 4),
+            QPoint(30, 50),
+        )
+        handled = studio.eventFilter(studio.run_button, tooltip_event)
+
+        assert handled is True
+        assert captured["x"] == 44
+        assert captured["y"] == 72
     finally:
         studio.close()

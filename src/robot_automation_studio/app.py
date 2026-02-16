@@ -13,7 +13,16 @@ from pathlib import Path
 
 from pynput import keyboard as pynput_keyboard
 from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, Signal, Slot
-from PySide6.QtGui import QCloseEvent, QCursor, QFont, QKeySequence, QShortcut, QTextCursor
+from PySide6.QtGui import (
+    QCloseEvent,
+    QCursor,
+    QEnterEvent,
+    QFont,
+    QHelpEvent,
+    QKeySequence,
+    QShortcut,
+    QTextCursor,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -143,6 +152,21 @@ def build_help_tooltip_text(summary: str) -> str:
 def build_help_tooltip_position(cursor_x: int, cursor_y: int) -> tuple[int, int]:
     """Return tooltip anchor coordinates with a small cursor offset."""
     return (cursor_x + _HELP_TOOLTIP_OFFSET_X, cursor_y + _HELP_TOOLTIP_OFFSET_Y)
+
+
+def resolve_help_tooltip_anchor(widget: QWidget, event: QEvent) -> tuple[int, int]:
+    """Return anchor coordinates for help tooltip placement."""
+    if isinstance(event, QEnterEvent):
+        anchor = event.globalPosition().toPoint()
+        return (anchor.x(), anchor.y())
+    if isinstance(event, QHelpEvent):
+        anchor = event.globalPos()
+        return (anchor.x(), anchor.y())
+    if event.type() == QEvent.Type.FocusIn:
+        anchor = widget.mapToGlobal(widget.rect().center())
+        return (anchor.x(), anchor.y())
+    anchor = QCursor.pos()
+    return (anchor.x(), anchor.y())
 
 
 _STYLESHEET = f"""
@@ -1699,16 +1723,19 @@ class StudioApp(QMainWindow):
         if isinstance(obj, QWidget) and event.type() in (
             QEvent.Type.Enter,
             QEvent.Type.FocusIn,
+            QEvent.Type.ToolTip,
         ):
             entry = self._help_entries_by_widget.get(obj)
             if entry is not None:
-                cursor_pos = QCursor.pos()
-                tip_x, tip_y = build_help_tooltip_position(cursor_pos.x(), cursor_pos.y())
+                anchor_x, anchor_y = resolve_help_tooltip_anchor(obj, event)
+                tip_x, tip_y = build_help_tooltip_position(anchor_x, anchor_y)
                 QToolTip.showText(
                     QPoint(tip_x, tip_y),
                     build_help_tooltip_text(entry.summary),
                     obj,
                 )
+            if event.type() == QEvent.Type.ToolTip:
+                return True
         if isinstance(obj, QWidget) and event.type() in (
             QEvent.Type.Leave,
             QEvent.Type.FocusOut,
