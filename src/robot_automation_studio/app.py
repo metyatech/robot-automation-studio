@@ -234,24 +234,14 @@ def default_params_template_for_action(action: str) -> dict[str, object] | None:
         "open_url": {"input": {"url": "https://example.com"}},
         "double_click": {
             "target": {
-                "strategy": "uia",
-                "uia": {
-                    "title": "Inspector",
-                    "automation_id": "Inspector",
-                    "class_name": "Pane",
-                    "control_type": "Pane",
-                },
+                "strategy": "coordinate",
+                "coordinate": {"x_ratio": 0.5, "y_ratio": 0.5},
             }
         },
         "right_click": {
             "target": {
-                "strategy": "uia",
-                "uia": {
-                    "title": "Inspector",
-                    "automation_id": "Inspector",
-                    "class_name": "Pane",
-                    "control_type": "Pane",
-                },
+                "strategy": "coordinate",
+                "coordinate": {"x_ratio": 0.5, "y_ratio": 0.5},
             }
         },
         "start_video": {"input": {"path": "videos/run.mp4"}},

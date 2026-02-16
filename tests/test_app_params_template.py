@@ -29,6 +29,12 @@ def test_default_params_template_for_action_alias_shortcut() -> None:
     assert template["input"]["shortcut"] == "CTRL+S"
 
 
+def test_default_params_template_for_action_double_click_is_coordinate() -> None:
+    template = default_params_template_for_action("double_click")
+    assert template is not None
+    assert template["target"]["strategy"] == "coordinate"
+
+
 def test_insert_params_template_for_selected_action(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
     _ensure_qapp()

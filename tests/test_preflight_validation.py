@@ -109,3 +109,26 @@ def test_validate_scenario_collects_multiple_issues() -> None:
     assert "execution.active_profile" in locations
     assert "steps[0].target" in locations
     assert "steps[1].target" in locations
+
+
+def test_validate_scenario_reports_nested_control_step_location() -> None:
+    scenario = Scenario(
+        name="Nested control issue",
+        steps=[
+            Step(
+                kind="control",
+                control="for_each",
+                title="Loop",
+                params={
+                    "item_variable": "item",
+                    "items_expression": "items",
+                    "steps": {"not": "a list"},
+                },
+            )
+        ],
+    )
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is False
+    assert len(report.issues) >= 1
+    assert report.issues[0].location == "steps[0].steps"

@@ -9,7 +9,7 @@ from typing import Any
 from .exporter import validate_exportable_scenario, validate_step_exportability
 from .models import Scenario
 
-_AT_PATH_RE = re.compile(r"\sat\s([A-Za-z0-9_.\[\]-]+)$")
+_AT_PATH_RE = re.compile(r"\sat\s([A-Za-z0-9_\[\]-]+(?:\.[A-Za-z0-9_\[\]-]+)*)\.?$")
 _MISSING_VARIABLE_RE = re.compile(r"required variable '([A-Za-z0-9_-]+)' is missing")
 _PLACEHOLDER_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_-]*)\}")
 
@@ -246,10 +246,13 @@ def _collect_step_exportability_issues(scenario: Scenario) -> list[ValidationIss
     issues: list[ValidationIssue] = []
     for index, step in enumerate(scenario.steps):
         try:
-            validate_step_exportability(step)
+            validate_step_exportability(step, path=f"steps[{index}]")
         except Exception as error:
             message = str(error)
-            if "requires target selector" in message:
+            inferred = _infer_issue_location(message)
+            if inferred != "scenario":
+                location = inferred
+            elif "requires target selector" in message:
                 location = f"steps[{index}].target"
             elif "requires input" in message:
                 location = f"steps[{index}].input"

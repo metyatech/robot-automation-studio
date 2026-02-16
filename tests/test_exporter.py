@@ -160,6 +160,28 @@ def test_generate_robot_suite_supports_coordinate_click() -> None:
     assert "Click Unity Relative    0.2    0.3" in text
 
 
+def test_generate_robot_suite_supports_select_hierarchy_action() -> None:
+    scenario = Scenario(
+        name="Select Hierarchy Action",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="select_hierarchy",
+                title="Select tail",
+                params={
+                    "target": {
+                        "strategy": "unity_hierarchy",
+                        "unity_hierarchy": {"path": "AvatarRoot/Hair/Tail", "match_mode": "exact"},
+                    }
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="select-hierarchy")
+    assert "Select Unity Hierarchy Object    hierarchy_path=AvatarRoot/Hair/Tail" in text
+
+
 def test_generate_robot_suite_fails_fast_for_unknown_action() -> None:
     scenario = Scenario(
         name="Unsupported Action",
@@ -178,15 +200,207 @@ def test_generate_robot_suite_fails_fast_for_control_step() -> None:
         steps=[
             Step(
                 kind="control",
-                control="for_each",
-                title="Loop",
-                params={"items_expression": "items", "item_variable": "item", "steps": []},
+                control="parallel",
+                title="Parallel",
+                params={"steps": []},
             )
         ],
     )
 
     with pytest.raises(ValueError, match="Unsupported control step"):
         generate_robot_suite(scenario, suite_name="control-scenario")
+
+
+def test_generate_robot_suite_supports_if_control_step() -> None:
+    scenario = Scenario(
+        name="If Control",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                kind="control",
+                control="if",
+                title="Conditional click",
+                params={
+                    "expression": "True",
+                    "steps": [
+                        Step(
+                            action="click",
+                            title="Select tail",
+                            params={"hierarchy_path": "AvatarRoot/Hair/Tail"},
+                        ).to_dict()
+                    ],
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="if-control")
+    assert "IF    True" in text
+    assert "Select Unity Hierarchy Object    hierarchy_path=AvatarRoot/Hair/Tail" in text
+    assert "ELSE IF" not in text
+
+
+def test_generate_robot_suite_supports_for_each_control_step() -> None:
+    scenario = Scenario(
+        name="ForEach Control",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                kind="control",
+                control="for_each",
+                title="Loop items",
+                params={
+                    "item_variable": "item",
+                    "items_expression": "items",
+                    "steps": [
+                        Step(action="wait_for", title="Wait", params={"seconds": 0.1}).to_dict()
+                    ],
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="foreach-control")
+    assert "FOR    ${item}    IN    @{items}" in text
+    assert "Wait For Seconds    0.1" in text
+
+
+def test_generate_robot_suite_supports_while_control_step() -> None:
+    scenario = Scenario(
+        name="While Control",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                kind="control",
+                control="while",
+                title="While loop",
+                params={
+                    "expression": "True",
+                    "max_iterations": 3,
+                    "steps": [
+                        Step(action="wait_for", title="Wait", params={"seconds": 0.1}).to_dict()
+                    ],
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="while-control")
+    assert "WHILE    True    limit=3" in text
+    assert "Wait For Seconds    0.1" in text
+
+
+def test_generate_robot_suite_supports_try_control_step() -> None:
+    scenario = Scenario(
+        name="Try Control",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                kind="control",
+                control="try",
+                title="Try catch finally",
+                params={
+                    "steps": [
+                        Step(action="wait_for", title="Try wait", params={"seconds": 0.1}).to_dict()
+                    ],
+                    "catch_steps": [
+                        Step(
+                            action="emit_annotation",
+                            title="Catch",
+                            params={"input": {"annotation": {"type": "note", "label": "catch"}}},
+                        ).to_dict()
+                    ],
+                    "finally_steps": [
+                        Step(action="screenshot", title="Finally shot", params={}).to_dict()
+                    ],
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="try-control")
+    assert "TRY" in text
+    assert "EXCEPT" in text
+    assert "FINALLY" in text
+    assert "Capture Unity Screenshot" in text
+
+
+def test_generate_robot_suite_supports_double_click_coordinate() -> None:
+    scenario = Scenario(
+        name="Double Click",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="double_click",
+                title="Double click scene",
+                params={
+                    "target": {
+                        "strategy": "coordinate",
+                        "coordinate": {"x_ratio": 0.4, "y_ratio": 0.7},
+                    }
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="double-click")
+    assert "Double Click Unity Relative    0.4    0.7" in text
+
+
+def test_generate_robot_suite_supports_right_click_coordinate() -> None:
+    scenario = Scenario(
+        name="Right Click",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="right_click",
+                title="Right click scene",
+                params={
+                    "target": {
+                        "strategy": "coordinate",
+                        "coordinate": {"x_ratio": 0.5, "y_ratio": 0.8},
+                    }
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="right-click")
+    assert "Right Click Unity Relative    0.5    0.8" in text
+
+
+def test_generate_robot_suite_supports_assert_condition() -> None:
+    scenario = Scenario(
+        name="Assert Condition",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="assert",
+                title="Assert true",
+                params={"expect": {"condition": "1 == 1", "message": "must be true"}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="assert-condition")
+    assert "Should Be True    1 == 1    must be true" in text
+
+
+def test_generate_robot_suite_supports_emit_annotation_action() -> None:
+    scenario = Scenario(
+        name="Emit Annotation",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="emit_annotation",
+                title="Emit",
+                params={"input": {"annotation": {"type": "click", "label": "Click"}}},
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="emit-annotation")
+    assert 'Emit DOCMETA    {"annotation":{"label":"Click","type":"click"}}' in text
 
 
 def test_validate_step_exportability_fails_for_missing_click_target() -> None:

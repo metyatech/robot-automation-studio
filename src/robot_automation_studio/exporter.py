@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,17 @@ from .variable_resolution import resolve_scenario_variables
 class ExportResult:
     robot_path: Path
     json_path: Path
+
+
+_ACTION_ALIASES = {
+    "drag": "drag_drop",
+    "type": "type_text",
+    "shortcut": "press_keys",
+    "keys": "press_keys",
+    "menu": "open_menu",
+    "wait": "wait_for",
+    "select_hierarchy": "select_hierarchy",
+}
 
 
 def _safe_suite_name(name: str) -> str:
@@ -102,6 +114,13 @@ def _robot_named_args(params: dict[str, object], keys: tuple[str, ...]) -> str:
     return "    " + "    ".join(parts)
 
 
+def _normalize_action(action: str) -> str:
+    normalized = str(action or "").strip().lower()
+    if normalized == "":
+        return normalized
+    return _ACTION_ALIASES.get(normalized, normalized)
+
+
 def _wait_seconds_from_step(step_payload: dict[str, Any]) -> float:
     timing = step_payload.get("timing")
     if not isinstance(timing, dict):
@@ -113,6 +132,20 @@ def _wait_seconds_from_step(step_payload: dict[str, Any]) -> float:
         return max(0.0, float(value) / 1000.0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _timeout_seconds_from_step(step_payload: dict[str, Any], *, default: float) -> float:
+    timing = step_payload.get("timing")
+    if not isinstance(timing, dict):
+        return default
+    value = timing.get("timeout_seconds")
+    if value is None:
+        return default
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
 
 
 def _uia_selector_args(selector: dict[str, Any], *, prefix: str = "") -> dict[str, Any]:
@@ -137,53 +170,332 @@ def _require_selector(step_payload: dict[str, Any], action: str) -> dict[str, An
     return target
 
 
-def _step_robot_lines_from_payload(step_payload: dict[str, Any], indent: str = "    ") -> list[str]:
+def _normalize_robot_scalar(value: str) -> str:
+    text = str(value or "").strip()
+    if text == "":
+        return ""
+    if text.startswith("${") and text.endswith("}"):
+        return text
+    if text.startswith("$"):
+        return text
+    if text.startswith("@{") and text.endswith("}"):
+        return f"${{{text[2:-1]}}}"
+    return f"${{{text}}}"
+
+
+def _normalize_robot_iterable(value: str) -> str:
+    text = str(value or "").strip()
+    if text == "":
+        return ""
+    if text.startswith("@{") and text.endswith("}"):
+        return text
+    if text.startswith("${") and text.endswith("}"):
+        return text
+    if text.startswith("@") or text.startswith("$"):
+        return text
+    return f"@{{{text}}}"
+
+
+def _validated_child_steps(value: Any, *, path: str) -> list[dict[str, Any]]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"Control steps must be a list at {path}.")
+    children: list[dict[str, Any]] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise ValueError(f"Control step child must be an object at {path}[{index}].")
+        children.append(item)
+    return children
+
+
+def _apply_step_guards(
+    *,
+    step_payload: dict[str, Any],
+    lines: list[str],
+    indent: str,
+    path: str,
+    title: str,
+) -> list[str]:
+    if bool(step_payload.get("disabled")):
+        return [f"{indent}# disabled: {title}"]
+
+    wrapped = list(lines)
+    condition = str(step_payload.get("condition") or "").strip()
+    if condition != "":
+        conditional_lines = [f"{indent}IF    {condition}"]
+        conditional_lines.extend(f"{indent}    {line.lstrip()}" for line in wrapped)
+        conditional_lines.append(f"{indent}END")
+        wrapped = conditional_lines
+
+    if bool(step_payload.get("continue_on_error")):
+        safe_title = title.replace("    ", " ").strip() or "step"
+        continue_lines = [f"{indent}TRY"]
+        continue_lines.extend(f"{indent}    {line.lstrip()}" for line in wrapped)
+        continue_lines.append(f"{indent}EXCEPT")
+        continue_lines.append(
+            f"{indent}    Log    continue_on_error step failed at {path}: {safe_title}"
+        )
+        continue_lines.append(f"{indent}END")
+        wrapped = continue_lines
+
+    return wrapped
+
+
+def _hierarchy_target_from_step(step_payload: dict[str, Any], *, action: str) -> tuple[str, float]:
+    target = _require_selector(step_payload, action)
+    strategy = str(target.get("strategy") or "").strip().lower()
+    if strategy != "unity_hierarchy":
+        raise ValueError(f"{action} requires unity_hierarchy target strategy.")
+    unity_hierarchy = target.get("unity_hierarchy")
+    if not isinstance(unity_hierarchy, dict):
+        raise ValueError(f"{action} unity_hierarchy target must include unity_hierarchy object.")
+    hierarchy_path = str(unity_hierarchy.get("path") or "").strip()
+    if hierarchy_path == "":
+        raise ValueError(f"{action} unity_hierarchy target requires path.")
+    timeout_seconds = _timeout_seconds_from_step(step_payload, default=4.0)
+    return hierarchy_path, timeout_seconds
+
+
+def _format_hierarchy_select_line(indent: str, hierarchy_path: str, timeout_seconds: float) -> str:
+    return (
+        f"{indent}${{annotation}}=    Wait Until Keyword Succeeds"
+        "    45 sec    1 sec    Select Unity Hierarchy Object"
+        f"    hierarchy_path={hierarchy_path}    timeout_seconds={timeout_seconds}"
+    )
+
+
+def _step_robot_lines_from_payload(
+    step_payload: dict[str, Any],
+    indent: str = "    ",
+    *,
+    path: str = "steps[0]",
+) -> list[str]:
     kind = str(step_payload.get("kind") or "").strip().lower()
     title = str(step_payload.get("title") or "").strip() or "step"
+    lines: list[str]
     if kind == "group":
         children = list(step_payload.get("steps") or [])
-        lines: list[str] = [f"{indent}# group: {title}"]
-        for child in children:
+        lines = [f"{indent}# group: {title}"]
+        for index, child in enumerate(children):
             if not isinstance(child, dict):
-                raise ValueError(f"group step '{title}' has non-object child step.")
-            lines.extend(_step_robot_lines_from_payload(child, indent=indent))
-        return lines
+                raise ValueError(
+                    f"group step '{title}' has non-object child step at {path}.steps[{index}]."
+                )
+            child_path = f"{path}.steps[{index}]"
+            lines.extend(_step_robot_lines_from_payload(child, indent=indent, path=child_path))
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=lines,
+            indent=indent,
+            path=path,
+            title=title,
+        )
     if kind == "control":
-        control = str(step_payload.get("control") or "").strip()
+        control = str(step_payload.get("control") or "").strip().lower()
+        if control == "if":
+            expression = str(step_payload.get("expression") or "").strip()
+            if expression == "":
+                raise ValueError("if control step requires expression.")
+            lines = [f"{indent}IF    {expression}"]
+            for index, child in enumerate(
+                _validated_child_steps(step_payload.get("steps"), path=f"{path}.steps")
+            ):
+                lines.extend(
+                    _step_robot_lines_from_payload(
+                        child,
+                        indent=f"{indent}    ",
+                        path=f"{path}.steps[{index}]",
+                    )
+                )
+            branches = step_payload.get("branches")
+            if branches is not None:
+                if not isinstance(branches, list):
+                    raise ValueError(f"if control branches must be a list at {path}.branches.")
+                for branch_index, branch in enumerate(branches):
+                    if not isinstance(branch, dict):
+                        raise ValueError(
+                            "if control branch must be an object at "
+                            f"{path}.branches[{branch_index}]."
+                        )
+                    branch_expression = str(branch.get("expression") or "").strip()
+                    if branch_expression == "":
+                        lines.append(f"{indent}ELSE")
+                    else:
+                        lines.append(f"{indent}ELSE IF    {branch_expression}")
+                    branch_children = _validated_child_steps(
+                        branch.get("steps"),
+                        path=f"{path}.branches[{branch_index}].steps",
+                    )
+                    for child_index, child in enumerate(branch_children):
+                        lines.extend(
+                            _step_robot_lines_from_payload(
+                                child,
+                                indent=f"{indent}    ",
+                                path=f"{path}.branches[{branch_index}].steps[{child_index}]",
+                            )
+                        )
+            lines.append(f"{indent}END")
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if control == "for_each":
+            item_variable = _normalize_robot_scalar(str(step_payload.get("item_variable") or ""))
+            if item_variable == "":
+                raise ValueError("for_each control step requires item_variable.")
+            items_expression = _normalize_robot_iterable(
+                str(step_payload.get("items_expression") or "")
+            )
+            if items_expression == "":
+                raise ValueError("for_each control step requires items_expression.")
+            lines = [f"{indent}FOR    {item_variable}    IN    {items_expression}"]
+            for index, child in enumerate(
+                _validated_child_steps(step_payload.get("steps"), path=f"{path}.steps")
+            ):
+                lines.extend(
+                    _step_robot_lines_from_payload(
+                        child,
+                        indent=f"{indent}    ",
+                        path=f"{path}.steps[{index}]",
+                    )
+                )
+            lines.append(f"{indent}END")
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if control == "while":
+            expression = str(step_payload.get("expression") or "").strip()
+            if expression == "":
+                raise ValueError("while control step requires expression.")
+            while_line = f"{indent}WHILE    {expression}"
+            max_iterations = step_payload.get("max_iterations")
+            if max_iterations not in (None, ""):
+                while_line = f"{while_line}    limit={max_iterations}"
+            lines = [while_line]
+            for index, child in enumerate(
+                _validated_child_steps(step_payload.get("steps"), path=f"{path}.steps")
+            ):
+                lines.extend(
+                    _step_robot_lines_from_payload(
+                        child,
+                        indent=f"{indent}    ",
+                        path=f"{path}.steps[{index}]",
+                    )
+                )
+            lines.append(f"{indent}END")
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if control == "try":
+            lines = [f"{indent}TRY"]
+            for index, child in enumerate(
+                _validated_child_steps(step_payload.get("steps"), path=f"{path}.steps")
+            ):
+                lines.extend(
+                    _step_robot_lines_from_payload(
+                        child,
+                        indent=f"{indent}    ",
+                        path=f"{path}.steps[{index}]",
+                    )
+                )
+            catch_steps = _validated_child_steps(
+                step_payload.get("catch_steps"),
+                path=f"{path}.catch_steps",
+            )
+            if catch_steps:
+                lines.append(f"{indent}EXCEPT")
+                for index, child in enumerate(catch_steps):
+                    lines.extend(
+                        _step_robot_lines_from_payload(
+                            child,
+                            indent=f"{indent}    ",
+                            path=f"{path}.catch_steps[{index}]",
+                        )
+                    )
+            finally_steps = _validated_child_steps(
+                step_payload.get("finally_steps"),
+                path=f"{path}.finally_steps",
+            )
+            if finally_steps:
+                lines.append(f"{indent}FINALLY")
+                for index, child in enumerate(finally_steps):
+                    lines.extend(
+                        _step_robot_lines_from_payload(
+                            child,
+                            indent=f"{indent}    ",
+                            path=f"{path}.finally_steps[{index}]",
+                        )
+                    )
+            lines.append(f"{indent}END")
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if control == "break":
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[f"{indent}BREAK"],
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if control == "continue":
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[f"{indent}CONTINUE"],
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if control == "return":
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[f"{indent}RETURN"],
+                indent=indent,
+                path=path,
+                title=title,
+            )
         raise ValueError(f"Unsupported control step for Robot export: {control}")
     if kind != "action":
         raise ValueError(f"Unsupported step kind for Robot export: {kind}")
 
-    action = str(step_payload.get("action") or "").strip().lower()
+    action = _normalize_action(str(step_payload.get("action") or ""))
     wait_seconds = _wait_seconds_from_step(step_payload)
 
     if action == "click":
         target = _require_selector(step_payload, "click")
         strategy = str(target.get("strategy") or "").strip().lower()
         if strategy == "unity_hierarchy":
-            unity_hierarchy = target.get("unity_hierarchy")
-            if not isinstance(unity_hierarchy, dict):
-                raise ValueError(
-                    "click unity_hierarchy target must include unity_hierarchy object."
-                )
-            hierarchy_path = str(unity_hierarchy.get("path") or "").strip()
-            if hierarchy_path == "":
-                raise ValueError("click unity_hierarchy target requires path.")
-            timeout_seconds = 4.0
-            timing = step_payload.get("timing")
-            if isinstance(timing, dict) and timing.get("timeout_seconds") is not None:
-                try:
-                    timeout_seconds = float(timing["timeout_seconds"])
-                except (TypeError, ValueError):
-                    timeout_seconds = 4.0
+            hierarchy_path, timeout_seconds = _hierarchy_target_from_step(
+                step_payload, action="click"
+            )
             lines = [
-                f"{indent}${{annotation}}=    Wait Until Keyword Succeeds"
-                "    45 sec    1 sec    Select Unity Hierarchy Object"
-                f"    hierarchy_path={hierarchy_path}    timeout_seconds={timeout_seconds}",
+                _format_hierarchy_select_line(indent, hierarchy_path, timeout_seconds),
             ]
             lines.append(f"{indent}Wait For Seconds    {wait_seconds}")
             lines.append(f"{indent}Emit Annotation Metadata    ${{annotation}}")
-            return lines
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
         if strategy == "uia":
             uia = target.get("uia")
             if not isinstance(uia, dict):
@@ -197,11 +509,17 @@ def _step_robot_lines_from_payload(step_payload: dict[str, Any], indent: str = "
                     "click uia target requires selector fields "
                     "(title/automation_id/class_name/control_type)."
                 )
-            return [
-                f"{indent}${{annotation}}=    Click Unity Element{selector_args}",
-                f"{indent}Wait For Seconds    {wait_seconds}",
-                f"{indent}Emit Annotation Metadata    ${{annotation}}",
-            ]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[
+                    f"{indent}${{annotation}}=    Click Unity Element{selector_args}",
+                    f"{indent}Wait For Seconds    {wait_seconds}",
+                    f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                ],
+                indent=indent,
+                path=path,
+                title=title,
+            )
         if strategy == "coordinate":
             coordinate = target.get("coordinate")
             if not isinstance(coordinate, dict):
@@ -210,12 +528,36 @@ def _step_robot_lines_from_payload(step_payload: dict[str, Any], indent: str = "
             y_ratio = coordinate.get("y_ratio")
             if x_ratio is None or y_ratio is None:
                 raise ValueError("click coordinate target requires x_ratio and y_ratio.")
-            return [
-                f"{indent}${{annotation}}=    Click Unity Relative    {x_ratio}    {y_ratio}",
-                f"{indent}Wait For Seconds    {wait_seconds}",
-                f"{indent}Emit Annotation Metadata    ${{annotation}}",
-            ]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[
+                    f"{indent}${{annotation}}=    Click Unity Relative    {x_ratio}    {y_ratio}",
+                    f"{indent}Wait For Seconds    {wait_seconds}",
+                    f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                ],
+                indent=indent,
+                path=path,
+                title=title,
+            )
         raise ValueError(f"Unsupported click target strategy: {strategy}")
+
+    if action == "select_hierarchy":
+        hierarchy_path, timeout_seconds = _hierarchy_target_from_step(
+            step_payload,
+            action="select_hierarchy",
+        )
+        lines = [
+            _format_hierarchy_select_line(indent, hierarchy_path, timeout_seconds),
+            f"{indent}Wait For Seconds    {wait_seconds}",
+            f"{indent}Emit Annotation Metadata    ${{annotation}}",
+        ]
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=lines,
+            indent=indent,
+            path=path,
+            title=title,
+        )
 
     if action == "drag_drop":
         target = _require_selector(step_payload, "drag_drop")
@@ -260,11 +602,17 @@ def _step_robot_lines_from_payload(step_payload: dict[str, Any], indent: str = "
                 f"{indent}${{annotation}}=    Drag Unity Element To Element"
                 f"{source_args}{target_args}"
             )
-            return [
-                drag_keyword_line,
-                f"{indent}Wait For Seconds    {wait_seconds}",
-                f"{indent}Emit Annotation Metadata    ${{annotation}}",
-            ]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[
+                    drag_keyword_line,
+                    f"{indent}Wait For Seconds    {wait_seconds}",
+                    f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                ],
+                indent=indent,
+                path=path,
+                title=title,
+            )
         if target_strategy == "coordinate" and source_strategy == "coordinate":
             target_coordinate = target.get("coordinate")
             source_coordinate = source.get("coordinate")
@@ -285,24 +633,117 @@ def _step_robot_lines_from_payload(step_payload: dict[str, Any], indent: str = "
                 f"{indent}${{annotation}}=    Drag Unity Relative    {from_x}    {from_y}"
                 f"    {to_x}    {to_y}"
             )
-            return [
-                drag_keyword_line,
-                f"{indent}Wait For Seconds    {wait_seconds}",
-                f"{indent}Emit Annotation Metadata    ${{annotation}}",
-            ]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[
+                    drag_keyword_line,
+                    f"{indent}Wait For Seconds    {wait_seconds}",
+                    f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                ],
+                indent=indent,
+                path=path,
+                title=title,
+            )
         raise ValueError(
             "Unsupported drag_drop selector strategy pair. "
             f"source={source_strategy}, target={target_strategy}"
         )
+
+    if action == "double_click":
+        target = _require_selector(step_payload, "double_click")
+        strategy = str(target.get("strategy") or "").strip().lower()
+        if strategy != "coordinate":
+            raise ValueError("double_click currently supports coordinate target strategy only.")
+        coordinate = target.get("coordinate")
+        if not isinstance(coordinate, dict):
+            raise ValueError("double_click coordinate target must include coordinate object.")
+        x_ratio = coordinate.get("x_ratio")
+        y_ratio = coordinate.get("y_ratio")
+        if x_ratio is None or y_ratio is None:
+            raise ValueError("double_click coordinate target requires x_ratio and y_ratio.")
+        lines = [
+            f"{indent}${{annotation}}=    Double Click Unity Relative    {x_ratio}    {y_ratio}",
+            f"{indent}Wait For Seconds    {wait_seconds}",
+            f"{indent}Emit Annotation Metadata    ${{annotation}}",
+        ]
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=lines,
+            indent=indent,
+            path=path,
+            title=title,
+        )
+
+    if action == "right_click":
+        target = _require_selector(step_payload, "right_click")
+        strategy = str(target.get("strategy") or "").strip().lower()
+        if strategy == "coordinate":
+            coordinate = target.get("coordinate")
+            if not isinstance(coordinate, dict):
+                raise ValueError("right_click coordinate target must include coordinate object.")
+            x_ratio = coordinate.get("x_ratio")
+            y_ratio = coordinate.get("y_ratio")
+            if x_ratio is None or y_ratio is None:
+                raise ValueError("right_click coordinate target requires x_ratio and y_ratio.")
+            lines = [
+                f"{indent}${{annotation}}=    Right Click Unity Relative    {x_ratio}    {y_ratio}",
+                f"{indent}Wait For Seconds    {wait_seconds}",
+                f"{indent}Emit Annotation Metadata    ${{annotation}}",
+            ]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if strategy == "uia":
+            uia = target.get("uia")
+            if not isinstance(uia, dict):
+                raise ValueError("right_click uia target must include uia object.")
+            selector_args = _robot_named_args(
+                _uia_selector_args(uia),
+                ("title", "automation_id", "class_name", "control_type", "index"),
+            )
+            if selector_args == "":
+                raise ValueError(
+                    "right_click uia target requires selector fields "
+                    "(title/automation_id/class_name/control_type)."
+                )
+            lines = [
+                f"{indent}${{annotation}}=    Click Unity Element{selector_args}    button=right",
+                f"{indent}Wait For Seconds    {wait_seconds}",
+                f"{indent}Emit Annotation Metadata    ${{annotation}}",
+            ]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        raise ValueError(f"Unsupported right_click target strategy: {strategy}")
 
     if action == "press_keys":
         input_payload = step_payload.get("input")
         if not isinstance(input_payload, dict):
             raise ValueError("press_keys requires input payload.")
         if "shortcut" in input_payload:
-            return [f"{indent}Send Unity Shortcut    {input_payload['shortcut']}"]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[f"{indent}Send Unity Shortcut    {input_payload['shortcut']}"],
+                indent=indent,
+                path=path,
+                title=title,
+            )
         if "keys" in input_payload:
-            return [f"{indent}Press Unity Keys    {input_payload['keys']}"]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[f"{indent}Press Unity Keys    {input_payload['keys']}"],
+                indent=indent,
+                path=path,
+                title=title,
+            )
         raise ValueError("press_keys requires input.shortcut or input.keys.")
 
     if action == "open_menu":
@@ -312,21 +753,104 @@ def _step_robot_lines_from_payload(step_payload: dict[str, Any], indent: str = "
         menu_path = str(input_payload.get("menu_path") or "").strip()
         if menu_path == "":
             raise ValueError("open_menu requires input.menu_path.")
-        return [f"{indent}Open Unity Top Menu    {menu_path}"]
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=[f"{indent}Open Unity Top Menu    {menu_path}"],
+            indent=indent,
+            path=path,
+            title=title,
+        )
 
     if action == "type_text":
         input_payload = step_payload.get("input")
         if not isinstance(input_payload, dict):
             raise ValueError("type_text requires input payload.")
         text = str(input_payload.get("text") or "")
-        return [f"{indent}Type Unity Text    {text}"]
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=[f"{indent}Type Unity Text    {text}"],
+            indent=indent,
+            path=path,
+            title=title,
+        )
+
+    if action == "assert":
+        expect_payload = step_payload.get("expect")
+        if isinstance(expect_payload, dict):
+            condition = str(expect_payload.get("condition") or "").strip()
+            if condition != "":
+                message = str(expect_payload.get("message") or "").strip()
+                assert_line = f"{indent}Should Be True    {condition}"
+                if message != "":
+                    assert_line = f"{assert_line}    {message}"
+                return _apply_step_guards(
+                    step_payload=step_payload,
+                    lines=[assert_line],
+                    indent=indent,
+                    path=path,
+                    title=title,
+                )
+        target = _require_selector(step_payload, "assert")
+        strategy = str(target.get("strategy") or "").strip().lower()
+        timeout_seconds = _timeout_seconds_from_step(step_payload, default=10.0)
+        if strategy == "uia":
+            uia = target.get("uia")
+            if not isinstance(uia, dict):
+                raise ValueError("assert uia target must include uia object.")
+            args = _uia_selector_args(uia)
+            args["timeout_seconds"] = timeout_seconds
+            selector_args = _robot_named_args(
+                args,
+                (
+                    "title",
+                    "automation_id",
+                    "class_name",
+                    "control_type",
+                    "index",
+                    "timeout_seconds",
+                ),
+            )
+            if selector_args == "":
+                raise ValueError(
+                    "assert uia target requires selector fields "
+                    "(title/automation_id/class_name/control_type)."
+                )
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[f"{indent}Wait For Unity Element{selector_args}"],
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        if strategy == "unity_hierarchy":
+            hierarchy_path, hierarchy_timeout = _hierarchy_target_from_step(
+                step_payload, action="assert"
+            )
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=[
+                    f"{indent}Wait Until Keyword Succeeds    45 sec    1 sec    "
+                    "Select Unity Hierarchy Object"
+                    f"    hierarchy_path={hierarchy_path}    timeout_seconds={hierarchy_timeout}",
+                ],
+                indent=indent,
+                path=path,
+                title=title,
+            )
+        raise ValueError("assert currently requires expect.condition or target selector.")
 
     if action == "screenshot":
         input_payload = step_payload.get("input")
         if not isinstance(input_payload, dict):
             input_payload = {}
-        path = str(input_payload.get("path") or "")
-        return [f"{indent}Capture Unity Screenshot    {path}"]
+        image_path = str(input_payload.get("path") or "")
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=[f"{indent}Capture Unity Screenshot    {image_path}"],
+            indent=indent,
+            path=path,
+            title=title,
+        )
 
     if action == "wait_for":
         input_payload = step_payload.get("input")
@@ -334,18 +858,51 @@ def _step_robot_lines_from_payload(step_payload: dict[str, Any], indent: str = "
             raise ValueError("wait_for currently requires input.seconds.")
         if "seconds" not in input_payload:
             raise ValueError("wait_for currently requires input.seconds.")
-        return [f"{indent}Wait For Seconds    {input_payload['seconds']}"]
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=[f"{indent}Wait For Seconds    {input_payload['seconds']}"],
+            indent=indent,
+            path=path,
+            title=title,
+        )
+
+    if action == "emit_annotation":
+        input_payload = step_payload.get("input")
+        if not isinstance(input_payload, dict):
+            raise ValueError("emit_annotation requires input payload.")
+        annotation = input_payload.get("annotation")
+        if annotation is None:
+            metadata = input_payload.get("metadata")
+            if metadata is None:
+                raise ValueError("emit_annotation requires input.annotation or input.metadata.")
+            serialized = json.dumps(
+                metadata, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+            )
+        else:
+            serialized = json.dumps(
+                {"annotation": annotation},
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        return _apply_step_guards(
+            step_payload=step_payload,
+            lines=[f"{indent}Emit DOCMETA    {serialized}"],
+            indent=indent,
+            path=path,
+            title=title,
+        )
 
     raise ValueError(f"Unsupported action for Robot export: {action}")
 
 
-def _step_robot_lines(step: Step, indent: str = "    ") -> list[str]:
+def _step_robot_lines(step: Step, indent: str = "    ", *, path: str = "step") -> list[str]:
     step_payload = step.to_dict()
-    return _step_robot_lines_from_payload(step_payload, indent=indent)
+    return _step_robot_lines_from_payload(step_payload, indent=indent, path=path)
 
 
-def validate_step_exportability(step: Step) -> None:
-    _ = _step_robot_lines(step)
+def validate_step_exportability(step: Step, *, path: str = "step") -> None:
+    _ = _step_robot_lines(step, path=path)
 
 
 def _generate_robot_suite_from_resolved(
@@ -380,9 +937,15 @@ def _generate_robot_suite_from_resolved(
         "            Attach To Running Unity Editor    window_hint=${unity_window_hint}",
         "        END",
     ]
-    for step in resolved_scenario.steps:
+    for index, step in enumerate(resolved_scenario.steps):
         lines.append(f"        # {step.title} ({step.kind})")
-        lines.extend(_step_robot_lines(step, indent="        "))
+        lines.extend(
+            _step_robot_lines_from_payload(
+                step.to_dict(),
+                indent="        ",
+                path=f"steps[{index}]",
+            )
+        )
     lines.extend(
         [
             "    FINALLY",
