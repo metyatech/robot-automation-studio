@@ -127,6 +127,39 @@ def test_subflow_timeout_edit_allows_number_or_placeholder() -> None:
         studio.close()
 
 
+def test_subflow_timeout_validation_label_updates_for_all_input_types() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        studio.subflow_timeout_edit.setText("")
+        studio._refresh_subflow_timeout_validation_hint()
+        assert "Default: 3600s." in studio.subflow_timeout_validation_label.text()
+
+        studio.subflow_timeout_edit.setText("120")
+        studio._refresh_subflow_timeout_validation_hint()
+        assert "Using: 120s." in studio.subflow_timeout_validation_label.text()
+
+        studio.subflow_timeout_edit.setText("${subflow_timeout}")
+        studio._refresh_subflow_timeout_validation_hint()
+        assert "Variable: ${subflow_timeout}" in studio.subflow_timeout_validation_label.text()
+
+        studio.subflow_timeout_edit.setText("86401")
+        studio._refresh_subflow_timeout_validation_hint()
+        assert "Invalid:" in studio.subflow_timeout_validation_label.text()
+    finally:
+        studio.close()
+
+
+def test_subflow_timeout_validation_label_shows_rejected_hint() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        studio._on_subflow_timeout_input_rejected()
+        assert "Rejected input." in studio.subflow_timeout_validation_label.text()
+    finally:
+        studio.close()
+
+
 def test_export_scenario_passes_active_profile(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
     _ensure_qapp()

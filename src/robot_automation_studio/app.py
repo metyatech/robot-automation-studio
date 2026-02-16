@@ -61,10 +61,12 @@ from .i18n import (
     translate,
 )
 from .models import (
+    SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
     UNITY_EXECUTION_MODE_KEY,
     UNITY_PROJECT_PATH_KEY,
     Scenario,
     normalize_unity_execution_mode,
+    parse_subflow_timeout_seconds,
 )
 from .overlay import AutomationRunOverlay, OverlayMode
 from .preflight_validation import ValidationReport, validate_scenario
@@ -636,6 +638,7 @@ class StudioApp(QMainWindow):
         execution_mode_label: QLabel
         subflow_timeout_edit: QLineEdit
         subflow_timeout_label: QLabel
+        subflow_timeout_validation_label: QLabel
         active_profile_combo: QComboBox
         active_profile_label: QLabel
         project_path_edit: QLineEdit
@@ -1105,6 +1108,47 @@ class StudioApp(QMainWindow):
             f"{label_prefix}: {self._t('app.validation.step.ready')}"
         )
         self.step_validation_label.setStyleSheet(f"color: {_ACCENT_GREEN};")
+
+    @Slot()
+    def _refresh_subflow_timeout_validation_hint(self) -> None:
+        if not hasattr(self, "subflow_timeout_validation_label"):
+            return
+        label_prefix = self._t("app.field.subflow_timeout_validation.label")
+        raw_text = self.subflow_timeout_edit.text()
+        normalized = str(raw_text or "").strip()
+        if normalized == "":
+            message = self._t("app.validation.subflow_timeout.default")
+            color = _FG_DIM
+        else:
+            try:
+                parsed = parse_subflow_timeout_seconds(
+                    normalized,
+                    default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+                    allow_placeholder=True,
+                )
+            except ValueError as error:
+                message = self._t("app.validation.subflow_timeout.invalid", message=str(error))
+                color = _ACCENT_RED
+            else:
+                if parsed is None:
+                    message = self._t(
+                        "app.validation.subflow_timeout.placeholder",
+                        value=normalized,
+                    )
+                else:
+                    message = self._t("app.validation.subflow_timeout.value", value=parsed)
+                color = _ACCENT_GREEN
+        self.subflow_timeout_validation_label.setText(f"{label_prefix}: {message}")
+        self.subflow_timeout_validation_label.setStyleSheet(f"color: {color};")
+
+    @Slot()
+    def _on_subflow_timeout_input_rejected(self) -> None:
+        if not hasattr(self, "subflow_timeout_validation_label"):
+            return
+        label_prefix = self._t("app.field.subflow_timeout_validation.label")
+        message = self._t("app.validation.subflow_timeout.rejected")
+        self.subflow_timeout_validation_label.setText(f"{label_prefix}: {message}")
+        self.subflow_timeout_validation_label.setStyleSheet(f"color: {_ACCENT_RED};")
 
     def _sync_scenario_header(self) -> None:
         self.scenario.name = self.name_edit.text().strip() or self._t(
@@ -2031,6 +2075,7 @@ class StudioApp(QMainWindow):
         self._refresh_active_profile_combo()
         self.project_path_edit.setText(str(loaded.metadata.get(UNITY_PROJECT_PATH_KEY, "")))
         self.on_execution_mode_changed()
+        self._refresh_subflow_timeout_validation_hint()
         self.refresh_steps()
         self.on_select_step(-1)
 

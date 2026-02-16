@@ -202,7 +202,22 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.field.window_hint.placeholder": {"en": "Unity", "ja": "Unity"},
     "app.field.execution_mode.label": {"en": "Execution Mode", "ja": "実行モード"},
     "app.field.subflow_timeout.label": {"en": "Subflow Timeout (s)", "ja": "子フロー待機 (秒)"},
+    "app.field.subflow_timeout_validation.label": {
+        "en": "Subflow Timeout Validation",
+        "ja": "子フロー待機検証",
+    },
     "app.field.subflow_timeout.placeholder": {"en": "3600", "ja": "3600"},
+    "app.validation.subflow_timeout.default": {"en": "Default: 3600s.", "ja": "既定値: 3600秒。"},
+    "app.validation.subflow_timeout.placeholder": {
+        "en": "Variable: {value}.",
+        "ja": "変数: {value}。",
+    },
+    "app.validation.subflow_timeout.value": {"en": "Using: {value}s.", "ja": "使用値: {value}秒。"},
+    "app.validation.subflow_timeout.invalid": {"en": "Invalid: {message}", "ja": "無効: {message}"},
+    "app.validation.subflow_timeout.rejected": {
+        "en": "Rejected input. Use 1..86400, blank, or ${variable}.",
+        "ja": "入力は拒否されました。1..86400、空欄、${変数} を使用してください。",
+    },
     "app.field.active_profile.label": {"en": "Active Profile", "ja": "適用プロファイル"},
     "app.field.unity_project_path.label": {
         "en": "Unity Project Path",

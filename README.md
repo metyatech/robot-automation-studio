@@ -24,6 +24,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - explicit diagnostics for unresolved placeholders (with field path)
   - `start_video` scenarios fail early when `ffmpeg` is not found in `PATH`
   - execution setting checks include `subflow_timeout_seconds` range (`1..86400`)
+  - inline `Subflow Timeout` validation status (default/fixed/variable/invalid) in Scenario tab
   - live step validation hint in Step tab (immediate export/run readiness feedback)
 - Profile diff preview:
   - compare resolved scenario results between two profiles
@@ -99,6 +100,7 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
    - blank value uses default `3600` seconds.
    - variable placeholder must be a full value (`${timeout_var}`).
    - mixed text such as `${timeout_var}s` is treated as invalid.
+   - Scenario tab shows inline validation status for this field.
 4. Select `Active Profile` when you need profile-specific variable overrides.
    - `(none)` uses variable defaults.
    - Profile selection is applied during `Export` and `Run Robot`.
@@ -196,6 +198,7 @@ The live suite covers:
 - launch mode bridge readiness
 - Japanese locale smoke path
 - export matrix: `attach/launch × profile on/off × hierarchy_path on/off`
+- export matrix: `attach/launch × subflow timeout (blank/fixed/placeholder)`
 
 ## Security Checks in CI
 

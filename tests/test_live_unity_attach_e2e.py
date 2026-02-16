@@ -219,3 +219,83 @@ def test_live_export_matrix_for_modes_profiles_and_hierarchy(
             assert f"${{unity_window_hint}}=    Set Variable    {window_hint}" in text
     finally:
         studio.close()
+
+
+@pytest.mark.parametrize(
+    ("execution_mode", "timeout_mode"),
+    [
+        ("attach", "blank"),
+        ("attach", "number"),
+        ("attach", "placeholder"),
+        ("launch", "blank"),
+        ("launch", "number"),
+        ("launch", "placeholder"),
+    ],
+)
+def test_live_export_matrix_for_subflow_timeout_variants(
+    tmp_path: Path,
+    execution_mode: str,
+    timeout_mode: str,
+) -> None:
+    if os.getenv("ROBOT_AUTOMATION_STUDIO_LIVE_E2E", "") != "1":
+        pytest.skip("Set ROBOT_AUTOMATION_STUDIO_LIVE_E2E=1 to run live Unity export matrix.")
+
+    project_path = os.getenv("ROBOT_AUTOMATION_STUDIO_LIVE_PROJECT_PATH", "").strip()
+    if project_path == "":
+        pytest.skip("Set ROBOT_AUTOMATION_STUDIO_LIVE_PROJECT_PATH for live Unity matrix test.")
+    if not Path(project_path).exists():
+        pytest.skip(f"Live Unity project path not found: {project_path}")
+
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        studio._set_combo_value(studio.execution_mode_combo, execution_mode)
+        studio.on_execution_mode_changed()
+        studio.project_path_edit.setText(project_path)
+        window_hint = os.getenv("ROBOT_AUTOMATION_STUDIO_LIVE_WINDOW_HINT", "Unity")
+        studio.window_hint_edit.setText(window_hint)
+
+        studio.scenario.variables = [
+            {"id": "unity_window_hint", "type": "string", "required": True, "default": window_hint},
+            {"id": "unity_project_path", "type": "path", "required": True, "default": project_path},
+            {"id": "subflow_timeout", "type": "number", "required": True, "default": "75"},
+        ]
+
+        if timeout_mode == "blank":
+            studio.scenario.execution = {}
+            expected_timeout = "3600s"
+        elif timeout_mode == "number":
+            studio.scenario.execution = {"subflow_timeout_seconds": 90}
+            expected_timeout = "90s"
+        else:
+            studio.scenario.execution = {"subflow_timeout_seconds": "${subflow_timeout}"}
+            expected_timeout = "75s"
+
+        studio.scenario.steps = [
+            Step(
+                action="run_subflow",
+                title="Run child flow",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ]
+
+        assert studio._ensure_unity_bridge_dependency_if_configured("run") is True
+
+        output_dir = tmp_path / f"{execution_mode}-timeout-{timeout_mode}"
+        result = export_all(
+            studio.scenario,
+            output_dir=output_dir,
+            suite_name="live-timeout-matrix",
+            active_profile=studio._active_profile_value(),
+        )
+        text = result.robot_path.read_text(encoding="utf-8")
+
+        if execution_mode == "launch":
+            assert "Start Unity Editor" in text
+        else:
+            assert "Attach To Running Unity Editor" in text
+
+        assert f"timeout={expected_timeout}    on_timeout=terminate" in text
+        assert f"Wait For Process    ${{alias}}    timeout={expected_timeout}" in text
+    finally:
+        studio.close()
