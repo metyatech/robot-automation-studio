@@ -201,6 +201,14 @@ def test_parse_subflow_timeout_seconds_returns_default_for_empty() -> None:
     assert parsed == SUBFLOW_TIMEOUT_SECONDS_DEFAULT
 
 
+def test_parse_subflow_timeout_seconds_returns_default_for_whitespace() -> None:
+    parsed = parse_subflow_timeout_seconds(
+        "   ",
+        default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+    )
+    assert parsed == SUBFLOW_TIMEOUT_SECONDS_DEFAULT
+
+
 @pytest.mark.parametrize("value", [SUBFLOW_TIMEOUT_SECONDS_MIN, 60, SUBFLOW_TIMEOUT_SECONDS_MAX])
 def test_parse_subflow_timeout_seconds_accepts_range(value: int) -> None:
     parsed = parse_subflow_timeout_seconds(

@@ -66,6 +66,11 @@ def parse_subflow_timeout_seconds(
 ) -> int | None:
     if value in (None, ""):
         return int(default)
+    if isinstance(value, str):
+        stripped_value = value.strip()
+        if stripped_value == "":
+            return int(default)
+        value = stripped_value
 
     error_message = (
         "subflow_timeout_seconds must be an integer between "
@@ -74,13 +79,11 @@ def parse_subflow_timeout_seconds(
     )
     if isinstance(value, bool):
         raise ValueError(error_message)
-    if allow_placeholder and isinstance(value, str):
-        placeholder_text = value.strip()
-        if _PLACEHOLDER_RE.fullmatch(placeholder_text):
-            return None
+    if allow_placeholder and isinstance(value, str) and _PLACEHOLDER_RE.fullmatch(value):
+        return None
 
     try:
-        parsed = int(str(value).strip())
+        parsed = int(str(value))
     except (TypeError, ValueError) as error:
         raise ValueError(error_message) from error
     if parsed < SUBFLOW_TIMEOUT_SECONDS_MIN or parsed > SUBFLOW_TIMEOUT_SECONDS_MAX:
