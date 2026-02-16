@@ -4,12 +4,16 @@ import pytest
 
 from robot_automation_studio.models import (
     SCHEMA_VERSION,
+    SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+    SUBFLOW_TIMEOUT_SECONDS_MAX,
+    SUBFLOW_TIMEOUT_SECONDS_MIN,
     TARGET_WINDOW_HINT_KEY,
     UNITY_EXECUTION_MODE_KEY,
     UNITY_PROJECT_PATH_KEY,
     Scenario,
     Step,
     normalize_unity_execution_mode,
+    parse_subflow_timeout_seconds,
 )
 
 
@@ -187,3 +191,59 @@ def test_step_start_video_flat_path_is_normalized_to_input_path() -> None:
     payload = step.to_dict()
     assert payload["action"] == "start_video"
     assert payload["input"]["path"] == "videos/capture.mp4"
+
+
+def test_parse_subflow_timeout_seconds_returns_default_for_empty() -> None:
+    parsed = parse_subflow_timeout_seconds(
+        None,
+        default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+    )
+    assert parsed == SUBFLOW_TIMEOUT_SECONDS_DEFAULT
+
+
+@pytest.mark.parametrize("value", [SUBFLOW_TIMEOUT_SECONDS_MIN, 60, SUBFLOW_TIMEOUT_SECONDS_MAX])
+def test_parse_subflow_timeout_seconds_accepts_range(value: int) -> None:
+    parsed = parse_subflow_timeout_seconds(
+        value,
+        default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+    )
+    assert parsed == value
+
+
+@pytest.mark.parametrize("value", [0, SUBFLOW_TIMEOUT_SECONDS_MAX + 1, "abc"])
+def test_parse_subflow_timeout_seconds_rejects_invalid_values(value: object) -> None:
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"subflow_timeout_seconds must be an integer between 1 and 86400"
+            r" at execution\.subflow_timeout_seconds"
+        ),
+    ):
+        parse_subflow_timeout_seconds(
+            value,
+            default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+        )
+
+
+def test_parse_subflow_timeout_seconds_allows_placeholder_when_enabled() -> None:
+    parsed = parse_subflow_timeout_seconds(
+        "${subflow_timeout}",
+        default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+        allow_placeholder=True,
+    )
+    assert parsed is None
+
+
+def test_parse_subflow_timeout_seconds_rejects_mixed_placeholder_text() -> None:
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"subflow_timeout_seconds must be an integer between 1 and 86400"
+            r" at execution\.subflow_timeout_seconds"
+        ),
+    ):
+        parse_subflow_timeout_seconds(
+            "${subflow_timeout}s",
+            default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+            allow_placeholder=True,
+        )

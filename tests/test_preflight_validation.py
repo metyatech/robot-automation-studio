@@ -154,8 +154,11 @@ def test_validate_scenario_reports_invalid_subflow_timeout_location() -> None:
     report = validate_scenario(scenario)
     assert report.is_valid is False
     assert len(report.issues) >= 1
-    assert report.issues[0].code == "execution.subflow_timeout.invalid"
-    assert report.issues[0].location == "execution.subflow_timeout_seconds"
+    assert any(
+        issue.code == "execution.subflow_timeout.invalid"
+        and issue.location == "execution.subflow_timeout_seconds"
+        for issue in report.issues
+    )
 
 
 def test_validate_scenario_reports_missing_ffmpeg_for_start_video(
@@ -273,3 +276,24 @@ def test_validate_scenario_allows_variable_placeholder_for_subflow_timeout() -> 
     report = validate_scenario(scenario)
     assert report.is_valid is True
     assert report.issues == []
+
+
+def test_validate_scenario_rejects_mixed_placeholder_text_for_subflow_timeout() -> None:
+    scenario = Scenario(
+        name="Variable subflow timeout invalid mixed",
+        variables=[{"id": "subflow_timeout", "type": "number", "required": True, "default": "120"}],
+        execution={"subflow_timeout_seconds": "${subflow_timeout}s"},
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is False
+    assert len(report.issues) >= 1
+    assert report.issues[0].code == "execution.subflow_timeout.invalid"
+    assert report.issues[0].location == "execution.subflow_timeout_seconds"

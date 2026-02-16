@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from contextlib import suppress
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, overload
 
 UNITY_EXECUTION_MODE_KEY = "unity_execution_mode"
 UNITY_PROJECT_PATH_KEY = "unity_project_path"
@@ -21,6 +22,7 @@ STEP_KINDS = {"action", "control", "group"}
 SUBFLOW_TIMEOUT_SECONDS_DEFAULT = 3600
 SUBFLOW_TIMEOUT_SECONDS_MIN = 1
 SUBFLOW_TIMEOUT_SECONDS_MAX = 86400
+_PLACEHOLDER_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_-]*)\}")
 
 
 def _new_step_id() -> str:
@@ -36,6 +38,54 @@ def normalize_unity_execution_mode(value: Any) -> str:
     if normalized in VALID_UNITY_EXECUTION_MODES:
         return normalized
     return "attach"
+
+
+@overload
+def parse_subflow_timeout_seconds(
+    value: Any,
+    *,
+    default: int,
+    allow_placeholder: Literal[False] = False,
+) -> int: ...
+
+
+@overload
+def parse_subflow_timeout_seconds(
+    value: Any,
+    *,
+    default: int,
+    allow_placeholder: Literal[True],
+) -> int | None: ...
+
+
+def parse_subflow_timeout_seconds(
+    value: Any,
+    *,
+    default: int,
+    allow_placeholder: bool = False,
+) -> int | None:
+    if value in (None, ""):
+        return int(default)
+
+    error_message = (
+        "subflow_timeout_seconds must be an integer between "
+        f"{SUBFLOW_TIMEOUT_SECONDS_MIN} and {SUBFLOW_TIMEOUT_SECONDS_MAX}"
+        " at execution.subflow_timeout_seconds."
+    )
+    if isinstance(value, bool):
+        raise ValueError(error_message)
+    if allow_placeholder and isinstance(value, str):
+        placeholder_text = value.strip()
+        if _PLACEHOLDER_RE.fullmatch(placeholder_text):
+            return None
+
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError) as error:
+        raise ValueError(error_message) from error
+    if parsed < SUBFLOW_TIMEOUT_SECONDS_MIN or parsed > SUBFLOW_TIMEOUT_SECONDS_MAX:
+        raise ValueError(error_message)
+    return parsed
 
 
 def _deepcopy_if_present(source: dict[str, Any], key: str) -> Any:

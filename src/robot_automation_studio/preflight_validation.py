@@ -9,9 +9,9 @@ from typing import Any
 
 from .exporter import validate_exportable_scenario, validate_step_exportability
 from .models import (
-    SUBFLOW_TIMEOUT_SECONDS_MAX,
-    SUBFLOW_TIMEOUT_SECONDS_MIN,
+    SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
     Scenario,
+    parse_subflow_timeout_seconds,
 )
 
 _AT_PATH_RE = re.compile(r"\sat\s([A-Za-z0-9_\[\]-]+(?:\.[A-Za-z0-9_\[\]-]+)*)\.?$")
@@ -196,39 +196,18 @@ def _collect_execution_issues(payload: dict[str, Any]) -> list[ValidationIssue]:
     execution = payload.get("execution")
     if not isinstance(execution, dict):
         return []
-    raw_timeout = execution.get("subflow_timeout_seconds")
-    if raw_timeout in (None, ""):
-        return []
-    error_message = (
-        "subflow_timeout_seconds must be an integer between "
-        f"{SUBFLOW_TIMEOUT_SECONDS_MIN} and {SUBFLOW_TIMEOUT_SECONDS_MAX}."
-    )
-    if isinstance(raw_timeout, bool):
-        return [
-            ValidationIssue(
-                code="execution.subflow_timeout.invalid",
-                location="execution.subflow_timeout_seconds",
-                message=error_message,
-            )
-        ]
-    if isinstance(raw_timeout, str) and _PLACEHOLDER_RE.search(raw_timeout):
-        return []
     try:
-        parsed = int(str(raw_timeout).strip())
-    except (TypeError, ValueError):
+        parse_subflow_timeout_seconds(
+            execution.get("subflow_timeout_seconds"),
+            default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+            allow_placeholder=True,
+        )
+    except ValueError as error:
         return [
             ValidationIssue(
                 code="execution.subflow_timeout.invalid",
                 location="execution.subflow_timeout_seconds",
-                message=error_message,
-            )
-        ]
-    if parsed < SUBFLOW_TIMEOUT_SECONDS_MIN or parsed > SUBFLOW_TIMEOUT_SECONDS_MAX:
-        return [
-            ValidationIssue(
-                code="execution.subflow_timeout.invalid",
-                location="execution.subflow_timeout_seconds",
-                message=error_message,
+                message=str(error),
             )
         ]
     return []
