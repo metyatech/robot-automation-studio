@@ -15,6 +15,7 @@ from pynput import keyboard as pynput_keyboard
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QCloseEvent,
+    QEnterEvent,
     QFont,
     QHelpEvent,
     QKeySequence,
@@ -1697,6 +1698,15 @@ class StudioApp(QMainWindow):
             self._register_help_for_widget(child)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        if isinstance(obj, QWidget) and event.type() == QEvent.Type.Enter:
+            entry = self._help_entries_by_widget.get(obj)
+            if entry is None:
+                return False
+            if isinstance(event, QEnterEvent):
+                QToolTip.showText(event.globalPosition().toPoint(), obj.toolTip(), obj)
+                return False
+            QToolTip.showText(obj.mapToGlobal(obj.rect().center()), obj.toolTip(), obj)
+            return False
         if isinstance(obj, QWidget) and event.type() == QEvent.Type.ToolTip:
             entry = self._help_entries_by_widget.get(obj)
             if entry is None:
