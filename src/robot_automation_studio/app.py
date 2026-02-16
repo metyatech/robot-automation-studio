@@ -47,22 +47,11 @@ from .models import (
     normalize_unity_execution_mode,
 )
 from .overlay import AutomationRunOverlay, OverlayMode
-from .recorder import ScenarioRecorder, events_to_steps, has_visible_window_with_hint
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .status import SPINNER_FRAMES, format_run_status, next_spinner_index
 from .ui_help import HelpEntry, build_help_entry, filter_help_entries
 from .unity_bridge import UnityBridgeClient
 from .unity_diagnostics import get_recent_unity_compile_errors
-from .unity_project import resolve_attached_unity_project_path
-from .upm import (
-    ensure_unity_bridge_upm_dependency,
-    has_unity_bridge_package_script_meta,
-    install_legacy_unity_bridge_script,
-)
-from .window_focus import (
-    focus_visible_window_with_hint,
-    trigger_assets_refresh_shortcut_with_hint,
-)
 
 STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
 STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
@@ -425,6 +414,8 @@ class StudioApp(QMainWindow):
         self.scenario = Scenario(name="Unity Editor Flow")
         self.editor = ScenarioEditor(self.scenario)
         self.unity_bridge = UnityBridgeClient(timeout_seconds=0.1)
+        from .recorder import ScenarioRecorder
+
         self.recorder = ScenarioRecorder(
             on_record_error=self._on_record_error,
             unity_bridge=self.unity_bridge,
@@ -1094,11 +1085,19 @@ class StudioApp(QMainWindow):
         self.project_path_browse_button.setEnabled(True)
 
     def _ensure_unity_bridge_dependency_if_configured(self, purpose: str) -> bool:
+        from .upm import (
+            ensure_unity_bridge_upm_dependency,
+            has_unity_bridge_package_script_meta,
+            install_legacy_unity_bridge_script,
+        )
+
         project_path_raw = self.project_path_edit.text().strip()
         execution_mode = normalize_unity_execution_mode(self.execution_mode_combo.currentText())
         package_script_meta_detected = False
 
         if project_path_raw == "" and execution_mode == "attach":
+            from .unity_project import resolve_attached_unity_project_path
+
             detected_path = resolve_attached_unity_project_path(
                 window_hint=self.window_hint_edit.text().strip() or "Unity"
             )
@@ -1177,6 +1176,8 @@ class StudioApp(QMainWindow):
             for attempt_index, wait_timeout in enumerate(wait_timeouts):
                 attempt_number = attempt_index + 1
                 if execution_mode == "attach":
+                    from .window_focus import focus_visible_window_with_hint
+
                     focused = focus_visible_window_with_hint(
                         self.window_hint_edit.text().strip() or "Unity"
                     )
@@ -1197,6 +1198,8 @@ class StudioApp(QMainWindow):
             if not bridge_ready:
                 self.log("Unity bridge readiness check timed out.")
                 if execution_mode == "attach":
+                    from .window_focus import trigger_assets_refresh_shortcut_with_hint
+
                     refreshed = trigger_assets_refresh_shortcut_with_hint(
                         self.window_hint_edit.text().strip() or "Unity"
                     )
@@ -1232,6 +1235,8 @@ class StudioApp(QMainWindow):
                             else:
                                 self.log("Fallback bridge script already exists.")
                             if execution_mode == "attach":
+                                from .window_focus import focus_visible_window_with_hint
+
                                 focus_visible_window_with_hint(
                                     self.window_hint_edit.text().strip() or "Unity"
                                 )
@@ -1323,6 +1328,8 @@ class StudioApp(QMainWindow):
         self.refresh_steps()
 
     def start_recording(self) -> None:
+        from .recorder import has_visible_window_with_hint
+
         if self.recorder.is_recording:
             self.log("Recording is already running.")
             return
@@ -1355,6 +1362,8 @@ class StudioApp(QMainWindow):
         self.log(f"Recording started. window_hint={window_hint}")
 
     def stop_recording(self) -> None:
+        from .recorder import events_to_steps
+
         if not self.recorder.is_recording:
             self.log("Recording is not running.")
             return
