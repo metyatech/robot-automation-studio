@@ -99,3 +99,24 @@ def test_run_robot_suite_preflight_failure_returns_to_idle(monkeypatch, tmp_path
         assert studio._run_phase == "idle"
     finally:
         studio.close()
+
+
+def test_stop_request_via_global_hotkey_stops_running_robot(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        monkeypatch.setattr(studio, "_is_robot_running", lambda: True)
+        studio.recorder._recording = False
+        captured = {"source": ""}
+
+        def _fake_stop_robot_suite(stop_source: str = "manual") -> None:
+            captured["source"] = stop_source
+
+        monkeypatch.setattr(studio, "stop_robot_suite", _fake_stop_robot_suite)
+
+        studio._on_automation_stop_requested("global_hotkey")
+
+        assert captured["source"] == "global_hotkey"
+    finally:
+        studio.close()

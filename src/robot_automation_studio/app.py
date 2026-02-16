@@ -11,6 +11,7 @@ import threading
 import warnings
 from contextlib import suppress
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 
 from pynput import keyboard as pynput_keyboard
@@ -603,6 +604,80 @@ class StudioApp(QMainWindow):
             if listener is not None:
                 with suppress(Exception):
                     listener.stop()
+
+    def _collect_available_hotkey_candidates(
+        self,
+        *,
+        exclude_labels: set[str] | None = None,
+    ) -> list[HotkeySpec]:
+        excluded = {str(value or "").strip().lower() for value in (exclude_labels or set())}
+        candidates: list[HotkeySpec] = []
+        for label in FALLBACK_STOP_HOTKEY_LABELS:
+            try:
+                spec = parse_hotkey_label(label)
+            except Exception:
+                continue
+            normalized = spec.label.strip().lower()
+            if normalized in excluded:
+                continue
+            if any(existing.label == spec.label for existing in candidates):
+                continue
+            ok, _error_text = self._probe_hotkey_registration(spec)
+            if ok:
+                candidates.append(spec)
+        return candidates
+
+    def _choose_hotkey_candidate_dialog(
+        self,
+        *,
+        requested_hotkey: str,
+        conflict_error: str,
+        candidates: list[HotkeySpec],
+    ) -> HotkeySpec | None:
+        if not candidates:
+            return None
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self._t("app.dialog.hotkey_conflict.title"))
+        dialog.setMinimumWidth(560)
+        layout = QVBoxLayout(dialog)
+
+        detail = QLabel(
+            self._t(
+                "app.dialog.hotkey_conflict.message",
+                hotkey=requested_hotkey,
+                error=conflict_error or "unknown",
+            )
+        )
+        detail.setWordWrap(True)
+        layout.addWidget(detail)
+
+        candidate_label = QLabel(self._t("app.dialog.hotkey_candidate.label"))
+        layout.addWidget(candidate_label)
+
+        candidate_combo = QComboBox()
+        for spec in candidates:
+            candidate_combo.addItem(spec.label, spec)
+        layout.addWidget(candidate_combo)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
+        cancel_button = QPushButton(self._t("app.button.cancel"))
+        cancel_button.clicked.connect(dialog.reject)
+        actions.addWidget(cancel_button)
+        use_button = QPushButton(self._t("app.dialog.hotkey_candidate.apply"))
+        use_button.setObjectName("ApplyButton")
+        use_button.clicked.connect(dialog.accept)
+        actions.addWidget(use_button)
+        layout.addLayout(actions)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return None
+        current_data = candidate_combo.currentData(Qt.ItemDataRole.UserRole)
+        if isinstance(current_data, HotkeySpec):
+            return current_data
+        if candidates:
+            return candidates[0]
+        return None
 
     def _set_stop_hotkey_spec(self, spec: HotkeySpec, *, persist: bool = False) -> None:
         self._stop_hotkey_spec = spec
@@ -1394,7 +1469,30 @@ class StudioApp(QMainWindow):
         )
 
     def _on_record_error(self, message: str) -> None:
-        QTimer.singleShot(0, lambda: self.log(self._t("app.log.record_error", message=message)))
+        def _report() -> None:
+            self.log(self._t("app.log.record_error", message=message))
+            self._persist_record_diagnostic(message)
+
+        QTimer.singleShot(0, _report)
+
+    def _diagnostics_output_dir(self) -> Path:
+        output_dir_value = "artifacts/studio"
+        if hasattr(self, "output_dir_edit"):
+            output_dir_value = self.output_dir_edit.text().strip() or output_dir_value
+        return Path(output_dir_value).resolve() / "diagnostics"
+
+    def _persist_record_diagnostic(self, message: str) -> None:
+        channel = (
+            "bridge-recording"
+            if "hierarchy path from unity bridge" in str(message or "").strip().lower()
+            else "recording"
+        )
+        target_path = self._diagnostics_output_dir() / f"{channel}.log"
+        timestamp = datetime.now().isoformat(timespec="seconds")
+        line = f"[{timestamp}] {message}\n"
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with target_path.open("a", encoding="utf-8") as stream:
+            stream.write(line)
 
     @Slot(str)
     def log(self, message: str) -> None:
@@ -1924,16 +2022,25 @@ class StudioApp(QMainWindow):
             return
         ok, error_text = self._probe_hotkey_registration(spec)
         if not ok:
-            QMessageBox.critical(
-                self,
-                self._t("app.error.hotkey_register_failed.title"),
-                self._t(
-                    "app.error.hotkey_register_failed.message",
-                    hotkey=spec.label,
-                    details=error_text or "unknown",
-                ),
+            candidates = self._collect_available_hotkey_candidates(exclude_labels={spec.label})
+            selected_candidate = self._choose_hotkey_candidate_dialog(
+                requested_hotkey=spec.label,
+                conflict_error=error_text,
+                candidates=candidates,
             )
-            return
+            if selected_candidate is None:
+                QMessageBox.critical(
+                    self,
+                    self._t("app.error.hotkey_register_failed.title"),
+                    self._t(
+                        "app.error.hotkey_register_failed.message",
+                        hotkey=spec.label,
+                        details=error_text or "unknown",
+                    ),
+                )
+                return
+            self.log(self._t("app.log.hotkey_fallback", hotkey=selected_candidate.label))
+            spec = selected_candidate
         self._set_stop_hotkey_spec(spec, persist=True)
         if self.recorder.is_recording or self._is_robot_running():
             self._start_stop_hotkey()

@@ -144,11 +144,39 @@ set ROBOT_AUTOMATION_STUDIO_LIVE_WINDOW_HINT=Unity
 python -m pytest tests/test_live_unity_attach_e2e.py -q
 ```
 
+The live suite covers:
+- attach mode bridge readiness
+- launch mode bridge readiness
+- Japanese locale smoke path
+
 ## Security Checks in CI
 
 - Dependency vulnerability scan: `pip-audit` in `scripts/verify.ps1` and CI
 - Static security analysis: CodeQL workflow (`.github/workflows/codeql.yml`)
 - Secret scanning: Gitleaks workflow (`.github/workflows/secret-scan.yml`)
+
+To enforce required checks on `main`, run:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/set-branch-protection.ps1
+```
+
+Default required checks set by the script:
+- `verify`
+- `analyze (python)`
+- `gitleaks`
+
+## Unity Workflow Example
+
+Example: increase tail length settings in an existing avatar project.
+
+1. Set `Execution Mode` to `attach`.
+2. Set `Window Hint` to `Unity`.
+3. Click `● Record` and select the avatar object in Hierarchy.
+4. Change the relevant Inspector values (for example tail length).
+5. Click `■ Stop` and verify generated click/type steps.
+6. Use `Export` to generate `.robot` and `.scenario.json`.
+7. Click `Run Robot` and confirm preflight -> run status transitions.
 
 ## Export Example
 

@@ -156,3 +156,26 @@ def test_probe_hotkey_registration_failure(monkeypatch) -> None:
         assert "already used by another app" in error_text
     finally:
         studio.close()
+
+
+def test_collect_available_hotkey_candidates_excludes_unavailable(monkeypatch) -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        unavailable = {"Alt+Shift+F12", "Ctrl+Alt+F12"}
+
+        def _fake_probe(spec):
+            if spec.label in unavailable:
+                return (False, "conflict")
+            return (True, "")
+
+        monkeypatch.setattr(studio, "_probe_hotkey_registration", _fake_probe)
+
+        candidates = studio._collect_available_hotkey_candidates(exclude_labels={"Alt+Shift+F12"})
+        labels = [item.label for item in candidates]
+
+        assert "Alt+Shift+F12" not in labels
+        assert "Ctrl+Shift+F12" in labels
+        assert "Ctrl+Alt+F12" not in labels
+    finally:
+        studio.close()

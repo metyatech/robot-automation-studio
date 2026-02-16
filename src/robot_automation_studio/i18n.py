@@ -744,6 +744,24 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "ja": "緊急停止に使うキーの組み合わせを押してください (例: Alt+Shift+F12)。",
     },
     "app.dialog.hotkey.apply": {"en": "Apply Hotkey", "ja": "ホットキーを適用"},
+    "app.dialog.hotkey_conflict.title": {
+        "en": "Choose Fallback Hotkey",
+        "ja": "代替ホットキーを選択",
+    },
+    "app.dialog.hotkey_conflict.message": {
+        "en": (
+            "The selected hotkey could not be registered: {hotkey}\n"
+            "Reason: {error}\n\n"
+            "Select an available fallback key."
+        ),
+        "ja": (
+            "選択したホットキーを登録できませんでした: {hotkey}\n"
+            "理由: {error}\n\n"
+            "利用可能な代替キーを選択してください。"
+        ),
+    },
+    "app.dialog.hotkey_candidate.label": {"en": "Fallback candidates", "ja": "代替キー候補"},
+    "app.dialog.hotkey_candidate.apply": {"en": "Use Selected Key", "ja": "このキーを使用"},
     "app.dialog.full_json.title": {"en": "Full Scenario JSON (v2)", "ja": "シナリオ全体 JSON (v2)"},
     "app.dialog.variables.title": {"en": "Variables Editor", "ja": "変数エディタ"},
     "app.dialog.profiles.title": {"en": "Profiles Editor", "ja": "プロファイルエディタ"},
