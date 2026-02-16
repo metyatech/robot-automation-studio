@@ -228,3 +228,22 @@ def test_validate_scenario_reports_missing_ffmpeg_for_nested_start_video(
     assert len(report.issues) >= 1
     assert report.issues[0].code == "tooling.ffmpeg_missing"
     assert report.issues[0].location == "steps[0].steps[0].input.path"
+
+
+def test_validate_scenario_allows_variable_placeholder_for_subflow_timeout() -> None:
+    scenario = Scenario(
+        name="Variable subflow timeout",
+        variables=[{"id": "subflow_timeout", "type": "number", "required": True, "default": "120"}],
+        execution={"subflow_timeout_seconds": "${subflow_timeout}"},
+        steps=[
+            Step(
+                action="run_subflow",
+                title="Run child",
+                params={"input": {"path": "flows/child.robot"}},
+            )
+        ],
+    )
+
+    report = validate_scenario(scenario)
+    assert report.is_valid is True
+    assert report.issues == []

@@ -203,6 +203,8 @@ def _collect_execution_issues(payload: dict[str, Any]) -> list[ValidationIssue]:
                 message="subflow_timeout_seconds must be a positive integer.",
             )
         ]
+    if isinstance(raw_timeout, str) and _PLACEHOLDER_RE.search(raw_timeout):
+        return []
     try:
         parsed = int(str(raw_timeout).strip())
     except (TypeError, ValueError):
