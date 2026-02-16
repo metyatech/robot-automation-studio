@@ -20,11 +20,11 @@ def test_build_help_entry_uses_known_text_help_when_explicit_is_missing() -> Non
     entry = build_help_entry(
         widget_id="root.stop_button",
         widget_class="TButton",
-        widget_text="Stop Robot (Ctrl+Shift+F12)",
+        widget_text="Stop Robot (Alt+Shift+F12)",
     )
 
     assert "stop robot run" in entry.summary.lower()
-    assert "Ctrl+Shift+F12" in entry.detail
+    assert "Alt+Shift+F12" in entry.detail
 
 
 def test_build_help_entry_falls_back_to_widget_class_description() -> None:

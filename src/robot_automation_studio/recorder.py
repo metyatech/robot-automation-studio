@@ -15,7 +15,7 @@ from pywinauto import Desktop
 from .models import Step
 
 STOP_HOTKEY_MAIN_KEY = "F12"
-STOP_HOTKEY_REQUIRED_MODIFIERS = {"CTRL", "SHIFT"}
+STOP_HOTKEY_REQUIRED_MODIFIERS = {"ALT", "SHIFT"}
 HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS = 1.0
 
 
@@ -166,6 +166,7 @@ class ScenarioRecorder:
         window_provider: Callable[[], WindowSnapshot | None] = get_foreground_window_snapshot,
         element_resolver: Callable[[int, int], dict[str, Any] | None] = resolve_selector_from_point,
         on_record_error: Callable[[str], None] | None = None,
+        on_stop_hotkey: Callable[[], None] | None = None,
         unity_bridge: Any | None = None,
     ) -> None:
         if platform.system().lower() != "windows":
@@ -175,6 +176,7 @@ class ScenarioRecorder:
         self._window_provider = window_provider
         self._element_resolver = element_resolver
         self._on_record_error = on_record_error
+        self._on_stop_hotkey = on_stop_hotkey
         self._unity_bridge = unity_bridge
         self._window_hint = "Unity"
         self._mouse_listener: mouse.Listener | None = None
@@ -364,6 +366,8 @@ class ScenarioRecorder:
         if name == STOP_HOTKEY_MAIN_KEY and STOP_HOTKEY_REQUIRED_MODIFIERS.issubset(
             self._modifier_keys
         ):
+            if self._on_stop_hotkey is not None:
+                self._on_stop_hotkey()
             return
 
         if "CTRL" in self._modifier_keys:

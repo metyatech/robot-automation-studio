@@ -37,25 +37,25 @@ def test_compute_banner_rect_falls_back_to_screen_when_target_missing() -> None:
 
 
 def test_build_banner_text_contains_progress_and_hotkey() -> None:
-    text = build_banner_text("Attaching to Unity /", "Ctrl+Shift+F12")
-    assert text == "Attaching to Unity /  |  Press Ctrl+Shift+F12 to stop"
+    text = build_banner_text("Attaching to Unity /", "Alt+Shift+F12")
+    assert text == "Attaching to Unity /  |  Press Alt+Shift+F12 to stop"
 
 
 def test_build_banner_text_normalizes_blank_progress() -> None:
-    text = build_banner_text("", "Ctrl+Shift+F12")
-    assert text == "Running  |  Press Ctrl+Shift+F12 to stop"
+    text = build_banner_text("", "Alt+Shift+F12")
+    assert text == "Running  |  Press Alt+Shift+F12 to stop"
 
 
 def test_build_banner_text_for_recording_mode() -> None:
-    text = build_banner_text("Recording", "Ctrl+Shift+F12", mode="recording")
-    assert text == "Recording  |  Press Ctrl+Shift+F12 to stop recording"
+    text = build_banner_text("Recording", "Alt+Shift+F12", mode="recording")
+    assert text == "Recording  |  Press Alt+Shift+F12 to stop recording"
 
 
 def test_build_banner_text_for_recording_mode_normalizes_blank_progress() -> None:
-    text = build_banner_text("", "Ctrl+Shift+F12", mode="recording")
-    assert text == "Recording  |  Press Ctrl+Shift+F12 to stop recording"
+    text = build_banner_text("", "Alt+Shift+F12", mode="recording")
+    assert text == "Recording  |  Press Alt+Shift+F12 to stop recording"
 
 
 def test_build_banner_text_supports_japanese_locale() -> None:
-    text = build_banner_text("", "Ctrl+Shift+F12", locale="ja")
-    assert text == "実行中  |  Ctrl+Shift+F12 で 停止"
+    text = build_banner_text("", "Alt+Shift+F12", locale="ja")
+    assert text == "実行中  |  Alt+Shift+F12 で 停止"

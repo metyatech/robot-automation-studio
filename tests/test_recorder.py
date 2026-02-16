@@ -230,15 +230,37 @@ def test_has_visible_window_with_hint_false_when_no_match() -> None:
 def test_recorder_does_not_record_stop_hotkey_shortcut() -> None:
     recorder = ScenarioRecorder()
     recorder.start(window_hint="Unity")
-    recorder._on_key_press(keyboard.Key.ctrl_l)
+    recorder._on_key_press(keyboard.Key.alt_l)
     recorder._on_key_press(keyboard.Key.shift)
     recorder._on_key_press(keyboard.Key.f12)
     recorder._on_key_release(keyboard.Key.f12)
     recorder._on_key_release(keyboard.Key.shift)
-    recorder._on_key_release(keyboard.Key.ctrl_l)
+    recorder._on_key_release(keyboard.Key.alt_l)
 
     steps = events_to_steps(recorder.stop())
 
+    assert steps == []
+
+
+def test_recorder_invokes_stop_hotkey_callback() -> None:
+    callback_count = 0
+
+    def _on_stop_hotkey() -> None:
+        nonlocal callback_count
+        callback_count += 1
+
+    recorder = ScenarioRecorder(on_stop_hotkey=_on_stop_hotkey)
+    recorder.start(window_hint="Unity")
+    recorder._on_key_press(keyboard.Key.alt_l)
+    recorder._on_key_press(keyboard.Key.shift)
+    recorder._on_key_press(keyboard.Key.f12)
+    recorder._on_key_release(keyboard.Key.f12)
+    recorder._on_key_release(keyboard.Key.shift)
+    recorder._on_key_release(keyboard.Key.alt_l)
+
+    steps = events_to_steps(recorder.stop())
+
+    assert callback_count == 1
     assert steps == []
 
 

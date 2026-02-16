@@ -74,7 +74,7 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
     ),
     "Stop Robot": (
         "Stop robot run.",
-        "Stops the running Robot process immediately. You can also use Ctrl+Shift+F12.",
+        "Stops the running Robot process immediately. You can also use Alt+Shift+F12.",
     ),
     "File ▾": (
         "Open file menu.",
@@ -740,12 +740,12 @@ def _lookup_known_help(title: str, widget_id: str, *, locale: str) -> tuple[str,
         if normalized_title.startswith(_normalize_help_key(_STOP_ROBOT_KEY_JA)):
             return (
                 "Robot 実行を停止します。",
-                "実行中の Robot プロセスを停止します。緊急停止は Ctrl+Shift+F12 を使用します。",
+                "実行中の Robot プロセスを停止します。緊急停止は Alt+Shift+F12 を使用します。",
             )
     elif normalized_title.startswith(_normalize_help_key(_STOP_ROBOT_KEY_EN)):
         return (
             "Stop robot run.",
-            "Stops the running Robot process immediately. Use Ctrl+Shift+F12 as emergency stop.",
+            "Stops the running Robot process immediately. Use Alt+Shift+F12 as emergency stop.",
         )
     return ("", "")
 

@@ -66,8 +66,8 @@ from .ui_help import HelpEntry, build_help_entry, filter_help_entries
 from .unity_bridge import UnityBridgeClient
 from .unity_diagnostics import get_recent_unity_compile_errors
 
-STOP_HOTKEY_BIND = "<ctrl>+<shift>+<f12>"
-STOP_HOTKEY_LABEL = "Ctrl+Shift+F12"
+STOP_HOTKEY_BIND = "<alt>+<shift>+<f12>"
+STOP_HOTKEY_LABEL = "Alt+Shift+F12"
 BRIDGE_READY_TIMEOUT_SECONDS = 15.0
 BRIDGE_READY_CHECK_TIMEOUT_SECONDS = 3.0
 BRIDGE_READY_REQUEST_TIMEOUT_SECONDS = 0.8
@@ -473,6 +473,7 @@ class StudioApp(QMainWindow):
 
         self.recorder = ScenarioRecorder(
             on_record_error=self._on_record_error,
+            on_stop_hotkey=self._on_recorder_stop_hotkey,
             unity_bridge=self.unity_bridge,
         )
         self.current_path: Path | None = None
@@ -1422,6 +1423,9 @@ class StudioApp(QMainWindow):
             return
         if self._is_robot_running():
             self.stop_robot_suite()
+
+    def _on_recorder_stop_hotkey(self) -> None:
+        QTimer.singleShot(0, self._stop_active_automation)
 
     def refresh_steps(self) -> None:
         self.step_list.clear()

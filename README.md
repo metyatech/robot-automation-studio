@@ -15,7 +15,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 - Runtime safety controls for automation execution:
   - visible running status
   - stop button
-  - global emergency stop hotkey (`Ctrl+Shift+F12`)
+  - global emergency stop hotkey (`Alt+Shift+F12`)
   - dark overlay outside the active automation window with shortcut banner
   - recording/run overlays use distinct style and banner text
 - In-app universal help system:
@@ -91,7 +91,7 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
    - `<name>.robot`
    - `<name>.scenario.json`
 9. Click `Run Robot` to execute the generated suite.
-10. While running, use `Stop Robot` or press `Ctrl+Shift+F12` to stop immediately.
+10. While running, use `Stop Robot` or press `Alt+Shift+F12` to stop immediately.
 11. Use in-app help:
    - hover/focus any UI component to read context help in the `Context Help` bar
    - press `F1` (or click `Help Guide`) to open searchable full GUI help
