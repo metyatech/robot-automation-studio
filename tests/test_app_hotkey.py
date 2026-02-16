@@ -115,3 +115,44 @@ def test_start_stop_hotkey_falls_back_when_primary_registration_fails(
     finally:
         studio._stop_stop_hotkey()
         studio.close()
+
+
+def test_probe_hotkey_registration_success(monkeypatch) -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        probe_listener = _FakeHotkeyListener()
+
+        def _fake_create_listener(bind: str, callback):
+            _ = (bind, callback)
+            return probe_listener
+
+        monkeypatch.setattr(studio, "_create_global_hotkey_listener", _fake_create_listener)
+
+        ok, error_text = studio._probe_hotkey_registration(parse_hotkey_label("Ctrl+Alt+F12"))
+
+        assert ok is True
+        assert error_text == ""
+        assert probe_listener.started is True
+        assert probe_listener.stopped is True
+    finally:
+        studio.close()
+
+
+def test_probe_hotkey_registration_failure(monkeypatch) -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+
+        def _fake_create_listener(bind: str, callback):
+            _ = (bind, callback)
+            raise RuntimeError("already used by another app")
+
+        monkeypatch.setattr(studio, "_create_global_hotkey_listener", _fake_create_listener)
+
+        ok, error_text = studio._probe_hotkey_registration(parse_hotkey_label("Ctrl+Alt+F12"))
+
+        assert ok is False
+        assert "already used by another app" in error_text
+    finally:
+        studio.close()

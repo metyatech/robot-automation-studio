@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 import warnings
+from contextlib import suppress
 from copy import deepcopy
 from pathlib import Path
 
@@ -33,6 +34,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
     QHBoxLayout,
+    QKeySequenceEdit,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -588,6 +590,19 @@ class StudioApp(QMainWindow):
             return parse_hotkey_label(label)
         except Exception:
             return parse_hotkey_label(DEFAULT_STOP_HOTKEY_LABEL)
+
+    def _probe_hotkey_registration(self, spec: HotkeySpec) -> tuple[bool, str]:
+        listener: pynput_keyboard.GlobalHotKeys | None = None
+        try:
+            listener = self._create_global_hotkey_listener(spec.bind, lambda: None)
+            listener.start()
+            return (True, "")
+        except Exception as error:
+            return (False, str(error))
+        finally:
+            if listener is not None:
+                with suppress(Exception):
+                    listener.stop()
 
     def _set_stop_hotkey_spec(self, spec: HotkeySpec, *, persist: bool = False) -> None:
         self._stop_hotkey_spec = spec
@@ -1881,8 +1896,10 @@ class StudioApp(QMainWindow):
         description.setWordWrap(True)
         layout.addWidget(description)
 
-        hotkey_edit = QLineEdit(self._stop_hotkey_spec.label)
+        hotkey_edit = QKeySequenceEdit()
         hotkey_edit.setObjectName("StopHotkeyEdit")
+        hotkey_edit.setKeySequence(QKeySequence(self._stop_hotkey_spec.label))
+        hotkey_edit.setMaximumSequenceLength(1)
         layout.addWidget(hotkey_edit)
 
         actions = QHBoxLayout()
@@ -1897,10 +1914,25 @@ class StudioApp(QMainWindow):
 
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
+        sequence_text = (
+            hotkey_edit.keySequence().toString(QKeySequence.SequenceFormat.PortableText).strip()
+        )
         try:
-            spec = parse_hotkey_label(hotkey_edit.text())
+            spec = parse_hotkey_label(sequence_text)
         except Exception as error:
             QMessageBox.critical(self, self._t("app.error.hotkey_invalid.title"), str(error))
+            return
+        ok, error_text = self._probe_hotkey_registration(spec)
+        if not ok:
+            QMessageBox.critical(
+                self,
+                self._t("app.error.hotkey_register_failed.title"),
+                self._t(
+                    "app.error.hotkey_register_failed.message",
+                    hotkey=spec.label,
+                    details=error_text or "unknown",
+                ),
+            )
             return
         self._set_stop_hotkey_spec(spec, persist=True)
         if self.recorder.is_recording or self._is_robot_running():
@@ -2900,8 +2932,11 @@ class StudioApp(QMainWindow):
         if self._is_robot_running():
             self.log(self._t("app.log.robot_already_running"))
             return
+        self._set_run_phase("precheck")
+        self.log(self._t("app.log.preflight_checks"))
         self._sync_scenario_header()
         if not self._ensure_unity_bridge_dependency_if_configured("run"):
+            self._set_run_phase("idle")
             return
         self._set_run_phase("exporting")
         self.log(self._t("app.log.prepare_export"))

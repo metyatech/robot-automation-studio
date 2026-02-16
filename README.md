@@ -14,6 +14,7 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
 - Run Robot Framework suites directly from the app
 - Runtime safety controls for automation execution:
   - visible running status
+  - visible preflight-check status before Robot process start
   - stop button
   - configurable global emergency stop hotkey (default: `Alt+Shift+F12`)
   - automatic hotkey fallback when the configured key cannot be registered
@@ -93,12 +94,13 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
    - `<name>.robot`
    - `<name>.scenario.json`
 9. Click `Run Robot` to execute the generated suite.
+   - Studio first shows `Preflight checks` status while validating execution prerequisites.
 10. While running, use `Stop Robot`, the overlay `Stop Now` button, or the configured stop hotkey to stop immediately.
     - Default stop hotkey is `Alt+Shift+F12`.
-    - You can change it from the header `Hotkey: ...` button.
+    - You can change it from the header `Hotkey: ...` button by pressing the target key combination directly.
     - If registration fails (for example shortcut conflict), Studio applies a fallback key and shows a warning.
 11. Use in-app help:
-   - hover/focus any UI component to read context help in the `Context Help` bar
+   - hover/focus any UI component to read cursor-near tooltip help
    - press `F1` (or click `Help Guide`) to open searchable full GUI help
 
 ## Execution Mode Notes
@@ -130,6 +132,23 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 ```bash
 powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 ```
+
+## Live Unity Integration Smoke Test
+
+Use this only when Unity Editor is running and a target project is available.
+
+```bash
+set ROBOT_AUTOMATION_STUDIO_LIVE_E2E=1
+set ROBOT_AUTOMATION_STUDIO_LIVE_PROJECT_PATH=<your-unity-project-path>
+set ROBOT_AUTOMATION_STUDIO_LIVE_WINDOW_HINT=Unity
+python -m pytest tests/test_live_unity_attach_e2e.py -q
+```
+
+## Security Checks in CI
+
+- Dependency vulnerability scan: `pip-audit` in `scripts/verify.ps1` and CI
+- Static security analysis: CodeQL workflow (`.github/workflows/codeql.yml`)
+- Secret scanning: Gitleaks workflow (`.github/workflows/secret-scan.yml`)
 
 ## Export Example
 

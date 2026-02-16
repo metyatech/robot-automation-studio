@@ -191,6 +191,7 @@ class ScenarioRecorder:
         self._modifier_keys: set[str] = set()
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
+        self._last_hierarchy_bridge_diag = ""
 
     def set_stop_hotkey(self, main_key: str, required_modifiers: set[str] | frozenset[str]) -> None:
         self._stop_hotkey_main_key = str(main_key or STOP_HOTKEY_MAIN_KEY).upper()
@@ -211,6 +212,7 @@ class ScenarioRecorder:
         self._modifier_keys.clear()
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
+        self._last_hierarchy_bridge_diag = ""
         self._mouse_listener = mouse.Listener(on_click=self._on_click)
         self._keyboard_listener = keyboard.Listener(
             on_press=self._on_key_press, on_release=self._on_key_release
@@ -230,6 +232,7 @@ class ScenarioRecorder:
         self._modifier_keys.clear()
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
+        self._last_hierarchy_bridge_diag = ""
         return list(self._events)
 
     def append(self, kind: str, payload: dict[str, Any]) -> None:
@@ -256,7 +259,7 @@ class ScenarioRecorder:
             return False
         return _title_matches_window_hint(snapshot.title, self._window_hint)
 
-    def _resolve_hierarchy_path(self) -> str | None:
+    def _resolve_hierarchy_path(self, snapshot: WindowSnapshot | None = None) -> str | None:
         if time.monotonic() < self._bridge_retry_backoff_until:
             return None
         bridge = self._unity_bridge
@@ -272,10 +275,44 @@ class ScenarioRecorder:
                 path = None
             normalized = str(path or "").strip().replace("\\", "/").strip("/")
             if normalized:
+                self._last_hierarchy_bridge_diag = ""
                 return normalized
             time.sleep(0.02)
         self._bridge_retry_backoff_until = time.monotonic() + 0.8
+        self._last_hierarchy_bridge_diag = self._build_hierarchy_bridge_diagnostics(snapshot)
         return None
+
+    def _build_hierarchy_bridge_diagnostics(self, snapshot: WindowSnapshot | None) -> str:
+        bridge = self._unity_bridge
+        endpoint = str(getattr(bridge, "endpoint", "unknown") or "unknown")
+
+        bridge_available: str
+        checker = getattr(bridge, "is_available", None)
+        if checker is None:
+            bridge_available = "unknown"
+        else:
+            try:
+                bridge_available = str(bool(checker(request_timeout_seconds=0.2)))
+            except TypeError:
+                try:
+                    bridge_available = str(bool(checker()))
+                except Exception:
+                    bridge_available = "error"
+            except Exception:
+                bridge_available = "error"
+
+        window_title = ""
+        if snapshot is not None:
+            window_title = str(snapshot.title or "").strip()
+        backoff_remaining = max(0.0, self._bridge_retry_backoff_until - time.monotonic())
+        window_hint = str(self._window_hint or "").strip()
+        return (
+            f"window_hint={window_hint};"
+            f"window_title={window_title};"
+            f"bridge_endpoint={endpoint};"
+            f"bridge_available={bridge_available};"
+            f"backoff_remaining={backoff_remaining:.2f}s"
+        )
 
     def _on_click(self, x: int, y: int, _button: Any, pressed: bool) -> None:
         if not self._recording:
@@ -345,13 +382,17 @@ class ScenarioRecorder:
             self._report_record_error("Could not resolve UI element selector for click.")
             return
         if _is_generic_unity_hierarchy_pane(selector):
-            hierarchy_path = self._resolve_hierarchy_path()
+            hierarchy_path = self._resolve_hierarchy_path(snapshot)
             if hierarchy_path is None:
                 now = time.monotonic()
                 if now >= self._hierarchy_error_suppress_until:
-                    self._report_record_error(
+                    message = (
                         "Could not resolve hierarchy path from Unity bridge for hierarchy click."
                     )
+                    diagnostics = str(self._last_hierarchy_bridge_diag or "").strip()
+                    if diagnostics:
+                        message = f"{message} {diagnostics}"
+                    self._report_record_error(message)
                     self._hierarchy_error_suppress_until = (
                         now + HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS
                     )

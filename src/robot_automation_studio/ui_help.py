@@ -337,7 +337,10 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
     ),
     "HotkeyButton": (
         "Set stop hotkey.",
-        "Open a dialog to configure emergency stop hotkey for record/run.",
+        (
+            "Open a dialog and press key combination directly "
+            "to configure emergency stop for record/run."
+        ),
     ),
     "VariablesButton": (
         "Edit variables.",
@@ -567,7 +570,7 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
     ),
     "HotkeyButton": (
         "停止ホットキーを設定します。",
-        "記録/実行の緊急停止ホットキー設定ダイアログを開きます。",
+        "ダイアログを開き、押したキーの組み合わせで記録/実行の緊急停止キーを設定します。",
     ),
     "VariablesButton": (
         "変数を編集します。",

@@ -10,6 +10,7 @@ def test_next_spinner_index_wraps() -> None:
 
 def test_format_run_status_for_known_phases() -> None:
     assert format_run_status("idle", spinner_frame="|") == "Idle"
+    assert format_run_status("precheck", spinner_frame="|") == "Preflight checks |"
     assert format_run_status("exporting", spinner_frame="|") == "Exporting scenario |"
     assert format_run_status("starting_robot", spinner_frame="/") == "Starting Robot /"
     assert format_run_status("attaching_unity", spinner_frame="-") == "Attaching to Unity -"
@@ -23,4 +24,5 @@ def test_format_run_status_for_unknown_phase_falls_back_to_running() -> None:
 
 def test_format_run_status_supports_japanese_locale() -> None:
     assert format_run_status("idle", spinner_frame="|", locale="ja") == "待機"
+    assert format_run_status("precheck", spinner_frame="|", locale="ja") == "事前チェック中 |"
     assert format_run_status("running", spinner_frame="/", locale="ja") == "実行中 /"

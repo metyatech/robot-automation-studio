@@ -356,3 +356,43 @@ def test_recorder_reports_hierarchy_bridge_error_once_during_backoff() -> None:
     recorder.stop()
 
     assert len(errors) == 1
+
+
+def test_recorder_hierarchy_bridge_error_includes_diagnostics() -> None:
+    class MissingBridge:
+        endpoint = "http://127.0.0.1:39067"
+
+        def get_selected_hierarchy_path(self) -> str | None:
+            return None
+
+        def is_available(self, request_timeout_seconds: float | None = None) -> bool:
+            _ = request_timeout_seconds
+            return False
+
+    errors: list[str] = []
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "UnityEditor.SceneHierarchyWindow",
+            "class_name": "UnityGUIViewWndClass",
+            "control_type": "Pane",
+        },
+        unity_bridge=MissingBridge(),
+        on_record_error=errors.append,
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(120, 180, None, True)
+    recorder._on_click(120, 180, None, False)
+    recorder.stop()
+
+    assert len(errors) == 1
+    assert "Could not resolve hierarchy path from Unity bridge for hierarchy click." in errors[0]
+    assert "bridge_endpoint=http://127.0.0.1:39067" in errors[0]
+    assert "bridge_available=False" in errors[0]
+    assert "window_title=Unity" in errors[0]

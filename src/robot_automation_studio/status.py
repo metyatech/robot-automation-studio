@@ -8,6 +8,7 @@ SPINNER_FRAMES = ("|", "/", "-", "\\")
 
 _PHASE_LABELS = {
     "idle": "status.phase.idle",
+    "precheck": "status.phase.precheck",
     "exporting": "status.phase.exporting",
     "starting_robot": "status.phase.starting_robot",
     "attaching_unity": "status.phase.attaching_unity",

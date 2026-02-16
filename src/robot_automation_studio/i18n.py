@@ -397,6 +397,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Run export failed: {error}",
         "ja": "実行用エクスポートに失敗しました: {error}",
     },
+    "app.log.preflight_checks": {
+        "en": "Running preflight checks...",
+        "ja": "実行前チェック中...",
+    },
     "app.log.running_robot_suite": {
         "en": "Running Robot suite...",
         "ja": "Robot を実行しています...",
@@ -736,8 +740,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.action.run_robot": {"en": "Run Robot", "ja": "Run Robot"},
     "app.dialog.hotkey.title": {"en": "Stop Hotkey", "ja": "停止ホットキー"},
     "app.dialog.hotkey.label": {
-        "en": "Set emergency stop hotkey (example: Alt+Shift+F12)",
-        "ja": "緊急停止ホットキーを設定してください (例: Alt+Shift+F12)",
+        "en": "Press the key combination for emergency stop (example: Alt+Shift+F12).",
+        "ja": "緊急停止に使うキーの組み合わせを押してください (例: Alt+Shift+F12)。",
     },
     "app.dialog.hotkey.apply": {"en": "Apply Hotkey", "ja": "ホットキーを適用"},
     "app.dialog.full_json.title": {"en": "Full Scenario JSON (v2)", "ja": "シナリオ全体 JSON (v2)"},
@@ -765,6 +769,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     },
     "app.step.label.group": {"en": "group", "ja": "group"},
     "status.phase.idle": {"en": "Idle", "ja": "待機"},
+    "status.phase.precheck": {"en": "Preflight checks", "ja": "事前チェック中"},
     "status.phase.exporting": {"en": "Exporting scenario", "ja": "シナリオをエクスポート中"},
     "status.phase.starting_robot": {"en": "Starting Robot", "ja": "Robot 起動中"},
     "status.phase.attaching_unity": {"en": "Attaching to Unity", "ja": "Unity 接続中"},
