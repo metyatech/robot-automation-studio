@@ -640,6 +640,7 @@ def test_generate_robot_suite_subflow_failure_message_includes_log_paths() -> No
 
     text = generate_robot_suite(scenario, suite_name="run-subflow-failure-message")
     assert "Fail    Subflow failed rc=${result.rc}." in text
+    assert "Fail    Subflow timed out after 3600s." in text
     assert "stdout=${subflow_output}${/}stdout.txt" in text
     assert "stderr=${subflow_output}${/}stderr.txt" in text
     assert "timeout=3600s    on_timeout=terminate" in text
@@ -712,6 +713,7 @@ def test_generate_robot_suite_supports_parallel_control_with_subflow_branches() 
     assert "Wait Robot Subflow Processes" in text
     assert "flows/a.robot" in text
     assert "flows/b.robot" in text
+    assert "Fail    Subflow process timed out alias=${alias} after 3600s." in text
     assert "Fail    Subflow process failed alias=${alias}" in text
     assert "Wait For Process    ${alias}    timeout=3600s" in text
 

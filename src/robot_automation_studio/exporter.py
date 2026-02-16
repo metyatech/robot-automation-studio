@@ -1157,12 +1157,20 @@ def _generate_robot_suite_from_resolved(
             "    Create Directory    ${subflow_output}",
             "    ${py}=    Evaluate    __import__('sys').executable",
             (
-                "    ${result}=    Run Process    ${py}    -m    robot    --outputdir"
+                "    ${status}    ${result}=    Run Keyword And Ignore Error    Run Process"
+                "    ${py}    -m    robot    --outputdir"
                 "    ${subflow_output}    --variable    OUTPUT_DIR:${OUTPUT DIR}"
                 "    ${resolved}    stdout=${subflow_output}${/}stdout.txt"
                 "    stderr=${subflow_output}${/}stderr.txt"
                 "    timeout=3600s    on_timeout=terminate"
             ),
+            "    IF    '${status}' == 'FAIL'",
+            (
+                "        Fail    Subflow timed out after 3600s. "
+                "stdout=${subflow_output}${/}stdout.txt "
+                "stderr=${subflow_output}${/}stderr.txt"
+            ),
+            "    END",
             "    IF    ${result.rc} != 0",
             (
                 "        Fail    Subflow failed rc=${result.rc}. "
@@ -1189,7 +1197,17 @@ def _generate_robot_suite_from_resolved(
             "    [Arguments]    @{aliases}",
             "    FOR    ${alias}    IN    @{aliases}",
             "        ${subflow_output}=    Join Path    ${OUTPUT DIR}    subflows    ${alias}",
-            "        ${result}=    Wait For Process    ${alias}    timeout=3600s",
+            (
+                "        ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Wait For Process    ${alias}    timeout=3600s"
+            ),
+            "        IF    '${status}' == 'FAIL'",
+            (
+                "            Fail    Subflow process timed out alias=${alias} after 3600s. "
+                "stdout=${subflow_output}${/}stdout.txt "
+                "stderr=${subflow_output}${/}stderr.txt"
+            ),
+            "        END",
             "        IF    ${result.rc} != 0",
             (
                 "            Fail    Subflow process failed alias=${alias} rc=${result.rc}. "
