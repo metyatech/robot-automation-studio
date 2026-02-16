@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import cast
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QRegularExpressionValidator, QValidator
+from PySide6.QtGui import QValidator
 from PySide6.QtWidgets import QApplication
 
 from robot_automation_studio.app import StudioApp
@@ -89,12 +89,16 @@ def test_subflow_timeout_edit_allows_number_or_placeholder() -> None:
     studio = StudioApp(initial_locale="en")
     try:
         validator = studio.subflow_timeout_edit.validator()
-        assert isinstance(validator, QRegularExpressionValidator)
+        assert isinstance(validator, QValidator)
 
         number_state = cast(tuple[QValidator.State, str, int], validator.validate("120", 3))[0]
         placeholder_state = cast(
             tuple[QValidator.State, str, int],
             validator.validate("${subflow_timeout}", 18),
+        )[0]
+        spaced_placeholder_state = cast(
+            tuple[QValidator.State, str, int],
+            validator.validate(" ${subflow_timeout} ", 20),
         )[0]
         blank_state = cast(tuple[QValidator.State, str, int], validator.validate("", 0))[0]
         partial_placeholder_state = cast(
@@ -113,6 +117,7 @@ def test_subflow_timeout_edit_allows_number_or_placeholder() -> None:
 
         assert number_state == QValidator.State.Acceptable
         assert placeholder_state == QValidator.State.Acceptable
+        assert spaced_placeholder_state == QValidator.State.Acceptable
         assert blank_state == QValidator.State.Acceptable
         assert partial_placeholder_state == QValidator.State.Intermediate
         assert zero_state == QValidator.State.Invalid

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRegularExpression, Qt
-from PySide6.QtGui import QFont, QRegularExpressionValidator
+import re
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QValidator
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -25,14 +27,44 @@ from PySide6.QtWidgets import (
 )
 
 from .models import (
+    SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
     UNITY_PROJECT_PATH_KEY,
+    parse_subflow_timeout_seconds,
 )
 from .status import SPINNER_FRAMES, format_run_status
 
-_SUBFLOW_TIMEOUT_INPUT_RE = QRegularExpression(
-    r"^(?:\s*|\$\{[A-Za-z_][A-Za-z0-9_-]*\}|"
-    r"(?:[1-9][0-9]{0,3}|[1-7][0-9]{4}|8[0-5][0-9]{3}|86[0-3][0-9]{2}|86400))$"
-)
+_PLACEHOLDER_COMPLETE_RE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_-]*\}$")
+_PLACEHOLDER_BODY_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*")
+
+
+class _SubflowTimeoutValidator(QValidator):
+    def validate(self, text: str, pos: int) -> tuple[QValidator.State, str, int]:
+        stripped = str(text).strip()
+        if stripped == "":
+            return QValidator.State.Acceptable, text, pos
+        if _PLACEHOLDER_COMPLETE_RE.fullmatch(stripped):
+            return QValidator.State.Acceptable, text, pos
+        if self._is_placeholder_in_progress(stripped):
+            return QValidator.State.Intermediate, text, pos
+        try:
+            parse_subflow_timeout_seconds(
+                stripped,
+                default=SUBFLOW_TIMEOUT_SECONDS_DEFAULT,
+            )
+        except ValueError:
+            return QValidator.State.Invalid, text, pos
+        return QValidator.State.Acceptable, text, pos
+
+    @staticmethod
+    def _is_placeholder_in_progress(value: str) -> bool:
+        if value in {"$", "${"}:
+            return True
+        if not value.startswith("${"):
+            return False
+        if value.endswith("}"):
+            return False
+        body = value[2:]
+        return bool(_PLACEHOLDER_BODY_RE.fullmatch(body))
 
 
 def build_ui(self, *, bg_light: str) -> None:
@@ -343,12 +375,7 @@ def build_ui(self, *, bg_light: str) -> None:
         str((self.scenario.execution or {}).get("subflow_timeout_seconds", ""))
     )
     self.subflow_timeout_edit.setObjectName("SubflowTimeoutEdit")
-    self.subflow_timeout_edit.setValidator(
-        QRegularExpressionValidator(
-            _SUBFLOW_TIMEOUT_INPUT_RE,
-            self.subflow_timeout_edit,
-        )
-    )
+    self.subflow_timeout_edit.setValidator(_SubflowTimeoutValidator(self.subflow_timeout_edit))
     self.subflow_timeout_label = QLabel()
     scenario_form.addRow(self.subflow_timeout_label, self.subflow_timeout_edit)
 
