@@ -32,9 +32,9 @@ def test_key_controls_have_actionable_help_summary() -> None:
         kind_combo_entry = studio._help_entries_by_widget[studio.kind_combo]
         delete_entry = studio._help_entries_by_widget[studio.delete_step_button]
 
-        assert "select scenario steps" in step_list_entry.summary.lower()
+        assert "select a step" in step_list_entry.summary.lower()
         assert "target platform" in target_combo_entry.summary.lower()
-        assert "selected step kind" in kind_combo_entry.summary.lower()
-        assert "delete the selected step" in delete_entry.summary.lower()
+        assert "set step kind" in kind_combo_entry.summary.lower()
+        assert "delete step" in delete_entry.summary.lower()
     finally:
         studio.close()

@@ -1,3 +1,4 @@
+from robot_automation_studio import ui_help
 from robot_automation_studio.ui_help import HelpEntry, build_help_entry, filter_help_entries
 
 
@@ -22,7 +23,7 @@ def test_build_help_entry_uses_known_text_help_when_explicit_is_missing() -> Non
         widget_text="Stop Robot (Ctrl+Shift+F12)",
     )
 
-    assert "Stop active Robot execution" in entry.summary
+    assert "stop robot run" in entry.summary.lower()
     assert "Ctrl+Shift+F12" in entry.detail
 
 
@@ -44,7 +45,7 @@ def test_build_help_entry_uses_normalized_lookup_for_placeholder_like_text() -> 
         widget_text="scenario-id",
     )
 
-    assert "stable scenario identifier" in entry.summary.lower()
+    assert "scenario id" in entry.summary.lower()
 
 
 def test_build_help_entry_uses_widget_id_help_when_available() -> None:
@@ -54,7 +55,7 @@ def test_build_help_entry_uses_widget_id_help_when_available() -> None:
         widget_text="",
     )
 
-    assert "runtime log output area" in entry.summary.lower()
+    assert "output log" in entry.summary.lower()
 
 
 def test_build_help_entry_unknown_class_no_longer_uses_ui_component_text() -> None:
@@ -65,7 +66,7 @@ def test_build_help_entry_unknown_class_no_longer_uses_ui_component_text() -> No
     )
 
     assert entry.summary != "UI component."
-    assert "interactive interface element" in entry.summary.lower()
+    assert "interactive ui element" in entry.summary.lower()
 
 
 def test_filter_help_entries_matches_title_summary_and_detail() -> None:
@@ -89,3 +90,10 @@ def test_filter_help_entries_matches_title_summary_and_detail() -> None:
     assert [entry.widget_id for entry in filter_help_entries(entries, "run")] == ["1"]
     assert [entry.widget_id for entry in filter_help_entries(entries, "exports")] == ["1", "2"]
     assert [entry.widget_id for entry in filter_help_entries(entries, "name")] == ["2"]
+
+
+def test_help_summary_texts_stay_concise_for_tooltips() -> None:
+    max_len = 24
+    assert all(len(summary) <= max_len for summary, _ in ui_help._KNOWN_TEXT_HELP.values())
+    assert all(len(summary) <= max_len for summary, _ in ui_help._KNOWN_WIDGET_ID_HELP.values())
+    assert all(len(summary) <= max_len for summary in ui_help._CLASS_FALLBACK_SUMMARY.values())

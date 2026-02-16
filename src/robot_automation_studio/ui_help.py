@@ -19,47 +19,47 @@ class HelpEntry:
 
 _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
     "Scenario Name": (
-        "Set the scenario display name.",
+        "Set scenario name.",
         "Human-readable scenario title used in exported Robot and scenario outputs.",
     ),
     "Scenario ID": (
-        "Set a stable scenario identifier.",
+        "Set scenario ID.",
         "Machine-friendly ID used as the scenario key and export filename base.",
     ),
     "Target": (
-        "Choose the scenario target platform.",
+        "Choose target platform.",
         "Select unity/web/desktop/hybrid to define how steps are interpreted.",
     ),
     "Window Hint": (
-        "Specify the target window title hint.",
+        "Set window title hint.",
         "Used to find and focus the target app window during recording and run.",
     ),
     "Execution Mode": (
-        "Select attach or launch execution.",
+        "Choose attach or launch.",
         "attach uses an already-open app. launch opens the configured Unity project first.",
     ),
     "Unity Project Path": (
-        "Set the Unity project path for launch mode.",
+        "Set Unity project path.",
         "Also used for bridge package setup and attach auto-detection fallback.",
     ),
     "Description": (
-        "Add an optional scenario description.",
+        "Set description.",
         "Use for intent, prerequisites, or operator notes.",
     ),
     "Variables": (
-        "Open variables editor.",
+        "Edit variables.",
         "Define reusable scenario variables and defaults.",
     ),
     "Profiles": (
-        "Open profiles editor.",
+        "Edit profiles.",
         "Define profile-specific variable overrides.",
     ),
     "Execution/Outputs": (
-        "Open execution/outputs editor.",
+        "Edit execution/outputs.",
         "Edit runtime execution settings and output metadata as JSON.",
     ),
     "● Start": (
-        "Start recording user actions.",
+        "Start recording.",
         "Begins capture for the current target window and appends recognized steps.",
     ),
     "■ Stop": (
@@ -67,290 +67,290 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Ends recording and appends captured steps into the scenario list.",
     ),
     "▶ Run Robot": (
-        "Run the current scenario with Robot.",
+        "Run scenario.",
         "Exports first, then starts Robot execution and writes run artifacts.",
     ),
     "Stop Robot": (
-        "Stop active Robot execution.",
+        "Stop robot run.",
         "Stops the running Robot process immediately. You can also use Ctrl+Shift+F12.",
     ),
     "File ▾": (
-        "Open file/help menu.",
+        "Open file menu.",
         "Provides Save, Load, Full JSON editor, and Help Guide shortcuts.",
     ),
     "+ Add ▾": (
-        "Open step-add menu.",
+        "Add a step.",
         "Add Click, Drag, Shortcut, Menu, Type, IF, or Group steps.",
     ),
     "🖱 Click": (
-        "Add a click step.",
+        "Add click step.",
         "Insert a click action step manually at the end of the step list.",
     ),
     "↔ Drag": (
-        "Add a drag step.",
+        "Add drag step.",
         "Insert a drag/drop action step manually.",
     ),
     "⌨ Shortcut": (
-        "Add a shortcut step.",
+        "Add shortcut step.",
         "Insert a keyboard shortcut action step manually.",
     ),
     "≡ Menu": (
-        "Add a menu step.",
+        "Add menu step.",
         "Insert a top-menu navigation action step manually.",
     ),
     "✎ Type": (
-        "Add a type-text step.",
+        "Add type step.",
         "Insert a text input action step manually.",
     ),
     "IF": (
-        "Add a control step.",
+        "Add control step.",
         "Insert a control-flow step for conditions/loops in scenario v2.",
     ),
     "[] Group": (
-        "Add a group step.",
+        "Add group step.",
         "Insert a group container to organize nested steps.",
     ),
     "✕ Delete": (
-        "Delete the selected step.",
+        "Delete step.",
         "Removes the currently selected step from the scenario.",
     ),
     "▲ Up": (
-        "Move selected step up.",
+        "Move step up.",
         "Changes step order by moving the selected step one position earlier.",
     ),
     "▼ Down": (
-        "Move selected step down.",
+        "Move step down.",
         "Changes step order by moving the selected step one position later.",
     ),
     "⎘ Duplicate": (
-        "Duplicate selected step.",
+        "Duplicate step.",
         "Creates a copy of the selected step and inserts it nearby.",
     ),
     "💾 Save": (
-        "Save scenario JSON.",
+        "Save scenario file.",
         "Writes the current scenario model to a .scenario.json file.",
     ),
     "📂 Load": (
-        "Load scenario JSON.",
+        "Load scenario file.",
         "Loads a .scenario.json file into the editor.",
     ),
     "{} Full JSON": (
-        "Open full scenario JSON editor.",
+        "Edit full JSON.",
         "Edit the entire v2 scenario object in one JSON document.",
     ),
     "Step ID": (
-        "Edit selected step ID.",
+        "Set step ID.",
         "Set a stable step identifier used in artifacts and metadata.",
     ),
     "Title": (
-        "Edit selected step title.",
+        "Set step title.",
         "Readable step name shown in lists and generated guidebook output.",
     ),
     "Kind": (
-        "Edit selected step kind.",
+        "Set step kind.",
         "Choose action/control/group for the selected step.",
     ),
     "Action": (
-        "Edit selected action name.",
+        "Set action type.",
         "Used when kind=action to determine executable operation type.",
     ),
     "Control": (
-        "Edit selected control name.",
+        "Set control type.",
         "Used when kind=control to define control-flow operator.",
     ),
     "Condition": (
-        "Edit optional step condition.",
+        "Set run condition.",
         "Expression used to gate step execution when supported by control logic.",
     ),
     "Disabled": (
-        "Disable selected step.",
+        "Skip this step.",
         "When enabled, the step is marked as disabled and skipped by compatible runners.",
     ),
     "Continue On Error": (
-        "Continue on error flag.",
+        "Continue after error.",
         "When enabled, runner may continue even if this step fails.",
     ),
     "Annotations (JSON)": (
-        "Edit step annotations JSON.",
+        "Edit annotations.",
         "Metadata for visual overlays and guide generation annotations.",
     ),
     "Params (JSON)": (
-        "Edit step parameters JSON.",
+        "Edit parameters.",
         "Action-specific payload such as selectors, coordinates, and options.",
     ),
     "Apply Step Changes": (
-        "Apply edits to selected step.",
+        "Apply step edits.",
         "Validates and writes current Step Details values back into the model.",
     ),
     "Output Dir": (
-        "Set artifact output directory.",
+        "Set output folder.",
         "Base directory where export/run outputs are written.",
     ),
     "Export Name": (
-        "Set export suite name.",
+        "Set export name.",
         "Base name used for generated .robot and .scenario.json files.",
     ),
     "Export": (
-        "Export Robot and scenario files.",
+        "Export scenario files.",
         "Generates .robot and .scenario.json into the configured output directory.",
     ),
     "Run Robot": (
-        "Run the current scenario with Robot.",
+        "Run scenario.",
         "Exports first, then starts Robot execution and writes run artifacts.",
     ),
     "Output Log": (
-        "Runtime log output area.",
+        "View output log.",
         "Shows recording/run diagnostics, errors, and process output lines.",
     ),
     "Delete step": (
-        "Delete the selected step.",
+        "Delete step.",
         "Removes the currently selected step from the scenario.",
     ),
     "Move step up": (
-        "Move selected step up.",
+        "Move step up.",
         "Changes step order by moving the selected step one position earlier.",
     ),
     "Move step down": (
-        "Move selected step down.",
+        "Move step down.",
         "Changes step order by moving the selected step one position later.",
     ),
     "Duplicate step": (
-        "Duplicate selected step.",
+        "Duplicate step.",
         "Creates a copy of the selected step and inserts it nearby.",
     ),
     "Scenario name": (
-        "Set the scenario display name.",
+        "Set scenario name.",
         "Human-readable scenario title used in exported Robot and scenario outputs.",
     ),
     "scenario-id": (
-        "Set a stable scenario identifier.",
+        "Set scenario ID.",
         "Machine-friendly ID used as the scenario key and export filename base.",
     ),
     "Path to Unity project root": (
-        "Set the Unity project path for launch mode.",
+        "Set Unity project path.",
         "Also used for bridge package setup and attach auto-detection fallback.",
     ),
     "Optional scenario description": (
-        "Add an optional scenario description.",
+        "Set description.",
         "Use for intent, prerequisites, or operator notes.",
     ),
     "Output directory": (
-        "Set artifact output directory.",
+        "Set output folder.",
         "Base directory where export/run outputs are written.",
     ),
     "Export name": (
-        "Set export suite name.",
+        "Set export name.",
         "Base name used for generated .robot and .scenario.json files.",
     ),
     "Step title": (
-        "Edit selected step title.",
+        "Set step title.",
         "Readable step name shown in lists and generated guidebook output.",
     ),
     "step-1": (
-        "Edit selected step ID.",
+        "Set step ID.",
         "Set a stable step identifier used in artifacts and metadata.",
     ),
     "click / drag_drop / type_text ...": (
-        "Edit selected action name.",
+        "Set action type.",
         "Used when kind=action to determine executable operation type.",
     ),
     "if / for_each / while ...": (
-        "Edit selected control name.",
+        "Set control type.",
         "Used when kind=control to define control-flow operator.",
     ),
     "Optional description": (
-        "Add an optional scenario description.",
+        "Set step description.",
         "Use for intent, prerequisites, or operator notes.",
     ),
     "Optional condition expression": (
-        "Edit optional step condition.",
+        "Set run condition.",
         "Expression used to gate step execution when supported by control logic.",
     ),
     "Steps list": (
-        "Browse and select scenario steps.",
+        "Select a step.",
         "Shows step order; select one item to edit it in the Step tab.",
     ),
     "Run status": (
-        "View current run phase.",
+        "Current run status.",
         "Shows idle/running/stopping state and spinner progress while Robot runs.",
     ),
     "Recording status": (
-        "View recording mode state.",
+        "Current record status.",
         "Shows IDLE or REC so you can tell whether recording is active.",
     ),
     "Collapse or expand Output Log.": (
-        "Collapse or expand the Output Log panel.",
+        "Toggle log panel.",
         "Use this to focus on editor controls or inspect logs while running/recording.",
     ),
 }
 
 _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
     "ScenarioNameEdit": (
-        "Set the scenario display name.",
+        "Set scenario name.",
         "Human-readable scenario title used in exported Robot and scenario outputs.",
     ),
     "FileMenuButton": (
-        "Open file/help menu.",
+        "Open file menu.",
         "Provides Save, Load, Full JSON editor, and Help Guide shortcuts.",
     ),
     "AddStepButton": (
-        "Open step-add menu.",
+        "Add a step.",
         "Add Click, Drag, Shortcut, Menu, Type, IF, or Group steps.",
     ),
     "StatusPill": (
-        "View current run phase.",
+        "Current run status.",
         "Shows idle/running/stopping state and spinner progress while Robot runs.",
     ),
     "RecIndicator": (
-        "View recording mode state.",
+        "Current record status.",
         "Shows IDLE or REC so you can tell whether recording is active.",
     ),
     "LogToggleButton": (
-        "Collapse or expand the Output Log panel.",
+        "Toggle log panel.",
         "Use this to focus on editor controls or inspect logs while running/recording.",
     ),
     "LogText": (
-        "Runtime log output area.",
+        "View output log.",
         "Shows recording/run diagnostics, errors, and process output lines.",
     ),
     "StepList": (
-        "Browse and select scenario steps.",
+        "Select a step.",
         "Shows step order; select one item to edit it in the Step tab.",
     ),
     "StepKindCombo": (
-        "Edit selected step kind.",
+        "Set step kind.",
         "Choose action/control/group for the selected step.",
     ),
     "TargetCombo": (
-        "Choose the scenario target platform.",
+        "Choose target platform.",
         "Select unity/web/desktop/hybrid to define how steps are interpreted.",
     ),
     "ExecutionModeCombo": (
-        "Select attach or launch execution.",
+        "Choose attach or launch.",
         "attach uses an already-open app. launch opens the configured Unity project first.",
     ),
 }
 
 _CLASS_FALLBACK_SUMMARY: dict[str, str] = {
-    "QPushButton": "Click to run the labeled action.",
-    "QToolButton": "Open a menu or trigger a compact action button.",
-    "QLineEdit": "Type or edit a single-line text value.",
-    "QPlainTextEdit": "Edit multi-line text such as JSON or logs.",
-    "QComboBox": "Choose one option from the drop-down list.",
-    "QCheckBox": "Toggle this option on or off.",
-    "QListWidget": "Select an item from the list.",
-    "QLabel": "Read-only label that describes nearby controls.",
-    "QSplitter": "Drag to resize neighboring panels.",
-    "QScrollArea": "Scrollable area that contains additional controls.",
-    "QScrollBar": "Scroll to reveal hidden content.",
-    "QTabWidget": "Switch between tabs to edit different sections.",
-    "QMenu": "Menu that lists available commands.",
-    "QWidget": "Container that groups related controls.",
-    "QFrame": "Visual separator or container frame.",
-    "QListView": "List view used by combo boxes and selection popups.",
-    "QStackedWidget": "Container that swaps visible pages.",
-    "QTabBar": "Tab strip used to switch sections.",
-    "QSplitterHandle": "Handle used to resize split panes.",
+    "QPushButton": "Run this action.",
+    "QToolButton": "Open menu action.",
+    "QLineEdit": "Edit text value.",
+    "QPlainTextEdit": "Edit multi-line text.",
+    "QComboBox": "Choose one option.",
+    "QCheckBox": "Toggle this option.",
+    "QListWidget": "Select list item.",
+    "QLabel": "Read this label.",
+    "QSplitter": "Resize split panes.",
+    "QScrollArea": "Scroll for controls.",
+    "QScrollBar": "Scroll content.",
+    "QTabWidget": "Switch tabs.",
+    "QMenu": "Choose menu command.",
+    "QWidget": "Control container.",
+    "QFrame": "Visual separator.",
+    "QListView": "List selector.",
+    "QStackedWidget": "Switched page view.",
+    "QTabBar": "Select a tab.",
+    "QSplitterHandle": "Drag to resize panes.",
     "TButton": "Button action.",
     "Button": "Button action.",
     "TEntry": "Input field.",
@@ -367,8 +367,8 @@ _CLASS_FALLBACK_SUMMARY: dict[str, str] = {
     "TLabel": "Display label.",
     "Frame": "Layout container.",
     "TFrame": "Layout container.",
-    "Panedwindow": "Resizable split container.",
-    "TPanedwindow": "Resizable split container.",
+    "Panedwindow": "Resizable split.",
+    "TPanedwindow": "Resizable split.",
     "TSeparator": "Visual separator.",
 }
 
@@ -442,7 +442,7 @@ def _lookup_known_help(title: str, widget_id: str) -> tuple[str, str]:
 
     if normalized_title.startswith(_STOP_ROBOT_KEY):
         return (
-            "Stop active Robot execution.",
+            "Stop robot run.",
             "Stops the running Robot process immediately. Use Ctrl+Shift+F12 as emergency stop.",
         )
     return ("", "")
@@ -451,7 +451,7 @@ def _lookup_known_help(title: str, widget_id: str) -> tuple[str, str]:
 def _fallback_summary(widget_class: str) -> str:
     return _CLASS_FALLBACK_SUMMARY.get(
         widget_class,
-        "Interactive interface element. See nearby labels or F1 Help Guide for context.",
+        "Interactive UI element.",
     )
 
 
