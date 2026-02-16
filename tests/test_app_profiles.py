@@ -97,6 +97,10 @@ def test_subflow_timeout_edit_allows_number_or_placeholder() -> None:
             validator.validate("${subflow_timeout}", 18),
         )[0]
         blank_state = cast(tuple[QValidator.State, str, int], validator.validate("", 0))[0]
+        partial_placeholder_state = cast(
+            tuple[QValidator.State, str, int],
+            validator.validate("${sub", 5),
+        )[0]
         zero_state = cast(tuple[QValidator.State, str, int], validator.validate("0", 1))[0]
         out_of_range_state = cast(
             tuple[QValidator.State, str, int],
@@ -110,6 +114,7 @@ def test_subflow_timeout_edit_allows_number_or_placeholder() -> None:
         assert number_state == QValidator.State.Acceptable
         assert placeholder_state == QValidator.State.Acceptable
         assert blank_state == QValidator.State.Acceptable
+        assert partial_placeholder_state == QValidator.State.Intermediate
         assert zero_state == QValidator.State.Invalid
         assert out_of_range_state == QValidator.State.Invalid
         assert mixed_state == QValidator.State.Invalid
