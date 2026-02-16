@@ -1,0 +1,23 @@
+repos:
+  - repo: local
+    hooks:
+      - id: verify-ruff-format
+        name: Verify Ruff Format
+        entry: python -m ruff format --check .
+        language: system
+        pass_filenames: false
+      - id: verify-ruff-check
+        name: Verify Ruff Lint
+        entry: python -m ruff check .
+        language: system
+        pass_filenames: false
+      - id: verify-pyright
+        name: Verify Pyright
+        entry: python -m pyright
+        language: system
+        pass_filenames: false
+      - id: verify-pytest
+        name: Verify Pytest
+        entry: python -m pytest
+        language: system
+        pass_filenames: false

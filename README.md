@@ -154,6 +154,12 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 ```
 
+Install commit-time verification hooks:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/install-precommit.ps1
+```
+
 ## Live Unity Integration Smoke Test
 
 Use this only when Unity Editor is running and a target project is available.
