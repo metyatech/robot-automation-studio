@@ -168,6 +168,7 @@ def summarize_run_diagnostics_payload(payload: dict[str, Any]) -> str:
     test_status = _safe_text(payload.get("test_status")).upper() or "-"
     suite_name = _safe_text(payload.get("suite_name")) or "-"
     test_name = _safe_text(payload.get("test_name")) or "-"
+    generated_at = _safe_text(payload.get("generated_at")) or "-"
     elapsed = _safe_float(payload.get("total_elapsed_seconds"))
     total_keywords = int(payload.get("total_keyword_count") or 0)
 
@@ -190,6 +191,7 @@ def summarize_run_diagnostics_payload(payload: dict[str, Any]) -> str:
         "Run Diagnostics Summary\n"
         f"- Status: {test_status}\n"
         f"- Suite/Test: {suite_name} / {test_name}\n"
+        f"- Generated At: {generated_at}\n"
         f"- Elapsed: {elapsed:.3f}s\n"
         f"- Keywords: {total_keywords}\n"
         f"- Execution Mode: {execution_mode}\n"

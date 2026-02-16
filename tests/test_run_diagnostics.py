@@ -130,6 +130,7 @@ def test_summarize_run_diagnostics_payload_includes_run_context() -> None:
             "test_status": "PASS",
             "suite_name": "suite-a",
             "test_name": "case-a",
+            "generated_at": "2026-02-16T10:00:00.000000",
             "total_elapsed_seconds": 0.42,
             "total_keyword_count": 5,
             "run_context": {
@@ -143,6 +144,7 @@ def test_summarize_run_diagnostics_payload_includes_run_context() -> None:
 
     assert "Status: PASS" in summary
     assert "Suite/Test: suite-a / case-a" in summary
+    assert "Generated At: 2026-02-16T10:00:00.000000" in summary
     assert "Execution Mode: attach" in summary
     assert "Active Profile: vrchat" in summary
 
