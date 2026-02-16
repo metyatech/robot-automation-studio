@@ -111,6 +111,8 @@ def build_ui(self, *, bg_light: str) -> None:
     self.file_json_action.triggered.connect(self.open_full_json_editor)
     self.file_help_action = file_menu.addAction("")
     self.file_help_action.triggered.connect(self.open_help_guide)
+    self.file_run_diagnostics_action = file_menu.addAction("")
+    self.file_run_diagnostics_action.triggered.connect(self.open_run_diagnostics)
     self.file_menu_button.setMenu(file_menu)
     header_layout.addWidget(self.file_menu_button)
 
@@ -471,6 +473,7 @@ def apply_localized_texts(self) -> None:
     self.file_load_action.setText(self._t("app.menu.file.load"))
     self.file_json_action.setText(self._t("app.menu.file.full_json"))
     self.file_help_action.setText(self._t("app.menu.file.help"))
+    self.file_run_diagnostics_action.setText(self._t("app.menu.file.run_diagnostics"))
     self.hotkey_button.setText(
         self._t("app.button.hotkey_with_value", hotkey=self._stop_hotkey_spec.label)
     )
@@ -494,6 +497,11 @@ def apply_localized_texts(self) -> None:
         self.file_help_action,
         "app.help.menu.file.help.summary",
         "app.help.menu.file.help.detail",
+    )
+    self._set_action_help(
+        self.file_run_diagnostics_action,
+        "app.help.menu.file.run_diagnostics.summary",
+        "app.help.menu.file.run_diagnostics.detail",
     )
 
     current_locale = self._translator.locale

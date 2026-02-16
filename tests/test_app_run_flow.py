@@ -120,3 +120,62 @@ def test_stop_request_via_global_hotkey_stops_running_robot(monkeypatch, tmp_pat
         assert captured["source"] == "global_hotkey"
     finally:
         studio.close()
+
+
+def test_run_robot_suite_logs_run_diagnostics_summary(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        monkeypatch.setattr(
+            "robot_automation_studio.app.export_all",
+            lambda scenario, output_dir, suite_name: _FakeRunExportResult(tmp_path),
+        )
+        monkeypatch.setattr(
+            studio,
+            "_ensure_unity_bridge_dependency_if_configured",
+            lambda purpose: True,
+        )
+        monkeypatch.setattr(studio, "_start_stop_hotkey", lambda: True)
+        monkeypatch.setattr(studio, "_start_overlay", lambda mode, progress_text: None)
+        monkeypatch.setattr(studio, "_stop_overlay", lambda: None)
+        monkeypatch.setattr(studio, "_stop_stop_hotkey", lambda: None)
+        monkeypatch.setattr(
+            "robot_automation_studio.app.start_robot_process",
+            lambda suite_path, output_dir, variable_output_dir: _FakeProcess(),
+        )
+        monkeypatch.setattr(
+            "robot_automation_studio.app.wait_robot_process",
+            lambda process: RunResult(return_code=0, stdout="", stderr=""),
+        )
+        run_output = tmp_path / "run" / "output.xml"
+        run_output.parent.mkdir(parents=True, exist_ok=True)
+        run_output.write_text(
+            (
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<robot generated="2026-02-16T10:00:00.000000">\n'
+                '  <suite name="suite-c">\n'
+                '    <test name="case-c">\n'
+                '      <kw name="Click Unity Relative" owner="lib">\n'
+                "        <arg>0.5</arg>\n"
+                "        <arg>0.4</arg>\n"
+                '        <status status="PASS" elapsed="0.200000"/>\n'
+                "      </kw>\n"
+                '      <status status="PASS" elapsed="0.210000"/>\n'
+                "    </test>\n"
+                "  </suite>\n"
+                "</robot>\n"
+            ),
+            encoding="utf-8",
+        )
+
+        studio.run_robot_suite()
+
+        assert studio._run_thread is not None
+        studio._run_thread.join(timeout=1.0)
+        _process_events_for(120)
+
+        log_text = studio.log_text.toPlainText()
+        assert "Run diagnostics summary" in log_text
+    finally:
+        studio.close()

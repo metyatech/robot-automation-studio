@@ -38,6 +38,7 @@ def test_file_menu_actions_have_per_action_tooltips() -> None:
         assert actions["📂 Load"].toolTip() == "Load scenario file."
         assert actions["{} Full JSON"].toolTip() == "Open full JSON editor."
         assert actions["Help Guide (F1)"].toolTip() == "Open full help guide."
+        assert actions["Run Diagnostics"].toolTip() == "Open latest run diagnostics."
     finally:
         studio.close()
 

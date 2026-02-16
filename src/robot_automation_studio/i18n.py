@@ -175,6 +175,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.menu.file.load": {"en": "📂 Load", "ja": "📂 読込"},
     "app.menu.file.full_json": {"en": "{} Full JSON", "ja": "{} 全体 JSON"},
     "app.menu.file.help": {"en": "Help Guide (F1)", "ja": "ヘルプガイド (F1)"},
+    "app.menu.file.run_diagnostics": {
+        "en": "Run Diagnostics",
+        "ja": "実行診断",
+    },
     "app.menu.add.click": {"en": "🖱 Click", "ja": "🖱 クリック"},
     "app.menu.add.drag": {"en": "↔ Drag", "ja": "↔ ドラッグ"},
     "app.menu.add.shortcut": {"en": "⌨ Shortcut", "ja": "⌨ ショートカット"},
@@ -259,6 +263,30 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.help.menu.file.help.detail": {
         "en": "Open searchable help for all registered UI controls.",
         "ja": "登録済みUI部品の検索可能なヘルプを開きます。",
+    },
+    "app.help.menu.file.run_diagnostics.summary": {
+        "en": "Open latest run diagnostics.",
+        "ja": "直近の実行診断を開きます。",
+    },
+    "app.help.menu.file.run_diagnostics.detail": {
+        "en": "Show the latest generated run diagnostics JSON in a dialog.",
+        "ja": "直近に生成した実行診断JSONをダイアログで表示します。",
+    },
+    "app.info.run_diagnostics_unavailable.title": {
+        "en": "Run Diagnostics",
+        "ja": "実行診断",
+    },
+    "app.info.run_diagnostics_unavailable.message": {
+        "en": "Run diagnostics are not available yet. Run Robot first.",
+        "ja": "実行診断はまだありません。先に Robot を実行してください。",
+    },
+    "app.dialog.run_diagnostics.title": {
+        "en": "Run Diagnostics",
+        "ja": "実行診断",
+    },
+    "app.dialog.run_diagnostics.path": {
+        "en": "Diagnostics file: {path}",
+        "ja": "診断ファイル: {path}",
     },
     "app.help.menu.add.click.summary": {
         "en": "Add click action step.",
@@ -430,6 +458,46 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "ja": "Robot 実行に失敗しました: {error}",
     },
     "app.log.robot_exit": {"en": "robot exit={code}", "ja": "robot exit={code}"},
+    "app.log.run_diag_output_missing": {
+        "en": "Run diagnostics skipped: output.xml not found: {path}",
+        "ja": "実行診断をスキップしました: output.xml が見つかりません: {path}",
+    },
+    "app.log.run_diag_parse_failed": {
+        "en": "Run diagnostics parse failed: {error}",
+        "ja": "実行診断の解析に失敗しました: {error}",
+    },
+    "app.log.run_diag_saved": {
+        "en": "Saved run diagnostics: {path}",
+        "ja": "実行診断を保存しました: {path}",
+    },
+    "app.log.run_diag_save_failed": {
+        "en": "Failed to save run diagnostics: {error}",
+        "ja": "実行診断の保存に失敗しました: {error}",
+    },
+    "app.log.run_diag_summary": {
+        "en": "Run diagnostics summary: status={status}, keywords={total}, elapsed={elapsed}s",
+        "ja": "実行診断サマリ: status={status}, keywords={total}, elapsed={elapsed}s",
+    },
+    "app.log.run_diag_slowest": {
+        "en": "  slowest#{index}: {name} ({status}) {elapsed}s",
+        "ja": "  最遅#{index}: {name} ({status}) {elapsed}s",
+    },
+    "app.log.run_diag_failed_keyword": {
+        "en": "  failed keyword: {name} | message: {message}",
+        "ja": "  失敗キーワード: {name} | メッセージ: {message}",
+    },
+    "app.log.run_diag_last_annotation": {
+        "en": "  last annotation: {payload}",
+        "ja": "  直前注釈: {payload}",
+    },
+    "app.log.run_diag_screenshot": {
+        "en": "Captured failure screenshot: {path}",
+        "ja": "失敗時スクリーンショットを保存しました: {path}",
+    },
+    "app.log.run_diag_screenshot_failed": {
+        "en": "Failure screenshot capture failed.",
+        "ja": "失敗時スクリーンショットの取得に失敗しました。",
+    },
     "app.log.robot_stopped": {"en": "Robot suite stopped.", "ja": "Robot を停止しました。"},
     "app.log.failed_register_hotkey": {
         "en": "Failed to register stop hotkey: {error}",

@@ -12,6 +12,11 @@ Desktop application for recording, editing, running, and exporting Robot Framewo
   - dedicated editors for `variables`, `profiles`, `execution`, `outputs`
   - full scenario JSON editor for complete v2 coverage
 - Run Robot Framework suites directly from the app
+- Run diagnostics after Robot execution:
+  - parses `output.xml` and logs keyword timing/failure summary
+  - writes `run-diagnostics.json`
+  - captures failure screenshot automatically when run fails
+  - view latest diagnostics from `File -> Run Diagnostics`
 - Runtime safety controls for automation execution:
   - visible running status
   - visible preflight-check status before Robot process start
@@ -116,6 +121,8 @@ set ROBOT_AUTOMATION_STUDIO_LOCALE=ja
 - `<output>/<name>.robot`: Robot Framework suite
 - `<output>/<name>.scenario.json`: machine-readable scenario (automation-scenario-spec)
 - `<output>/run/robot/output.xml`: Robot run output (when running from app)
+- `<output>/run/diagnostics/run-diagnostics.json`: parsed run diagnostics summary
+- `<output>/run/diagnostics/failure-YYYYMMDD-HHMMSS.png`: failure screenshot (when run fails)
 
 ## Unity Hierarchy Bridge
 

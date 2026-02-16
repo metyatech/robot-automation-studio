@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QMessageBox,
+    QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -63,6 +64,12 @@ from .models import (
     normalize_unity_execution_mode,
 )
 from .overlay import AutomationRunOverlay, OverlayMode
+from .run_diagnostics import (
+    RunDiagnostics,
+    capture_failure_screenshot,
+    parse_robot_output,
+    write_run_diagnostics_file,
+)
 from .runner import RunResult, start_robot_process, stop_robot_process, wait_robot_process
 from .settings_store import (
     StudioUiSettings,
@@ -486,6 +493,7 @@ class StudioApp(QMainWindow):
         file_load_action: QAction
         file_json_action: QAction
         file_help_action: QAction
+        file_run_diagnostics_action: QAction
         hotkey_button: QPushButton
         language_combo: QComboBox
         steps_label: QLabel
@@ -603,6 +611,10 @@ class StudioApp(QMainWindow):
         self._status_spinner_index = 0
         self._phase_promotion_from = ""
         self._phase_promotion_to = ""
+        self._last_run_output_xml_path: Path | None = None
+        self._last_run_diagnostics_path: Path | None = None
+        self._last_run_diagnostics: RunDiagnostics | None = None
+        self._last_run_failure_screenshot_path: Path | None = None
 
         self._help_entries_by_widget: dict[QWidget, HelpEntry] = {}
         self._help_entries_by_id: dict[str, HelpEntry] = {}
@@ -1738,6 +1750,39 @@ class StudioApp(QMainWindow):
         self.refresh_steps()
         self.on_select_step(-1)
 
+    def open_run_diagnostics(self) -> None:
+        path = self._last_run_diagnostics_path
+        if path is None or not path.exists():
+            QMessageBox.information(
+                self,
+                self._t("app.info.run_diagnostics_unavailable.title"),
+                self._t("app.info.run_diagnostics_unavailable.message"),
+            )
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self._t("app.dialog.run_diagnostics.title"))
+        dialog.resize(920, 640)
+        layout = QVBoxLayout(dialog)
+
+        header = QLabel(self._t("app.dialog.run_diagnostics.path", path=path))
+        header.setWordWrap(True)
+        layout.addWidget(header)
+
+        text = QPlainTextEdit()
+        text.setReadOnly(True)
+        text.setPlainText(path.read_text(encoding="utf-8"))
+        layout.addWidget(text, 1)
+
+        footer = QHBoxLayout()
+        footer.addStretch()
+        close_button = QPushButton(self._t("app.button.close"))
+        close_button.clicked.connect(dialog.accept)
+        footer.addWidget(close_button)
+        layout.addLayout(footer)
+
+        self._register_help_for_widget_tree(dialog)
+        dialog.exec()
+
     def open_help_guide(self) -> None:
         app_help.open_help_guide(self)
 
@@ -1821,6 +1866,10 @@ class StudioApp(QMainWindow):
             return
         artifacts_dir = output_dir / "run"
         variable_output = output_dir
+        self._last_run_output_xml_path = artifacts_dir / "output.xml"
+        self._last_run_diagnostics_path = artifacts_dir / "diagnostics" / "run-diagnostics.json"
+        self._last_run_diagnostics = None
+        self._last_run_failure_screenshot_path = None
         self._stop_requested = False
         self._set_run_phase("starting_robot")
         self._set_run_controls(running=True)
@@ -1885,12 +1934,89 @@ class StudioApp(QMainWindow):
                 self.log(run_result.stdout.strip())
             if run_result.stderr:
                 self.log(run_result.stderr.strip())
+            self._collect_and_log_run_diagnostics(run_result)
         if self._stop_requested:
             self.log(self._t("app.log.robot_stopped"))
         self._stop_requested = False
         self._stop_overlay()
         self._stop_stop_hotkey()
         self._set_run_controls(running=False)
+
+    def _collect_and_log_run_diagnostics(self, run_result: RunResult) -> None:
+        output_xml_path = self._last_run_output_xml_path
+        if output_xml_path is None or not output_xml_path.exists():
+            self.log(
+                self._t(
+                    "app.log.run_diag_output_missing",
+                    path=output_xml_path or "-",
+                )
+            )
+            return
+        try:
+            diagnostics = parse_robot_output(output_xml_path)
+        except Exception as error:
+            self.log(self._t("app.log.run_diag_parse_failed", error=error))
+            return
+
+        self._last_run_diagnostics = diagnostics
+        screenshot_path: Path | None = None
+        is_failure = run_result.return_code != 0 or diagnostics.test_status.upper() == "FAIL"
+        if is_failure:
+            screenshot_path = capture_failure_screenshot(
+                diagnostics_dir=output_xml_path.parent / "diagnostics"
+            )
+            self._last_run_failure_screenshot_path = screenshot_path
+            if screenshot_path is not None:
+                self.log(self._t("app.log.run_diag_screenshot", path=screenshot_path))
+            else:
+                self.log(self._t("app.log.run_diag_screenshot_failed"))
+        target_path = self._last_run_diagnostics_path or (
+            output_xml_path.parent / "diagnostics" / "run-diagnostics.json"
+        )
+        try:
+            saved = write_run_diagnostics_file(
+                diagnostics,
+                target_path=target_path,
+                screenshot_path=screenshot_path,
+            )
+            self._last_run_diagnostics_path = saved
+            self.log(self._t("app.log.run_diag_saved", path=saved))
+        except Exception as error:
+            self.log(self._t("app.log.run_diag_save_failed", error=error))
+
+        self.log(
+            self._t(
+                "app.log.run_diag_summary",
+                status=diagnostics.test_status.upper(),
+                total=diagnostics.total_keyword_count,
+                elapsed=f"{diagnostics.total_elapsed_seconds:.3f}",
+            )
+        )
+        for index, item in enumerate(diagnostics.slowest_keywords[:3], start=1):
+            self.log(
+                self._t(
+                    "app.log.run_diag_slowest",
+                    index=index,
+                    name=item.name or "-",
+                    elapsed=f"{item.elapsed_seconds:.3f}",
+                    status=item.status,
+                )
+            )
+        if diagnostics.failed_keyword is not None:
+            self.log(
+                self._t(
+                    "app.log.run_diag_failed_keyword",
+                    name=diagnostics.failed_keyword.name or "-",
+                    message=diagnostics.failed_keyword.message or "-",
+                )
+            )
+        if diagnostics.last_annotation is not None:
+            self.log(
+                self._t(
+                    "app.log.run_diag_last_annotation",
+                    payload=json.dumps(diagnostics.last_annotation, ensure_ascii=False),
+                )
+            )
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.recorder.is_recording:
