@@ -145,7 +145,9 @@ def test_subflow_timeout_validation_label_updates_for_all_input_types() -> None:
 
         studio.subflow_timeout_edit.setText("86401")
         studio._refresh_subflow_timeout_validation_hint()
-        assert "Invalid:" in studio.subflow_timeout_validation_label.text()
+        assert "Invalid. Use 1..86400, blank, or ${variable}." in (
+            studio.subflow_timeout_validation_label.text()
+        )
     finally:
         studio.close()
 
@@ -156,6 +158,19 @@ def test_subflow_timeout_validation_label_shows_rejected_hint() -> None:
     try:
         studio._on_subflow_timeout_input_rejected()
         assert "Rejected input." in studio.subflow_timeout_validation_label.text()
+    finally:
+        studio.close()
+
+
+def test_subflow_timeout_validation_label_is_localized_in_japanese() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="ja")
+    try:
+        studio.subflow_timeout_edit.setText("86401")
+        studio._refresh_subflow_timeout_validation_hint()
+        assert "無効です。1..86400、空欄、${変数} を使用してください。" in (
+            studio.subflow_timeout_validation_label.text()
+        )
     finally:
         studio.close()
 

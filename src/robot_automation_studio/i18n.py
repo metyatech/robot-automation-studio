@@ -213,7 +213,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "ja": "変数: {value}。",
     },
     "app.validation.subflow_timeout.value": {"en": "Using: {value}s.", "ja": "使用値: {value}秒。"},
-    "app.validation.subflow_timeout.invalid": {"en": "Invalid: {message}", "ja": "無効: {message}"},
+    "app.validation.subflow_timeout.invalid": {
+        "en": "Invalid. Use 1..86400, blank, or ${variable}.",
+        "ja": "無効です。1..86400、空欄、${変数} を使用してください。",
+    },
     "app.validation.subflow_timeout.rejected": {
         "en": "Rejected input. Use 1..86400, blank, or ${variable}.",
         "ja": "入力は拒否されました。1..86400、空欄、${変数} を使用してください。",

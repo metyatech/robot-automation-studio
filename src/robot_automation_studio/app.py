@@ -1127,7 +1127,8 @@ class StudioApp(QMainWindow):
                     allow_placeholder=True,
                 )
             except ValueError as error:
-                message = self._t("app.validation.subflow_timeout.invalid", message=str(error))
+                _ = error
+                message = self._t("app.validation.subflow_timeout.invalid")
                 color = _ACCENT_RED
             else:
                 if parsed is None:
