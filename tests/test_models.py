@@ -218,7 +218,7 @@ def test_parse_subflow_timeout_seconds_accepts_range(value: int) -> None:
     assert parsed == value
 
 
-@pytest.mark.parametrize("value", [0, SUBFLOW_TIMEOUT_SECONDS_MAX + 1, "abc"])
+@pytest.mark.parametrize("value", [0, SUBFLOW_TIMEOUT_SECONDS_MAX + 1, "abc", True])
 def test_parse_subflow_timeout_seconds_rejects_invalid_values(value: object) -> None:
     with pytest.raises(
         ValueError,

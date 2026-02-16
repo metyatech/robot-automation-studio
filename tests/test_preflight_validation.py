@@ -138,10 +138,13 @@ def test_validate_scenario_reports_nested_control_step_location() -> None:
     assert report.issues[0].location == "steps[0].steps"
 
 
-def test_validate_scenario_reports_invalid_subflow_timeout_location() -> None:
+@pytest.mark.parametrize("timeout_value", ["abc", True])
+def test_validate_scenario_reports_invalid_subflow_timeout_location(
+    timeout_value: object,
+) -> None:
     scenario = Scenario(
         name="Invalid subflow timeout",
-        execution={"subflow_timeout_seconds": "abc"},
+        execution={"subflow_timeout_seconds": timeout_value},
         steps=[
             Step(
                 action="run_subflow",
