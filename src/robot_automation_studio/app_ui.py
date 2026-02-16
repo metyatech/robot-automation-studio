@@ -384,10 +384,16 @@ def build_ui(self, *, bg_light: str) -> None:
     export_form.setSpacing(8)
     export_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
+    output_dir_row = QHBoxLayout()
     self.output_dir_edit = QLineEdit("artifacts/studio")
     self.output_dir_edit.setObjectName("OutputDirEdit")
+    output_dir_row.addWidget(self.output_dir_edit, 1)
+    self.open_output_dir_button = QPushButton()
+    self.open_output_dir_button.setObjectName("OpenOutputDirButton")
+    self.open_output_dir_button.clicked.connect(self.open_output_directory)
+    output_dir_row.addWidget(self.open_output_dir_button)
     self.output_dir_label = QLabel()
-    export_form.addRow(self.output_dir_label, self.output_dir_edit)
+    export_form.addRow(self.output_dir_label, output_dir_row)
 
     export_name_row = QHBoxLayout()
     self.export_name_edit = QLineEdit("unity-editor-generated")
@@ -687,6 +693,8 @@ def apply_localized_texts(self) -> None:
 
     self.output_dir_label.setText(self._t("app.field.output_dir.label"))
     self.output_dir_edit.setPlaceholderText(self._t("app.field.output_dir.placeholder"))
+    self.open_output_dir_button.setText(self._t("app.button.open_output_dir"))
+    self.open_output_dir_button.setToolTip(self._t("app.tooltip.open_output_dir"))
     self.export_name_label.setText(self._t("app.field.export_name.label"))
     self.export_name_edit.setPlaceholderText(self._t("app.field.export_name.placeholder"))
     self.export_button.setText(self._t("app.button.export"))

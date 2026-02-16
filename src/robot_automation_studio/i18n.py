@@ -71,6 +71,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.button.add": {"en": "Add", "ja": "追加"},
     "app.button.delete_word": {"en": "Delete", "ja": "削除"},
     "app.button.apply_current": {"en": "Apply Current", "ja": "現在項目を適用"},
+    "app.button.open_output_dir": {"en": "Open Dir", "ja": "フォルダを開く"},
     "app.label.steps": {"en": "Steps", "ja": "ステップ"},
     "app.label.output_log": {"en": "Output Log", "ja": "出力ログ"},
     "app.tooltip.delete_step": {"en": "Delete step", "ja": "ステップを削除"},
@@ -89,6 +90,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.tooltip.params_template": {
         "en": "Insert action-specific params template into Params (JSON).",
         "ja": "アクション種別に対応する Params(JSON) の雛形を挿入します。",
+    },
+    "app.tooltip.open_output_dir": {
+        "en": "Open the current output directory in file explorer.",
+        "ja": "現在の出力フォルダをエクスプローラーで開きます。",
     },
     "app.log.toggle.tooltip": {
         "en": "Collapse or expand Output Log.",
@@ -572,6 +577,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Inserted params template for action: {action}",
         "ja": "アクション {action} のパラメータ雛形を挿入しました",
     },
+    "app.log.opened_output_dir": {
+        "en": "Opened output directory: {path}",
+        "ja": "出力フォルダを開きました: {path}",
+    },
+    "app.log.open_output_dir_failed": {
+        "en": "Failed to open output directory: {error}",
+        "ja": "出力フォルダを開けませんでした: {error}",
+    },
     "app.log.robot_stopped": {"en": "Robot suite stopped.", "ja": "Robot を停止しました。"},
     "app.log.failed_register_hotkey": {
         "en": "Failed to register stop hotkey: {error}",
@@ -857,6 +870,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.error.params_template_unsupported.message": {
         "en": "No params template is defined for action: {action}",
         "ja": "次のアクション用パラメータ雛形は未定義です: {action}",
+    },
+    "app.error.open_output_dir.title": {
+        "en": "Open Output Directory Error",
+        "ja": "出力フォルダを開けません",
+    },
+    "app.error.open_output_dir.message": {
+        "en": "Failed to open output directory: {path}\n\n{error}",
+        "ja": "出力フォルダを開けませんでした: {path}\n\n{error}",
     },
     "app.error.validation_navigation.title": {
         "en": "Validation Navigation Error",

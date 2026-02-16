@@ -17,10 +17,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pynput import keyboard as pynput_keyboard
-from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
+    QDesktopServices,
     QKeySequence,
     QShortcut,
     QTextCursor,
@@ -641,6 +642,7 @@ class StudioApp(QMainWindow):
         profile_diff_button: QPushButton
         scenario_tab_index: int
         output_dir_edit: QLineEdit
+        open_output_dir_button: QPushButton
         output_dir_label: QLabel
         export_name_edit: QLineEdit
         export_button: QPushButton
@@ -2189,6 +2191,23 @@ class StudioApp(QMainWindow):
             return
         self.log(self._t("app.log.exported_robot", path=result.robot_path))
         self.log(self._t("app.log.exported_json", path=result.json_path))
+
+    def open_output_directory(self) -> None:
+        target = Path(self.output_dir_edit.text().strip() or "artifacts/studio").resolve()
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+            if sys.platform == "win32":
+                os.startfile(str(target))  # type: ignore[attr-defined]
+            else:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
+            self.log(self._t("app.log.opened_output_dir", path=target))
+        except Exception as error:
+            self.log(self._t("app.log.open_output_dir_failed", error=error))
+            QMessageBox.critical(
+                self,
+                self._t("app.error.open_output_dir.title"),
+                self._t("app.error.open_output_dir.message", path=target, error=error),
+            )
 
     def _is_robot_running(self) -> bool:
         return self._run_thread is not None and self._run_thread.is_alive()

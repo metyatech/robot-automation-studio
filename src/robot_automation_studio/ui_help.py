@@ -204,6 +204,10 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Set output folder.",
         "Base directory where export/run outputs are written.",
     ),
+    "Open Dir": (
+        "Open output directory.",
+        "Open the configured output directory in your file explorer.",
+    ),
     "Export Name": (
         "Set export name.",
         "Base name used for generated .robot and .scenario.json files.",
@@ -386,6 +390,10 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
         "Edit execution/outputs.",
         "Open execution and outputs JSON editor.",
     ),
+    "OpenOutputDirButton": (
+        "Open output directory.",
+        "Open the configured output directory in your file explorer.",
+    ),
     "DeleteStepButton": (
         "Delete step.",
         "Removes the currently selected step from the scenario.",
@@ -533,6 +541,10 @@ _KNOWN_TEXT_HELP_JA: dict[str, tuple[str, str]] = {
         "出力フォルダを設定します。",
         "エクスポート/実行成果物の保存先です。",
     ),
+    "フォルダを開く": (
+        "出力フォルダを開きます。",
+        "設定中の出力フォルダをエクスプローラーで開きます。",
+    ),
     "出力名": (
         "出力名を設定します。",
         ".robot / .scenario.json のベース名です。",
@@ -647,6 +659,10 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
     "ExecutionOutputsButton": (
         "実行/出力設定を編集します。",
         "execution と outputs の JSON を編集します。",
+    ),
+    "OpenOutputDirButton": (
+        "出力フォルダを開きます。",
+        "設定中の出力フォルダをエクスプローラーで開きます。",
     ),
     "DeleteStepButton": (
         "ステップを削除します。",
