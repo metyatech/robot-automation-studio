@@ -2005,6 +2005,18 @@ class StudioApp(QMainWindow):
         layout.addWidget(text, 1)
 
         footer = QHBoxLayout()
+        open_diagnostics_dir_button = QPushButton(self._t("app.button.open_diagnostics_dir"))
+        open_diagnostics_dir_button.clicked.connect(
+            lambda: self._open_directory_with_feedback(
+                target=path.parent,
+                success_log_key="app.log.opened_diagnostics_dir",
+                error_log_key="app.log.open_diagnostics_dir_failed",
+                error_title_key="app.error.open_diagnostics_dir.title",
+                error_message_key="app.error.open_diagnostics_dir.message",
+                make_dirs=True,
+            )
+        )
+        footer.addWidget(open_diagnostics_dir_button)
         copy_summary_button = QPushButton(self._t("app.button.copy_summary"))
         copy_summary_button.clicked.connect(lambda: QApplication.clipboard().setText(summary_text))
         footer.addWidget(copy_summary_button)
@@ -2232,20 +2244,42 @@ class StudioApp(QMainWindow):
 
     def open_output_directory(self) -> None:
         target = Path(self.output_dir_edit.text().strip() or "artifacts/studio").resolve()
+        self._open_directory_with_feedback(
+            target=target,
+            success_log_key="app.log.opened_output_dir",
+            error_log_key="app.log.open_output_dir_failed",
+            error_title_key="app.error.open_output_dir.title",
+            error_message_key="app.error.open_output_dir.message",
+            make_dirs=True,
+        )
+
+    def _open_directory_with_feedback(
+        self,
+        *,
+        target: Path,
+        success_log_key: str,
+        error_log_key: str,
+        error_title_key: str,
+        error_message_key: str,
+        make_dirs: bool = False,
+    ) -> bool:
         try:
-            target.mkdir(parents=True, exist_ok=True)
+            if make_dirs:
+                target.mkdir(parents=True, exist_ok=True)
             if sys.platform == "win32":
                 os.startfile(str(target))  # type: ignore[attr-defined]
             else:
                 QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
-            self.log(self._t("app.log.opened_output_dir", path=target))
+            self.log(self._t(success_log_key, path=target))
+            return True
         except Exception as error:
-            self.log(self._t("app.log.open_output_dir_failed", error=error))
+            self.log(self._t(error_log_key, error=error))
             QMessageBox.critical(
                 self,
-                self._t("app.error.open_output_dir.title"),
-                self._t("app.error.open_output_dir.message", path=target, error=error),
+                self._t(error_title_key),
+                self._t(error_message_key, path=target, error=error),
             )
+            return False
 
     def _is_robot_running(self) -> bool:
         return self._run_thread is not None and self._run_thread.is_alive()

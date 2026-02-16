@@ -232,6 +232,10 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Copy diagnostics JSON.",
         "Copy raw run diagnostics JSON text to clipboard.",
     ),
+    "Open Diagnostics Dir": (
+        "Open diagnostics folder.",
+        "Open run diagnostics folder in your file explorer.",
+    ),
     "Run Robot": (
         "Run scenario.",
         "Exports first, then starts Robot execution and writes run artifacts.",
@@ -584,6 +588,10 @@ _KNOWN_TEXT_HELP_JA: dict[str, tuple[str, str]] = {
     "JSONをコピー": (
         "診断JSONをコピーします。",
         "実行診断の生JSONテキストをクリップボードへコピーします。",
+    ),
+    "診断フォルダを開く": (
+        "診断フォルダを開きます。",
+        "実行診断ファイルの保存フォルダをエクスプローラーで開きます。",
     ),
     "出力ログ": (
         "出力ログを表示します。",

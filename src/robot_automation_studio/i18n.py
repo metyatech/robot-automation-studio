@@ -76,6 +76,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.button.copy_all_issues": {"en": "Copy All", "ja": "全件コピー"},
     "app.button.copy_summary": {"en": "Copy Summary", "ja": "要約をコピー"},
     "app.button.copy_json": {"en": "Copy JSON", "ja": "JSONをコピー"},
+    "app.button.open_diagnostics_dir": {
+        "en": "Open Diagnostics Dir",
+        "ja": "診断フォルダを開く",
+    },
     "app.label.steps": {"en": "Steps", "ja": "ステップ"},
     "app.label.output_log": {"en": "Output Log", "ja": "出力ログ"},
     "app.tooltip.delete_step": {"en": "Delete step", "ja": "ステップを削除"},
@@ -593,6 +597,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Failed to open output directory: {error}",
         "ja": "出力フォルダを開けませんでした: {error}",
     },
+    "app.log.opened_diagnostics_dir": {
+        "en": "Opened diagnostics directory: {path}",
+        "ja": "診断フォルダを開きました: {path}",
+    },
+    "app.log.open_diagnostics_dir_failed": {
+        "en": "Failed to open diagnostics directory: {error}",
+        "ja": "診断フォルダを開けませんでした: {error}",
+    },
     "app.log.robot_stopped": {"en": "Robot suite stopped.", "ja": "Robot を停止しました。"},
     "app.log.failed_register_hotkey": {
         "en": "Failed to register stop hotkey: {error}",
@@ -886,6 +898,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.error.open_output_dir.message": {
         "en": "Failed to open output directory: {path}\n\n{error}",
         "ja": "出力フォルダを開けませんでした: {path}\n\n{error}",
+    },
+    "app.error.open_diagnostics_dir.title": {
+        "en": "Open Diagnostics Directory Error",
+        "ja": "診断フォルダを開けません",
+    },
+    "app.error.open_diagnostics_dir.message": {
+        "en": "Failed to open diagnostics directory: {path}\n\n{error}",
+        "ja": "診断フォルダを開けませんでした: {path}\n\n{error}",
     },
     "app.confirm.params_template_overwrite.title": {
         "en": "Overwrite Params",
