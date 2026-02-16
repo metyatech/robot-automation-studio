@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import tkinter as tk
-from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Literal
 
 import win32api  # type: ignore[import-not-found]
 import win32con  # type: ignore[import-not-found]
 import win32gui  # type: ignore[import-not-found]
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 
 @dataclass(slots=True)
@@ -61,7 +62,7 @@ def _target_window_rect(window_hint: str) -> Rect | None:
 
     matched_handle: int | None = None
 
-    def _collect(handle: int, _lparam: Any) -> bool:
+    def _collect(handle: int, _lparam: object) -> bool:
         nonlocal matched_handle
         if matched_handle is not None:
             return False
@@ -150,28 +151,52 @@ def build_banner_text(
     return f"{normalized_progress}  |  Press {stop_hotkey_label} to {theme.stop_action_text}"
 
 
+_OVERLAY_FLAGS = (
+    Qt.WindowType.FramelessWindowHint
+    | Qt.WindowType.WindowStaysOnTopHint
+    | Qt.WindowType.Tool
+    | Qt.WindowType.WindowTransparentForInput
+)
+
+
+def _new_overlay_widget(parent: QWidget | None, color: str, alpha: float) -> QWidget:
+    w = QWidget(parent, _OVERLAY_FLAGS)
+    w.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+    w.setStyleSheet(f"background-color: {color};")
+    w.setWindowOpacity(alpha)
+    return w
+
+
+def _place(widget: QWidget, rect: Rect) -> None:
+    width = max(1, rect.width)
+    height = max(1, rect.height)
+    widget.setGeometry(rect.left, rect.top, width, height)
+
+
 class AutomationRunOverlay:
     """Darkens non-target screen areas and shows stop-hotkey guidance."""
 
     def __init__(
         self,
-        root: tk.Tk,
+        parent: QWidget | None,
         window_hint: str,
         stop_hotkey_label: str,
         mode: OverlayMode = "run",
     ) -> None:
-        self._root = root
+        self._parent = parent
         self._window_hint = window_hint
         self._stop_hotkey_label = stop_hotkey_label
         self._mode: OverlayMode = mode
         self._theme = _overlay_theme(mode)
         self._progress_text = self._theme.default_progress_text
-        self._dim_windows: list[tk.Toplevel] = []
-        self._border_windows: list[tk.Toplevel] = []
-        self._banner_window: tk.Toplevel | None = None
-        self._banner_label: tk.Label | None = None
+        self._dim_windows: list[QWidget] = []
+        self._border_windows: list[QWidget] = []
+        self._banner_window: QWidget | None = None
+        self._banner_label: QLabel | None = None
         self._running = False
-        self._timer_id: str | None = None
+        self._timer = QTimer()
+        self._timer.setInterval(120)
+        self._timer.timeout.connect(self._update)
 
     def start(self) -> None:
         if self._running:
@@ -179,67 +204,50 @@ class AutomationRunOverlay:
         self._running = True
         self._create_windows()
         self._update()
+        self._timer.start()
 
     def stop(self) -> None:
         self._running = False
-        if self._timer_id is not None:
-            self._root.after_cancel(self._timer_id)
-            self._timer_id = None
-        windows = [*self._dim_windows, *self._border_windows]
+        self._timer.stop()
+        for w in [*self._dim_windows, *self._border_windows]:
+            w.close()
+            w.deleteLater()
         if self._banner_window is not None:
-            windows.append(self._banner_window)
-        for window in windows:
-            with suppress(tk.TclError):
-                window.destroy()
+            self._banner_window.close()
+            self._banner_window.deleteLater()
         self._dim_windows.clear()
         self._border_windows.clear()
         self._banner_window = None
         self._banner_label = None
 
     def _create_windows(self) -> None:
-        self._dim_windows = [self._new_overlay_window("#000000", 0.45) for _ in range(4)]
+        self._dim_windows = [_new_overlay_widget(self._parent, "#000000", 0.45) for _ in range(4)]
         self._border_windows = [
-            self._new_overlay_window(self._theme.border_color, 0.95) for _ in range(4)
+            _new_overlay_widget(self._parent, self._theme.border_color, 0.95) for _ in range(4)
         ]
-        self._banner_window = self._new_overlay_window(self._theme.banner_background, 0.9)
-        self._banner_label = tk.Label(
-            self._banner_window,
-            text=build_banner_text(
-                self._progress_text,
-                self._stop_hotkey_label,
-                mode=self._mode,
-            ),
-            fg=self._theme.banner_foreground,
-            bg=self._theme.banner_background,
-            font=("Segoe UI", 11, "bold"),
-            padx=18,
-            pady=6,
+        banner = _new_overlay_widget(self._parent, self._theme.banner_background, 0.9)
+        layout = QVBoxLayout(banner)
+        layout.setContentsMargins(0, 0, 0, 0)
+        label = QLabel(
+            build_banner_text(self._progress_text, self._stop_hotkey_label, mode=self._mode)
         )
-        self._banner_label.pack(fill=tk.BOTH, expand=True)
-
-    def _new_overlay_window(self, color: str, alpha: float) -> tk.Toplevel:
-        window = tk.Toplevel(self._root)
-        window.overrideredirect(True)
-        window.attributes("-topmost", True)
-        window.attributes("-alpha", alpha)
-        window.configure(bg=color)
-        return window
-
-    def _place(self, window: tk.Toplevel, rect: Rect) -> None:
-        width = max(1, rect.width)
-        height = max(1, rect.height)
-        window.geometry(f"{width}x{height}+{rect.left}+{rect.top}")
+        label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        label.setStyleSheet(
+            f"color: {self._theme.banner_foreground}; "
+            f"background: {self._theme.banner_background}; "
+            "padding: 6px 18px;"
+        )
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(label)
+        self._banner_window = banner
+        self._banner_label = label
 
     def set_progress_text(self, progress_text: str) -> None:
         self._progress_text = str(progress_text or "").strip() or self._theme.default_progress_text
         if self._banner_label is None:
             return
-        self._banner_label.configure(
-            text=build_banner_text(
-                self._progress_text,
-                self._stop_hotkey_label,
-                mode=self._mode,
-            )
+        self._banner_label.setText(
+            build_banner_text(self._progress_text, self._stop_hotkey_label, mode=self._mode)
         )
 
     def _update(self) -> None:
@@ -251,9 +259,9 @@ class AutomationRunOverlay:
 
         if target is None:
             for dim in self._dim_windows:
-                self._place(dim, screen)
+                _place(dim, screen)
             for border in self._border_windows:
-                self._place(border, Rect(screen.left, screen.top, screen.left + 1, screen.top + 1))
+                _place(border, Rect(screen.left, screen.top, screen.left + 1, screen.top + 1))
         else:
             clamped = Rect(
                 left=max(screen.left, target.left),
@@ -274,7 +282,7 @@ class AutomationRunOverlay:
                 [top_rect, bottom_rect, left_rect, right_rect],
                 strict=True,
             ):
-                self._place(dim, rect)
+                _place(dim, rect)
 
             border = 3
             borders = [
@@ -294,7 +302,10 @@ class AutomationRunOverlay:
                 Rect(clamped.right, clamped.top, clamped.right + border, clamped.bottom),
             ]
             for border_window, rect in zip(self._border_windows, borders, strict=True):
-                self._place(border_window, rect)
+                _place(border_window, rect)
+
+        for w in [*self._dim_windows, *self._border_windows]:
+            w.show()
 
         if self._banner_window is not None:
             banner_rect = compute_banner_rect(
@@ -304,7 +315,6 @@ class AutomationRunOverlay:
                 banner_height=44,
                 margin_top=16,
             )
-            self._place(self._banner_window, banner_rect)
-            self._banner_window.lift()
-
-        self._timer_id = self._root.after(120, self._update)
+            _place(self._banner_window, banner_rect)
+            self._banner_window.show()
+            self._banner_window.raise_()
