@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import subprocess
 import sys
 import threading
+import warnings
 from copy import deepcopy
 from pathlib import Path
 
@@ -72,6 +74,37 @@ _ACCENT_YELLOW = "#f9e2af"
 _BTN_BG = "#45475a"
 _BTN_HOVER = "#585b70"
 _LOG_BG = "#1a1a2e"
+_PYWINAUTO_PREPARED = False
+
+
+def _import_pywinauto_with_warning_filters(importer) -> None:
+    """Import pywinauto while suppressing known non-actionable startup warnings."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Apply externally defined coinit_flags:.*",
+            category=UserWarning,
+        )
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Revert to STA COM threading mode",
+            category=UserWarning,
+        )
+        importer("pywinauto")
+
+
+def _prepare_pywinauto_for_qt() -> None:
+    """Prepare pywinauto COM mode before first recorder/window-focus import."""
+    global _PYWINAUTO_PREPARED
+    if _PYWINAUTO_PREPARED:
+        return
+    if sys.platform != "win32":
+        _PYWINAUTO_PREPARED = True
+        return
+    if not hasattr(sys, "coinit_flags"):
+        sys.coinit_flags = 2  # type: ignore[attr-defined]
+    _import_pywinauto_with_warning_filters(importlib.import_module)
+    _PYWINAUTO_PREPARED = True
 
 
 def step_editor_visibility_for_kind(kind: str) -> dict[str, bool]:
@@ -410,6 +443,8 @@ class StudioApp(QMainWindow):
         self.setWindowTitle("Robot Automation Studio")
         self.resize(1200, 760)
         self.setMinimumSize(960, 640)
+
+        _prepare_pywinauto_for_qt()
 
         self.scenario = Scenario(name="Unity Editor Flow")
         self.editor = ScenarioEditor(self.scenario)
