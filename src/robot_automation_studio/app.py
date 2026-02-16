@@ -12,8 +12,8 @@ from copy import deepcopy
 from pathlib import Path
 
 from pynput import keyboard as pynput_keyboard
-from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal, Slot
-from PySide6.QtGui import QCloseEvent, QFont, QKeySequence, QShortcut, QTextCursor
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, Signal, Slot
+from PySide6.QtGui import QCloseEvent, QCursor, QFont, QKeySequence, QShortcut, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QTabWidget,
     QToolButton,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -75,6 +76,8 @@ _BTN_BG = "#45475a"
 _BTN_HOVER = "#585b70"
 _LOG_BG = "#1a1a2e"
 _PYWINAUTO_PREPARED = False
+_HELP_TOOLTIP_OFFSET_X = 14
+_HELP_TOOLTIP_OFFSET_Y = 22
 
 
 def _import_pywinauto_with_warning_filters(importer) -> None:
@@ -127,6 +130,19 @@ def step_editor_visibility_for_kind(kind: str) -> dict[str, bool]:
         "show_control": False,
         "show_condition": False,
     }
+
+
+def build_help_tooltip_text(summary: str) -> str:
+    """Return tooltip text for inline help near the cursor."""
+    text = str(summary or "").strip()
+    if text:
+        return text
+    return "No help available for this component."
+
+
+def build_help_tooltip_position(cursor_x: int, cursor_y: int) -> tuple[int, int]:
+    """Return tooltip anchor coordinates with a small cursor offset."""
+    return (cursor_x + _HELP_TOOLTIP_OFFSET_X, cursor_y + _HELP_TOOLTIP_OFFSET_Y)
 
 
 _STYLESHEET = f"""
@@ -558,7 +574,7 @@ class StudioApp(QMainWindow):
         header_layout.addWidget(vline2)
 
         self.help_status_label = QLabel(
-            "Hover or focus any UI component to view its explanation. Press F1 for full guide."
+            "Hover controls for cursor-near tips. Press F1 for full guide."
         )
         self.help_status_label.setObjectName("HeaderHelpLabel")
         header_layout.addWidget(self.help_status_label, 1)
@@ -1686,7 +1702,18 @@ class StudioApp(QMainWindow):
         ):
             entry = self._help_entries_by_widget.get(obj)
             if entry is not None:
-                self.help_status_label.setText(entry.summary)
+                cursor_pos = QCursor.pos()
+                tip_x, tip_y = build_help_tooltip_position(cursor_pos.x(), cursor_pos.y())
+                QToolTip.showText(
+                    QPoint(tip_x, tip_y),
+                    build_help_tooltip_text(entry.summary),
+                    obj,
+                )
+        if isinstance(obj, QWidget) and event.type() in (
+            QEvent.Type.Leave,
+            QEvent.Type.FocusOut,
+        ):
+            QToolTip.hideText()
         return False
 
     def _sorted_help_entries(self) -> list[HelpEntry]:
