@@ -343,13 +343,15 @@ class Step:
         if isinstance(direct_capture, dict):
             payload["capture"] = direct_capture
 
-        if canonical_action == "click":
+        if canonical_action in {"click", "select_hierarchy", "assert"}:
             hierarchy_path = str(params.get("hierarchy_path") or "").strip()
             if hierarchy_path and "target" not in payload:
                 payload["target"] = {
                     "strategy": "unity_hierarchy",
                     "unity_hierarchy": {"path": hierarchy_path, "match_mode": "exact"},
                 }
+
+        if canonical_action in {"click", "double_click", "right_click", "assert"}:
             if "target" not in payload and selector_from_params is not None:
                 payload["target"] = selector_from_params
             if "target" not in payload:

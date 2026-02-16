@@ -136,3 +136,30 @@ def test_step_legacy_aliases_are_converted_to_v2_actions() -> None:
     assert type_payload["action"] == "type_text"
     assert wait_payload["action"] == "wait_for"
     assert wait_payload["input"]["seconds"] == 1.2
+
+
+def test_step_double_click_flat_coordinate_params_are_normalized_to_target() -> None:
+    step = Step(
+        action="double_click",
+        title="Double click",
+        params={"x_ratio": 0.25, "y_ratio": 0.75},
+    )
+
+    payload = step.to_dict()
+    assert payload["action"] == "double_click"
+    assert payload["target"]["strategy"] == "coordinate"
+    assert payload["target"]["coordinate"]["x_ratio"] == 0.25
+    assert payload["target"]["coordinate"]["y_ratio"] == 0.75
+
+
+def test_step_select_hierarchy_flat_params_are_normalized_to_target() -> None:
+    step = Step(
+        action="select_hierarchy",
+        title="Select hierarchy",
+        params={"hierarchy_path": "AvatarRoot/Hair/Tail"},
+    )
+
+    payload = step.to_dict()
+    assert payload["action"] == "select_hierarchy"
+    assert payload["target"]["strategy"] == "unity_hierarchy"
+    assert payload["target"]["unity_hierarchy"]["path"] == "AvatarRoot/Hair/Tail"
