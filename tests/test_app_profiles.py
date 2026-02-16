@@ -197,6 +197,18 @@ def test_subflow_timeout_validation_label_is_localized_in_japanese() -> None:
         studio.close()
 
 
+def test_subflow_timeout_rejected_hint_is_localized_in_japanese() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="ja")
+    try:
+        studio._on_subflow_timeout_input_rejected()
+        assert "入力は拒否されました。1..86400、空欄、${変数} を使用してください。" in (
+            studio.subflow_timeout_validation_label.text()
+        )
+    finally:
+        studio.close()
+
+
 def test_export_scenario_passes_active_profile(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_SETTINGS_PATH", str(tmp_path / "settings.json"))
     _ensure_qapp()
