@@ -89,3 +89,40 @@ def test_wait_until_available_passes_request_timeout_override() -> None:
 
     assert ready is True
     assert client.request_timeouts == [0.8]
+
+
+def test_get_selection_state_includes_selection_version_when_present() -> None:
+    client = DummyBridgeClient(
+        [{"ok": True, "hierarchy_path": "Root/Child", "selection_version": 123}]
+    )
+    state = client.get_selection_state()
+    assert state["ok"] is True
+    assert state["hierarchy_path"] == "Root/Child"
+    assert state["selection_version"] == 123
+
+
+def test_wait_for_selection_change_requests_wait_endpoint() -> None:
+    class DummyWaitBridge(UnityBridgeClient):
+        def __init__(self) -> None:
+            super().__init__(host="127.0.0.1", port=39067, timeout_seconds=0.1)
+            self.requests: list[tuple[str, str]] = []
+
+        def _request(  # type: ignore[override]
+            self,
+            method: str,
+            path: str,
+            payload=None,
+            timeout_seconds=None,
+        ):
+            _ = payload
+            _ = timeout_seconds
+            self.requests.append((method, path))
+            return {"ok": True, "hierarchy_path": "Main Camera", "selection_version": 11}
+
+    client = DummyWaitBridge()
+    state = client.wait_for_selection_change(after_version=10, timeout_seconds=0.2)
+
+    assert state["ok"] is True
+    assert state["hierarchy_path"] == "Main Camera"
+    assert state["selection_version"] == 11
+    assert client.requests == [("GET", "/v1/selection/wait?after_version=10&timeout_ms=200")]

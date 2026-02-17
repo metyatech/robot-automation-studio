@@ -285,6 +285,53 @@ def test_recorder_hierarchy_click_records_wildcard_root_fallback_path() -> None:
     )
 
 
+def test_recorder_hierarchy_click_waits_for_selection_update_when_bridge_supports_wait() -> None:
+    class LaggyBridge:
+        def __init__(self) -> None:
+            self.version = 10
+            self.path = "ComeBody_Armature"
+
+        def get_selected_hierarchy_path(self) -> str | None:
+            # Legacy behavior: returns the previous selection.
+            return self.path
+
+        def get_selection_state(self) -> dict[str, object]:
+            return {"ok": True, "hierarchy_path": self.path, "selection_version": self.version}
+
+        def wait_for_selection_change(
+            self, after_version: int, timeout_seconds: float | None = None
+        ) -> dict[str, object]:
+            _ = timeout_seconds
+            if after_version >= self.version:
+                self.version = after_version + 1
+            self.path = "Main Camera"
+            return {"ok": True, "hierarchy_path": self.path, "selection_version": self.version}
+
+    bridge = LaggyBridge()
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "UnityEditor.SceneHierarchyWindow",
+            "class_name": "UnityGUIViewWndClass",
+            "control_type": "Pane",
+        },
+        unity_bridge=bridge,
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(120, 180, None, True)
+    recorder._on_click(120, 180, None, False)
+    steps = events_to_steps(recorder.stop())
+
+    assert len(steps) == 1
+    assert steps[0].params["hierarchy_path"] == "Main Camera"
+
+
 def test_has_visible_window_with_hint_true_when_matching_title_exists() -> None:
     assert has_visible_window_with_hint(
         "Unity",

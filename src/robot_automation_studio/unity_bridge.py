@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from typing import Any
@@ -64,6 +65,76 @@ class UnityBridgeClient:
             return None
         hierarchy_path = str(payload.get("hierarchy_path") or "").strip()
         return hierarchy_path or None
+
+    def get_selection_state(self) -> dict[str, Any]:
+        try:
+            payload = self._request("GET", "/v1/selection")
+        except Exception as ex:
+            return {"ok": False, "hierarchy_path": "", "selection_version": None, "error": str(ex)}
+
+        ok = bool(payload.get("ok", False))
+        hierarchy_path = str(payload.get("hierarchy_path") or "").strip()
+        error = str(payload.get("error") or "").strip()
+
+        version_value = payload.get("selection_version", None)
+        selection_version: int | None = None
+        if version_value is not None and not isinstance(version_value, bool):
+            try:
+                selection_version = int(version_value)
+            except (TypeError, ValueError):
+                selection_version = None
+
+        return {
+            "ok": ok,
+            "hierarchy_path": hierarchy_path,
+            "selection_version": selection_version,
+            "error": error,
+        }
+
+    def wait_for_selection_change(
+        self,
+        after_version: int,
+        timeout_seconds: float | None = None,
+    ) -> dict[str, Any]:
+        timeout_ms: int
+        if timeout_seconds is None:
+            timeout_ms = 350
+        else:
+            timeout_ms = max(0, round(float(timeout_seconds) * 1000))
+
+        query = urllib.parse.urlencode(
+            [
+                ("after_version", int(after_version)),
+                ("timeout_ms", timeout_ms),
+            ]
+        )
+        path = f"/v1/selection/wait?{query}"
+        request_timeout_seconds = None
+        if timeout_seconds is not None:
+            request_timeout_seconds = max(self.timeout_seconds, float(timeout_seconds) + 0.8)
+        try:
+            payload = self._request("GET", path, timeout_seconds=request_timeout_seconds)
+        except Exception as ex:
+            return {"ok": False, "hierarchy_path": "", "selection_version": None, "error": str(ex)}
+
+        ok = bool(payload.get("ok", False))
+        hierarchy_path = str(payload.get("hierarchy_path") or "").strip()
+        error = str(payload.get("error") or "").strip()
+
+        version_value = payload.get("selection_version", None)
+        selection_version: int | None = None
+        if version_value is not None and not isinstance(version_value, bool):
+            try:
+                selection_version = int(version_value)
+            except (TypeError, ValueError):
+                selection_version = None
+
+        return {
+            "ok": ok,
+            "hierarchy_path": hierarchy_path,
+            "selection_version": selection_version,
+            "error": error,
+        }
 
     def _request(
         self,

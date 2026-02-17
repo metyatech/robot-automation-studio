@@ -273,6 +273,7 @@ class ScenarioRecorder:
         self._mouse_listener: mouse.Listener | None = None
         self._keyboard_listener: keyboard.Listener | None = None
         self._mouse_down_point: tuple[int, int] | None = None
+        self._mouse_down_selection_version: int | None = None
         self._modifier_keys: set[str] = set()
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
@@ -294,6 +295,7 @@ class ScenarioRecorder:
         self._recording = True
         self._window_hint = window_hint
         self._mouse_down_point = None
+        self._mouse_down_selection_version = None
         self._modifier_keys.clear()
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
@@ -314,6 +316,7 @@ class ScenarioRecorder:
         self._mouse_listener = None
         self._keyboard_listener = None
         self._mouse_down_point = None
+        self._mouse_down_selection_version = None
         self._modifier_keys.clear()
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
@@ -344,12 +347,75 @@ class ScenarioRecorder:
             return False
         return _title_matches_window_hint(snapshot.title, self._window_hint)
 
-    def _resolve_hierarchy_path(self, snapshot: WindowSnapshot | None = None) -> str | None:
+    def _resolve_hierarchy_path(
+        self,
+        snapshot: WindowSnapshot | None = None,
+        after_selection_version: int | None = None,
+    ) -> str | None:
         if time.monotonic() < self._bridge_retry_backoff_until:
             return None
         bridge = self._unity_bridge
         if bridge is None:
             return None
+        if after_selection_version is not None:
+            waiter = getattr(bridge, "wait_for_selection_change", None)
+            if waiter is not None:
+                payload: Any | None
+                try:
+                    payload = waiter(after_selection_version, timeout_seconds=0.35)
+                except TypeError:
+                    try:
+                        payload = waiter(after_selection_version)
+                    except Exception:
+                        payload = None
+                except Exception:
+                    payload = None
+                if isinstance(payload, dict) and bool(payload.get("ok", False)):
+                    normalized = (
+                        str(payload.get("hierarchy_path") or "")
+                        .strip()
+                        .replace("\\", "/")
+                        .strip("/")
+                    )
+                    if normalized:
+                        self._last_hierarchy_bridge_diag = ""
+                        return normalized
+
+            state_getter = getattr(bridge, "get_selection_state", None)
+            if state_getter is not None:
+                deadline = time.monotonic() + 0.35
+                while True:
+                    payload = None
+                    try:
+                        payload = state_getter()
+                    except Exception:
+                        payload = None
+                    normalized = ""
+                    selection_version: int | None = None
+                    if isinstance(payload, dict) and bool(payload.get("ok", False)):
+                        normalized = (
+                            str(payload.get("hierarchy_path") or "")
+                            .strip()
+                            .replace("\\", "/")
+                            .strip("/")
+                        )
+                        version_value = payload.get("selection_version", None)
+                        if version_value is not None and not isinstance(version_value, bool):
+                            try:
+                                selection_version = int(version_value)
+                            except (TypeError, ValueError):
+                                selection_version = None
+                    if normalized and selection_version is not None:
+                        if selection_version > after_selection_version:
+                            self._last_hierarchy_bridge_diag = ""
+                            return normalized
+                        if time.monotonic() >= deadline:
+                            self._last_hierarchy_bridge_diag = ""
+                            return normalized
+                    if time.monotonic() >= deadline:
+                        break
+                    time.sleep(0.02)
+
         getter = getattr(bridge, "get_selected_hierarchy_path", None)
         if getter is None:
             return None
@@ -366,6 +432,30 @@ class ScenarioRecorder:
         self._bridge_retry_backoff_until = time.monotonic() + 0.8
         self._last_hierarchy_bridge_diag = self._build_hierarchy_bridge_diagnostics(snapshot)
         return None
+
+    def _try_get_selection_version(self) -> int | None:
+        bridge = self._unity_bridge
+        if bridge is None:
+            return None
+        getter = getattr(bridge, "get_selection_state", None)
+        if getter is None:
+            return None
+        payload: Any | None
+        try:
+            payload = getter()
+        except Exception:
+            return None
+        if not isinstance(payload, dict):
+            return None
+        if not bool(payload.get("ok", False)):
+            return None
+        version_value = payload.get("selection_version", None)
+        if version_value is None or isinstance(version_value, bool):
+            return None
+        try:
+            return int(version_value)
+        except (TypeError, ValueError):
+            return None
 
     def _build_hierarchy_bridge_diagnostics(self, snapshot: WindowSnapshot | None) -> str:
         bridge = self._unity_bridge
@@ -405,10 +495,13 @@ class ScenarioRecorder:
 
         if pressed:
             self._mouse_down_point = (x, y)
+            self._mouse_down_selection_version = self._try_get_selection_version()
             return
 
         start_point = self._mouse_down_point
         self._mouse_down_point = None
+        start_selection_version = self._mouse_down_selection_version
+        self._mouse_down_selection_version = None
         if start_point is None:
             return
         snapshot = self._window_provider()
@@ -467,7 +560,10 @@ class ScenarioRecorder:
             self._report_record_error("Could not resolve UI element selector for click.")
             return
         if _is_generic_unity_hierarchy_pane(selector):
-            hierarchy_path = self._resolve_hierarchy_path(snapshot)
+            hierarchy_path = self._resolve_hierarchy_path(
+                snapshot,
+                after_selection_version=start_selection_version,
+            )
             if hierarchy_path is None:
                 now = time.monotonic()
                 if now >= self._hierarchy_error_suppress_until:
