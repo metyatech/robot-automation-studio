@@ -181,6 +181,18 @@ def test_step_run_subflow_flat_path_is_normalized_to_input_path() -> None:
     assert payload["input"]["path"] == "flows/child.robot"
 
 
+def test_step_open_menu_candidate_paths_are_normalized_to_input() -> None:
+    step = Step(
+        action="open_menu",
+        title="Open menu",
+        params={"menu_path_candidates": ["Tools>Avatar", "Window>Avatar"]},
+    )
+
+    payload = step.to_dict()
+    assert payload["action"] == "open_menu"
+    assert payload["input"]["menu_path_candidates"] == ["Tools>Avatar", "Window>Avatar"]
+
+
 def test_step_start_video_flat_path_is_normalized_to_input_path() -> None:
     step = Step(
         action="start_video",

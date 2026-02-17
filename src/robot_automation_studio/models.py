@@ -190,6 +190,12 @@ class Step:
                     params[key] = deepcopy(data[key])
             action = str(data.get("action") or "click").strip().lower()
 
+            input_payload = data.get("input")
+            if isinstance(input_payload, dict):
+                menu_path_candidates = input_payload.get("menu_path_candidates")
+                if isinstance(menu_path_candidates, list):
+                    params["menu_path_candidates"] = deepcopy(menu_path_candidates)
+
             target = data.get("target")
             if isinstance(target, dict):
                 strategy = str(target.get("strategy") or "").strip().lower()
@@ -452,6 +458,16 @@ class Step:
             input_payload = dict(payload.get("input") or {})
             if "menu_path" not in input_payload and "menu_path" in params:
                 input_payload["menu_path"] = params["menu_path"]
+            if "menu_path_candidates" not in input_payload and "menu_path_candidates" in params:
+                raw_candidates = params.get("menu_path_candidates")
+                if isinstance(raw_candidates, list):
+                    candidates = [
+                        str(candidate).strip()
+                        for candidate in raw_candidates
+                        if str(candidate).strip() != ""
+                    ]
+                    if candidates:
+                        input_payload["menu_path_candidates"] = candidates
             if input_payload:
                 payload["input"] = input_payload
 

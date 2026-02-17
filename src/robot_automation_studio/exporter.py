@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -180,6 +181,127 @@ def _require_selector(step_payload: dict[str, Any], action: str) -> dict[str, An
     return target
 
 
+def _dedupe_strings(values: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = str(value or "").strip()
+        if normalized == "" or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
+
+
+def _collect_target_candidates(
+    target: Any,
+    *,
+    output: list[dict[str, Any]],
+    visited_ids: set[int],
+) -> None:
+    if not isinstance(target, dict):
+        return
+    marker = id(target)
+    if marker in visited_ids:
+        return
+    visited_ids.add(marker)
+    output.append(target)
+    raw_fallbacks = target.get("fallbacks")
+    if not isinstance(raw_fallbacks, list):
+        return
+    for fallback in raw_fallbacks:
+        _collect_target_candidates(fallback, output=output, visited_ids=visited_ids)
+
+
+def _target_candidates_by_strategy(
+    target: dict[str, Any],
+    *,
+    action: str,
+    allowed_strategies: set[str],
+) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    _collect_target_candidates(target, output=candidates, visited_ids=set())
+    matches = [
+        candidate
+        for candidate in candidates
+        if str(candidate.get("strategy") or "").strip().lower() in allowed_strategies
+    ]
+    if matches:
+        return matches
+    seen = [
+        str(candidate.get("strategy") or "<missing>").strip().lower() for candidate in candidates
+    ]
+    raise ValueError(
+        f"{action} requires one of target strategies {sorted(allowed_strategies)}, seen={seen}"
+    )
+
+
+def _hierarchy_paths_from_targets(
+    targets: list[dict[str, Any]],
+    *,
+    action: str,
+) -> list[str]:
+    paths: list[str] = []
+    for target in targets:
+        unity_hierarchy = target.get("unity_hierarchy")
+        if not isinstance(unity_hierarchy, dict):
+            raise ValueError(
+                f"{action} unity_hierarchy target must include unity_hierarchy object."
+            )
+        path = str(unity_hierarchy.get("path") or "").strip()
+        if path == "":
+            raise ValueError(f"{action} unity_hierarchy target requires path.")
+        paths.append(path)
+    deduped = _dedupe_strings(paths)
+    if not deduped:
+        raise ValueError(f"{action} unity_hierarchy target requires path.")
+    return deduped
+
+
+def _uia_selector_payloads_from_targets(
+    targets: list[dict[str, Any]],
+    *,
+    action: str,
+) -> list[dict[str, Any]]:
+    payloads: list[dict[str, Any]] = []
+    seen: set[tuple[tuple[str, str], ...]] = set()
+    for target in targets:
+        uia = target.get("uia")
+        if not isinstance(uia, dict):
+            raise ValueError(f"{action} uia target must include uia object.")
+        selector_payload = _uia_selector_args(uia)
+        if not selector_payload:
+            continue
+        signature = tuple((key, str(selector_payload[key])) for key in sorted(selector_payload))
+        if signature in seen:
+            continue
+        seen.add(signature)
+        payloads.append(selector_payload)
+    if payloads:
+        return payloads
+    raise ValueError(
+        f"{action} uia target requires selector fields "
+        "(title/automation_id/class_name/control_type)."
+    )
+
+
+def _encode_json_base64(value: Any) -> str:
+    serialized = json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return base64.b64encode(serialized.encode("utf-8")).decode("ascii")
+
+
+def _menu_path_candidates(input_payload: dict[str, Any]) -> list[str]:
+    candidates: list[str] = []
+    raw_candidates = input_payload.get("menu_path_candidates")
+    if isinstance(raw_candidates, list):
+        candidates.extend(str(candidate).strip() for candidate in raw_candidates)
+    menu_path = str(input_payload.get("menu_path") or "").strip()
+    deduped = _dedupe_strings(candidates)
+    if menu_path and menu_path not in deduped:
+        deduped.insert(0, menu_path)
+    return deduped
+
+
 def _normalize_robot_scalar(value: str) -> str:
     text = str(value or "").strip()
     if text == "":
@@ -264,15 +386,12 @@ def _apply_step_guards(
 
 def _hierarchy_target_from_step(step_payload: dict[str, Any], *, action: str) -> tuple[str, float]:
     target = _require_selector(step_payload, action)
-    strategy = str(target.get("strategy") or "").strip().lower()
-    if strategy != "unity_hierarchy":
-        raise ValueError(f"{action} requires unity_hierarchy target strategy.")
-    unity_hierarchy = target.get("unity_hierarchy")
-    if not isinstance(unity_hierarchy, dict):
-        raise ValueError(f"{action} unity_hierarchy target must include unity_hierarchy object.")
-    hierarchy_path = str(unity_hierarchy.get("path") or "").strip()
-    if hierarchy_path == "":
-        raise ValueError(f"{action} unity_hierarchy target requires path.")
+    hierarchy_targets = _target_candidates_by_strategy(
+        target,
+        action=action,
+        allowed_strategies={"unity_hierarchy"},
+    )
+    hierarchy_path = _hierarchy_paths_from_targets(hierarchy_targets, action=action)[0]
     timeout_seconds = _timeout_seconds_from_step(step_payload, default=4.0)
     return hierarchy_path, timeout_seconds
 
@@ -282,6 +401,18 @@ def _format_hierarchy_select_line(indent: str, hierarchy_path: str, timeout_seco
         f"{indent}${{annotation}}=    Wait Until Keyword Succeeds"
         "    45 sec    1 sec    Select Unity Hierarchy Object"
         f"    hierarchy_path={hierarchy_path}    timeout_seconds={timeout_seconds}"
+    )
+
+
+def _format_hierarchy_select_with_fallbacks_line(
+    indent: str,
+    hierarchy_paths: list[str],
+    timeout_seconds: float,
+) -> str:
+    return (
+        f"{indent}${{annotation}}=    Wait Until Keyword Succeeds"
+        "    45 sec    1 sec    Select Unity Hierarchy Object With Fallbacks"
+        f"    {timeout_seconds}    {'    '.join(hierarchy_paths)}"
     )
 
 
@@ -545,11 +676,24 @@ def _step_robot_lines_from_payload(
         target = _require_selector(step_payload, "click")
         strategy = str(target.get("strategy") or "").strip().lower()
         if strategy == "unity_hierarchy":
-            hierarchy_path, timeout_seconds = _hierarchy_target_from_step(
-                step_payload, action="click"
+            timeout_seconds = _timeout_seconds_from_step(step_payload, default=4.0)
+            hierarchy_targets = _target_candidates_by_strategy(
+                target,
+                action="click",
+                allowed_strategies={"unity_hierarchy"},
+            )
+            hierarchy_paths = _hierarchy_paths_from_targets(hierarchy_targets, action="click")
+            select_line = (
+                _format_hierarchy_select_with_fallbacks_line(
+                    indent,
+                    hierarchy_paths,
+                    timeout_seconds,
+                )
+                if len(hierarchy_paths) > 1
+                else _format_hierarchy_select_line(indent, hierarchy_paths[0], timeout_seconds)
             )
             lines = [
-                _format_hierarchy_select_line(indent, hierarchy_path, timeout_seconds),
+                select_line,
             ]
             lines.append(f"{indent}Wait For Seconds    {wait_seconds}")
             lines.append(f"{indent}Emit Annotation Metadata    ${{annotation}}")
@@ -561,25 +705,40 @@ def _step_robot_lines_from_payload(
                 title=title,
             )
         if strategy == "uia":
-            uia = target.get("uia")
-            if not isinstance(uia, dict):
-                raise ValueError("click uia target must include uia object.")
-            selector_args = _robot_named_args(
-                _uia_selector_args(uia),
-                ("title", "automation_id", "class_name", "control_type", "index"),
+            uia_targets = _target_candidates_by_strategy(
+                target,
+                action="click",
+                allowed_strategies={"uia"},
             )
-            if selector_args == "":
-                raise ValueError(
-                    "click uia target requires selector fields "
-                    "(title/automation_id/class_name/control_type)."
+            selectors = _uia_selector_payloads_from_targets(uia_targets, action="click")
+            if len(selectors) == 1:
+                selector_args = _robot_named_args(
+                    selectors[0],
+                    ("title", "automation_id", "class_name", "control_type", "index"),
                 )
-            return _apply_step_guards(
-                step_payload=step_payload,
-                lines=[
+                if selector_args == "":
+                    raise ValueError(
+                        "click uia target requires selector fields "
+                        "(title/automation_id/class_name/control_type)."
+                    )
+                lines = [
                     f"{indent}${{annotation}}=    Click Unity Element{selector_args}",
                     f"{indent}Wait For Seconds    {wait_seconds}",
                     f"{indent}Emit Annotation Metadata    ${{annotation}}",
-                ],
+                ]
+            else:
+                selectors_b64 = _encode_json_base64(selectors)
+                lines = [
+                    (
+                        f"{indent}${{annotation}}=    Click Unity Element With Fallbacks"
+                        f"    selectors_b64={selectors_b64}"
+                    ),
+                    f"{indent}Wait For Seconds    {wait_seconds}",
+                    f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                ]
+            return _apply_step_guards(
+                step_payload=step_payload,
+                lines=lines,
                 indent=indent,
                 path=path,
                 title=title,
@@ -606,12 +765,27 @@ def _step_robot_lines_from_payload(
         raise ValueError(f"Unsupported click target strategy: {strategy}")
 
     if action == "select_hierarchy":
-        hierarchy_path, timeout_seconds = _hierarchy_target_from_step(
-            step_payload,
+        target = _require_selector(step_payload, "select_hierarchy")
+        timeout_seconds = _timeout_seconds_from_step(step_payload, default=4.0)
+        hierarchy_targets = _target_candidates_by_strategy(
+            target,
             action="select_hierarchy",
+            allowed_strategies={"unity_hierarchy"},
+        )
+        hierarchy_paths = _hierarchy_paths_from_targets(
+            hierarchy_targets, action="select_hierarchy"
+        )
+        select_line = (
+            _format_hierarchy_select_with_fallbacks_line(
+                indent,
+                hierarchy_paths,
+                timeout_seconds,
+            )
+            if len(hierarchy_paths) > 1
+            else _format_hierarchy_select_line(indent, hierarchy_paths[0], timeout_seconds)
         )
         lines = [
-            _format_hierarchy_select_line(indent, hierarchy_path, timeout_seconds),
+            select_line,
             f"{indent}Wait For Seconds    {wait_seconds}",
             f"{indent}Emit Annotation Metadata    ${{annotation}}",
         ]
@@ -740,33 +914,47 @@ def _step_robot_lines_from_payload(
                 title=title,
             )
         if strategy == "uia":
-            uia = target.get("uia")
-            if not isinstance(uia, dict):
-                raise ValueError("double_click uia target must include uia object.")
             timeout_seconds = _timeout_seconds_from_step(step_payload, default=10.0)
-            args = _uia_selector_args(uia)
-            args["timeout_seconds"] = timeout_seconds
-            selector_args = _robot_named_args(
-                args,
-                (
-                    "title",
-                    "automation_id",
-                    "class_name",
-                    "control_type",
-                    "index",
-                    "timeout_seconds",
-                ),
+            uia_targets = _target_candidates_by_strategy(
+                target,
+                action="double_click",
+                allowed_strategies={"uia"},
             )
-            if selector_args == "":
-                raise ValueError(
-                    "double_click uia target requires selector fields "
-                    "(title/automation_id/class_name/control_type)."
+            selectors = _uia_selector_payloads_from_targets(uia_targets, action="double_click")
+            if len(selectors) == 1:
+                args = dict(selectors[0])
+                args["timeout_seconds"] = timeout_seconds
+                selector_args = _robot_named_args(
+                    args,
+                    (
+                        "title",
+                        "automation_id",
+                        "class_name",
+                        "control_type",
+                        "index",
+                        "timeout_seconds",
+                    ),
                 )
-            lines = [
-                f"{indent}${{annotation}}=    Double Click Unity Element{selector_args}",
-                f"{indent}Wait For Seconds    {wait_seconds}",
-                f"{indent}Emit Annotation Metadata    ${{annotation}}",
-            ]
+                if selector_args == "":
+                    raise ValueError(
+                        "double_click uia target requires selector fields "
+                        "(title/automation_id/class_name/control_type)."
+                    )
+                lines = [
+                    f"{indent}${{annotation}}=    Double Click Unity Element{selector_args}",
+                    f"{indent}Wait For Seconds    {wait_seconds}",
+                    f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                ]
+            else:
+                selectors_b64 = _encode_json_base64(selectors)
+                lines = [
+                    (
+                        f"{indent}${{annotation}}=    Double Click Unity Element With Fallbacks"
+                        f"    selectors_b64={selectors_b64}    timeout_seconds={timeout_seconds}"
+                    ),
+                    f"{indent}Wait For Seconds    {wait_seconds}",
+                    f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                ]
             return _apply_step_guards(
                 step_payload=step_payload,
                 lines=lines,
@@ -800,23 +988,40 @@ def _step_robot_lines_from_payload(
                 title=title,
             )
         if strategy == "uia":
-            uia = target.get("uia")
-            if not isinstance(uia, dict):
-                raise ValueError("right_click uia target must include uia object.")
-            selector_args = _robot_named_args(
-                _uia_selector_args(uia),
-                ("title", "automation_id", "class_name", "control_type", "index"),
+            uia_targets = _target_candidates_by_strategy(
+                target,
+                action="right_click",
+                allowed_strategies={"uia"},
             )
-            if selector_args == "":
-                raise ValueError(
-                    "right_click uia target requires selector fields "
-                    "(title/automation_id/class_name/control_type)."
+            selectors = _uia_selector_payloads_from_targets(uia_targets, action="right_click")
+            if len(selectors) == 1:
+                selector_args = _robot_named_args(
+                    selectors[0],
+                    ("title", "automation_id", "class_name", "control_type", "index"),
                 )
-            lines = [
-                f"{indent}${{annotation}}=    Click Unity Element{selector_args}    button=right",
-                f"{indent}Wait For Seconds    {wait_seconds}",
-                f"{indent}Emit Annotation Metadata    ${{annotation}}",
-            ]
+                if selector_args == "":
+                    raise ValueError(
+                        "right_click uia target requires selector fields "
+                        "(title/automation_id/class_name/control_type)."
+                    )
+                lines = [
+                    (
+                        f"{indent}${{annotation}}=    Click Unity Element{selector_args}"
+                        "    button=right"
+                    ),
+                    f"{indent}Wait For Seconds    {wait_seconds}",
+                    f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                ]
+            else:
+                selectors_b64 = _encode_json_base64(selectors)
+                lines = [
+                    (
+                        f"{indent}${{annotation}}=    Click Unity Element With Fallbacks"
+                        f"    selectors_b64={selectors_b64}    button=right"
+                    ),
+                    f"{indent}Wait For Seconds    {wait_seconds}",
+                    f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                ]
             return _apply_step_guards(
                 step_payload=step_payload,
                 lines=lines,
@@ -852,12 +1057,17 @@ def _step_robot_lines_from_payload(
         input_payload = step_payload.get("input")
         if not isinstance(input_payload, dict):
             raise ValueError("open_menu requires input payload.")
-        menu_path = str(input_payload.get("menu_path") or "").strip()
-        if menu_path == "":
+        menu_paths = _menu_path_candidates(input_payload)
+        if not menu_paths:
             raise ValueError("open_menu requires input.menu_path.")
+        command_line = (
+            f"{indent}Open Unity Top Menu With Fallbacks    {'    '.join(menu_paths)}"
+            if len(menu_paths) > 1
+            else f"{indent}Open Unity Top Menu    {menu_paths[0]}"
+        )
         return _apply_step_guards(
             step_payload=step_payload,
-            lines=[f"{indent}Open Unity Top Menu    {menu_path}"],
+            lines=[command_line],
             indent=indent,
             path=path,
             title=title,
@@ -950,45 +1160,70 @@ def _step_robot_lines_from_payload(
         strategy = str(target.get("strategy") or "").strip().lower()
         timeout_seconds = _timeout_seconds_from_step(step_payload, default=10.0)
         if strategy == "uia":
-            uia = target.get("uia")
-            if not isinstance(uia, dict):
-                raise ValueError("assert uia target must include uia object.")
-            args = _uia_selector_args(uia)
-            args["timeout_seconds"] = timeout_seconds
-            selector_args = _robot_named_args(
-                args,
-                (
-                    "title",
-                    "automation_id",
-                    "class_name",
-                    "control_type",
-                    "index",
-                    "timeout_seconds",
-                ),
+            uia_targets = _target_candidates_by_strategy(
+                target,
+                action="assert",
+                allowed_strategies={"uia"},
             )
-            if selector_args == "":
-                raise ValueError(
-                    "assert uia target requires selector fields "
-                    "(title/automation_id/class_name/control_type)."
+            selectors = _uia_selector_payloads_from_targets(uia_targets, action="assert")
+            if len(selectors) == 1:
+                args = dict(selectors[0])
+                args["timeout_seconds"] = timeout_seconds
+                selector_args = _robot_named_args(
+                    args,
+                    (
+                        "title",
+                        "automation_id",
+                        "class_name",
+                        "control_type",
+                        "index",
+                        "timeout_seconds",
+                    ),
                 )
+                if selector_args == "":
+                    raise ValueError(
+                        "assert uia target requires selector fields "
+                        "(title/automation_id/class_name/control_type)."
+                    )
+                lines = [f"{indent}Wait For Unity Element{selector_args}"]
+            else:
+                selectors_b64 = _encode_json_base64(selectors)
+                lines = [
+                    (
+                        f"{indent}Wait For Unity Element With Fallbacks"
+                        f"    selectors_b64={selectors_b64}    timeout_seconds={timeout_seconds}"
+                    )
+                ]
             return _apply_step_guards(
                 step_payload=step_payload,
-                lines=[f"{indent}Wait For Unity Element{selector_args}"],
+                lines=lines,
                 indent=indent,
                 path=path,
                 title=title,
             )
         if strategy == "unity_hierarchy":
-            hierarchy_path, hierarchy_timeout = _hierarchy_target_from_step(
-                step_payload, action="assert"
+            hierarchy_timeout = _timeout_seconds_from_step(step_payload, default=4.0)
+            hierarchy_targets = _target_candidates_by_strategy(
+                target,
+                action="assert",
+                allowed_strategies={"unity_hierarchy"},
+            )
+            hierarchy_paths = _hierarchy_paths_from_targets(hierarchy_targets, action="assert")
+            select_line = (
+                f"{indent}Wait Until Keyword Succeeds    45 sec    1 sec    "
+                "Select Unity Hierarchy Object With Fallbacks"
+                f"    {hierarchy_timeout}    {'    '.join(hierarchy_paths)}"
+                if len(hierarchy_paths) > 1
+                else (
+                    f"{indent}Wait Until Keyword Succeeds    45 sec    1 sec    "
+                    "Select Unity Hierarchy Object"
+                    f"    hierarchy_path={hierarchy_paths[0]}"
+                    f"    timeout_seconds={hierarchy_timeout}"
+                )
             )
             return _apply_step_guards(
                 step_payload=step_payload,
-                lines=[
-                    f"{indent}Wait Until Keyword Succeeds    45 sec    1 sec    "
-                    "Select Unity Hierarchy Object"
-                    f"    hierarchy_path={hierarchy_path}    timeout_seconds={hierarchy_timeout}",
-                ],
+                lines=[select_line],
                 indent=indent,
                 path=path,
                 title=title,
@@ -1126,6 +1361,102 @@ def _generate_robot_suite_from_resolved(
             "    IF    '${normalized}' == ''",
             "        Fail    unity_project_path is required when unity_mode is launch.",
             "    END",
+            "",
+            "Open Unity Top Menu With Fallbacks",
+            "    [Arguments]    @{menu_paths}",
+            "    ${last_error}=    Set Variable    ${EMPTY}",
+            "    FOR    ${menu_path}    IN    @{menu_paths}",
+            (
+                "        ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Open Unity Top Menu    ${menu_path}"
+            ),
+            "        IF    '${status}' == 'PASS'",
+            "            RETURN",
+            "        END",
+            "        ${last_error}=    Set Variable    ${result}",
+            "    END",
+            "    Fail    Failed to open Unity menu using candidates: ${last_error}",
+            "",
+            "Select Unity Hierarchy Object With Fallbacks",
+            "    [Arguments]    ${timeout_seconds}=4.0    @{hierarchy_paths}",
+            "    ${last_error}=    Set Variable    ${EMPTY}",
+            "    FOR    ${path}    IN    @{hierarchy_paths}",
+            (
+                "        ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Select Unity Hierarchy Object"
+                "    hierarchy_path=${path}    timeout_seconds=${timeout_seconds}"
+            ),
+            "        IF    '${status}' == 'PASS'",
+            "            RETURN    ${result}",
+            "        END",
+            "        ${last_error}=    Set Variable    ${result}",
+            "    END",
+            "    Fail    Failed to select Unity hierarchy object using candidates: ${last_error}",
+            "",
+            "Click Unity Element With Fallbacks",
+            "    [Arguments]    ${selectors_b64}    ${button}=left",
+            (
+                "    ${selectors_json}=    Evaluate"
+                "    __import__('base64').b64decode($selectors_b64).decode('utf-8')"
+            ),
+            "    ${selectors}=    Evaluate    __import__('json').loads($selectors_json)",
+            "    ${last_error}=    Set Variable    ${EMPTY}",
+            "    FOR    ${selector}    IN    @{selectors}",
+            (
+                "        ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Click Unity Element    &{selector}    button=${button}"
+            ),
+            "        IF    '${status}' == 'PASS'",
+            "            RETURN    ${result}",
+            "        END",
+            "        ${last_error}=    Set Variable    ${result}",
+            "    END",
+            "    Fail    Failed to click Unity element using selector fallbacks: ${last_error}",
+            "",
+            "Double Click Unity Element With Fallbacks",
+            "    [Arguments]    ${selectors_b64}    ${timeout_seconds}=10.0",
+            (
+                "    ${selectors_json}=    Evaluate"
+                "    __import__('base64').b64decode($selectors_b64).decode('utf-8')"
+            ),
+            "    ${selectors}=    Evaluate    __import__('json').loads($selectors_json)",
+            "    ${last_error}=    Set Variable    ${EMPTY}",
+            "    FOR    ${selector}    IN    @{selectors}",
+            (
+                "        ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Double Click Unity Element"
+                "    &{selector}    timeout_seconds=${timeout_seconds}"
+            ),
+            "        IF    '${status}' == 'PASS'",
+            "            RETURN    ${result}",
+            "        END",
+            "        ${last_error}=    Set Variable    ${result}",
+            "    END",
+            (
+                "    Fail    Failed to double click Unity element using selector fallbacks:"
+                " ${last_error}"
+            ),
+            "",
+            "Wait For Unity Element With Fallbacks",
+            "    [Arguments]    ${selectors_b64}    ${timeout_seconds}=10.0",
+            (
+                "    ${selectors_json}=    Evaluate"
+                "    __import__('base64').b64decode($selectors_b64).decode('utf-8')"
+            ),
+            "    ${selectors}=    Evaluate    __import__('json').loads($selectors_json)",
+            "    ${last_error}=    Set Variable    ${EMPTY}",
+            "    FOR    ${selector}    IN    @{selectors}",
+            (
+                "        ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Wait For Unity Element    &{selector}"
+                "    timeout_seconds=${timeout_seconds}"
+            ),
+            "        IF    '${status}' == 'PASS'",
+            "            RETURN    ${TRUE}",
+            "        END",
+            "        ${last_error}=    Set Variable    ${result}",
+            "    END",
+            "    Fail    Failed to wait for Unity element using selector fallbacks: ${last_error}",
             "",
             "Double Click Unity Element",
             (

@@ -132,9 +132,7 @@ def build_ui(self, *, bg_light: str) -> None:
     self.help_status_label = QLabel()
     self.help_status_label.setObjectName("HeaderHelpLabel")
     self.help_status_label.setMinimumWidth(0)
-    self.help_status_label.setSizePolicy(
-        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-    )
+    self.help_status_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
     header_layout.addWidget(self.help_status_label, 1)
 
     self._rec_indicator = QLabel()

@@ -182,6 +182,92 @@ def test_generate_robot_suite_supports_select_hierarchy_action() -> None:
     assert "Select Unity Hierarchy Object    hierarchy_path=AvatarRoot/Hair/Tail" in text
 
 
+def test_generate_robot_suite_supports_select_hierarchy_fallback_candidates() -> None:
+    scenario = Scenario(
+        name="Select Hierarchy Fallback",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="select_hierarchy",
+                title="Select tail",
+                params={
+                    "target": {
+                        "strategy": "unity_hierarchy",
+                        "unity_hierarchy": {"path": "AvatarRoot/Hair/Tail", "match_mode": "exact"},
+                        "fallbacks": [
+                            {
+                                "strategy": "unity_hierarchy",
+                                "unity_hierarchy": {"path": "*/Hair/Tail", "match_mode": "exact"},
+                            }
+                        ],
+                    }
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="select-hierarchy-fallback")
+    assert (
+        "Select Unity Hierarchy Object With Fallbacks    4.0    AvatarRoot/Hair/Tail    */Hair/Tail"
+    ) in text
+
+
+def test_generate_robot_suite_supports_uia_fallback_candidates_for_click() -> None:
+    scenario = Scenario(
+        name="UIA Fallback Click",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="click",
+                title="Click file",
+                params={
+                    "target": {
+                        "strategy": "uia",
+                        "uia": {
+                            "automation_id": "MainMenuFile",
+                            "class_name": "MenuItem",
+                            "control_type": "MenuItem",
+                        },
+                        "fallbacks": [
+                            {
+                                "strategy": "uia",
+                                "uia": {"title": "File", "control_type": "MenuItem"},
+                            }
+                        ],
+                    }
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="uia-fallback-click")
+    assert "Click Unity Element With Fallbacks" in text
+
+
+def test_generate_robot_suite_supports_open_menu_candidates() -> None:
+    scenario = Scenario(
+        name="Open Menu Fallback",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="open_menu",
+                title="Open tools",
+                params={
+                    "input": {
+                        "menu_path_candidates": [
+                            "Tools>Avatar",
+                            "Window>Avatar",
+                        ]
+                    }
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="open-menu-fallback")
+    assert "Open Unity Top Menu With Fallbacks    Tools>Avatar    Window>Avatar" in text
+
+
 def test_generate_robot_suite_fails_fast_for_unknown_action() -> None:
     scenario = Scenario(
         name="Unsupported Action",

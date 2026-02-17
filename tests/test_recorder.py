@@ -109,6 +109,40 @@ def test_recorder_click_and_drag_record_element_selectors() -> None:
     assert steps[1].params["target_automation_id"] == "Target"
 
 
+def test_recorder_click_records_uia_target_with_fallbacks() -> None:
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "File",
+            "automation_id": "MainMenuFile",
+            "class_name": "MenuItem",
+            "control_type": "MenuItem",
+        },
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(100, 120, None, True)
+    recorder._on_click(100, 120, None, False)
+    steps = events_to_steps(recorder.stop())
+
+    assert len(steps) == 1
+    target = steps[0].params["target"]
+    assert target["strategy"] == "uia"
+    assert target["uia"]["automation_id"] == "MainMenuFile"
+    fallbacks = list(target.get("fallbacks") or [])
+    assert len(fallbacks) >= 1
+    assert any(
+        str((candidate.get("uia") or {}).get("automation_id") or "") == "MainMenuFile"
+        for candidate in fallbacks
+        if isinstance(candidate, dict)
+    )
+
+
 def test_click_is_recorded_when_press_unfocused_and_release_focused() -> None:
     snapshots = iter(
         [
@@ -211,6 +245,44 @@ def test_recorder_uses_bridge_for_unity_hierarchy_pane() -> None:
     assert len(steps) == 1
     assert steps[0].action == "click"
     assert steps[0].params["hierarchy_path"] == "AvatarRoot/Hair/Tail"
+
+
+def test_recorder_hierarchy_click_records_wildcard_root_fallback_path() -> None:
+    class DummyBridge:
+        def get_selected_hierarchy_path(self) -> str | None:
+            return "AvatarRoot/Hair/Tail"
+
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "UnityEditor.SceneHierarchyWindow",
+            "class_name": "UnityGUIViewWndClass",
+            "control_type": "Pane",
+        },
+        unity_bridge=DummyBridge(),
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(120, 180, None, True)
+    recorder._on_click(120, 180, None, False)
+    steps = events_to_steps(recorder.stop())
+
+    assert len(steps) == 1
+    target = steps[0].params["target"]
+    assert target["strategy"] == "unity_hierarchy"
+    assert target["unity_hierarchy"]["path"] == "AvatarRoot/Hair/Tail"
+    fallbacks = list(target.get("fallbacks") or [])
+    assert len(fallbacks) >= 1
+    assert any(
+        str((candidate.get("unity_hierarchy") or {}).get("path") or "") == "*/Hair/Tail"
+        for candidate in fallbacks
+        if isinstance(candidate, dict)
+    )
 
 
 def test_has_visible_window_with_hint_true_when_matching_title_exists() -> None:

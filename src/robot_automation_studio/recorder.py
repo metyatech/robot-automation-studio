@@ -17,6 +17,7 @@ from .models import Step
 STOP_HOTKEY_MAIN_KEY = "F12"
 STOP_HOTKEY_REQUIRED_MODIFIERS = {"ALT", "SHIFT"}
 HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS = 1.0
+_UIA_SELECTOR_KEYS = ("title", "automation_id", "class_name", "control_type", "index")
 
 
 @dataclass(slots=True)
@@ -71,6 +72,90 @@ def _is_generic_unity_hierarchy_pane(selector: dict[str, Any]) -> bool:
     if control_type != "pane":
         return False
     return "scenehierarchywindow" in title or "hierarchy" in title
+
+
+def _normalized_uia_selector(selector: dict[str, Any]) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
+    for key in _UIA_SELECTOR_KEYS:
+        value = selector.get(key)
+        if value is None:
+            continue
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                continue
+        normalized[key] = value
+    return normalized
+
+
+def _selector_signature(selector: dict[str, Any]) -> tuple[tuple[str, str], ...]:
+    signature: list[tuple[str, str]] = []
+    for key in _UIA_SELECTOR_KEYS:
+        if key not in selector:
+            continue
+        signature.append((key, str(selector[key])))
+    return tuple(signature)
+
+
+def _selector_candidates_for_fallbacks(primary: dict[str, Any]) -> list[dict[str, Any]]:
+    variants: list[dict[str, Any]] = []
+    seen: set[tuple[tuple[str, str], ...]] = {_selector_signature(primary)}
+    patterns: tuple[tuple[str, ...], ...] = (
+        ("automation_id", "class_name", "control_type"),
+        ("automation_id", "control_type"),
+        ("automation_id",),
+        ("title", "class_name", "control_type"),
+        ("title", "control_type"),
+        ("title",),
+    )
+    for pattern in patterns:
+        candidate: dict[str, Any] = {}
+        for key in pattern:
+            value = primary.get(key)
+            if value is None:
+                continue
+            candidate[key] = value
+        if not candidate:
+            continue
+        if "automation_id" not in candidate and "title" not in candidate:
+            continue
+        signature = _selector_signature(candidate)
+        if signature in seen:
+            continue
+        seen.add(signature)
+        variants.append(candidate)
+    return variants
+
+
+def _build_uia_target_with_fallbacks(selector: dict[str, Any]) -> dict[str, Any]:
+    primary = _normalized_uia_selector(selector)
+    target: dict[str, Any] = {"strategy": "uia", "uia": primary}
+    fallbacks = [
+        {"strategy": "uia", "uia": candidate}
+        for candidate in _selector_candidates_for_fallbacks(primary)
+    ]
+    if fallbacks:
+        target["fallbacks"] = fallbacks
+    return target
+
+
+def _build_hierarchy_target_with_fallbacks(path: str) -> dict[str, Any]:
+    normalized = str(path or "").strip().replace("\\", "/").strip("/")
+    target: dict[str, Any] = {
+        "strategy": "unity_hierarchy",
+        "unity_hierarchy": {"path": normalized, "match_mode": "exact"},
+    }
+    segments = [segment for segment in normalized.split("/") if segment]
+    if len(segments) >= 2:
+        wildcard_path = f"*/{'/'.join(segments[1:])}"
+        if wildcard_path != normalized:
+            target["fallbacks"] = [
+                {
+                    "strategy": "unity_hierarchy",
+                    "unity_hierarchy": {"path": wildcard_path, "match_mode": "exact"},
+                }
+            ]
+    return target
 
 
 def _title_matches_window_hint(title: str, window_hint: str) -> bool:
@@ -401,12 +486,15 @@ class ScenarioRecorder:
                 "click",
                 {
                     "hierarchy_path": hierarchy_path,
+                    "target": _build_hierarchy_target_with_fallbacks(hierarchy_path),
                 },
             )
             return
+        payload = dict(selector)
+        payload["target"] = _build_uia_target_with_fallbacks(selector)
         self.append(
             "click",
-            dict(selector),
+            payload,
         )
 
     def _on_key_press(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:
