@@ -93,12 +93,20 @@ def test_wait_until_available_passes_request_timeout_override() -> None:
 
 def test_get_selection_state_includes_selection_version_when_present() -> None:
     client = DummyBridgeClient(
-        [{"ok": True, "hierarchy_path": "Root/Child", "selection_version": 123}]
+        [
+            {
+                "ok": True,
+                "hierarchy_path": "Root/Child",
+                "selection_version": 123,
+                "selection_changed_unix_ms": 456,
+            }
+        ]
     )
     state = client.get_selection_state()
     assert state["ok"] is True
     assert state["hierarchy_path"] == "Root/Child"
     assert state["selection_version"] == 123
+    assert state["selection_changed_unix_ms"] == 456
 
 
 def test_wait_for_selection_change_requests_wait_endpoint() -> None:

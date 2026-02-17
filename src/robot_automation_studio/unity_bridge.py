@@ -70,7 +70,13 @@ class UnityBridgeClient:
         try:
             payload = self._request("GET", "/v1/selection")
         except Exception as ex:
-            return {"ok": False, "hierarchy_path": "", "selection_version": None, "error": str(ex)}
+            return {
+                "ok": False,
+                "hierarchy_path": "",
+                "selection_version": None,
+                "selection_changed_unix_ms": None,
+                "error": str(ex),
+            }
 
         ok = bool(payload.get("ok", False))
         hierarchy_path = str(payload.get("hierarchy_path") or "").strip()
@@ -84,10 +90,19 @@ class UnityBridgeClient:
             except (TypeError, ValueError):
                 selection_version = None
 
+        changed_value = payload.get("selection_changed_unix_ms", None)
+        selection_changed_unix_ms: int | None = None
+        if changed_value is not None and not isinstance(changed_value, bool):
+            try:
+                selection_changed_unix_ms = int(changed_value)
+            except (TypeError, ValueError):
+                selection_changed_unix_ms = None
+
         return {
             "ok": ok,
             "hierarchy_path": hierarchy_path,
             "selection_version": selection_version,
+            "selection_changed_unix_ms": selection_changed_unix_ms,
             "error": error,
         }
 
@@ -115,7 +130,13 @@ class UnityBridgeClient:
         try:
             payload = self._request("GET", path, timeout_seconds=request_timeout_seconds)
         except Exception as ex:
-            return {"ok": False, "hierarchy_path": "", "selection_version": None, "error": str(ex)}
+            return {
+                "ok": False,
+                "hierarchy_path": "",
+                "selection_version": None,
+                "selection_changed_unix_ms": None,
+                "error": str(ex),
+            }
 
         ok = bool(payload.get("ok", False))
         hierarchy_path = str(payload.get("hierarchy_path") or "").strip()
@@ -129,10 +150,19 @@ class UnityBridgeClient:
             except (TypeError, ValueError):
                 selection_version = None
 
+        changed_value = payload.get("selection_changed_unix_ms", None)
+        selection_changed_unix_ms: int | None = None
+        if changed_value is not None and not isinstance(changed_value, bool):
+            try:
+                selection_changed_unix_ms = int(changed_value)
+            except (TypeError, ValueError):
+                selection_changed_unix_ms = None
+
         return {
             "ok": ok,
             "hierarchy_path": hierarchy_path,
             "selection_version": selection_version,
+            "selection_changed_unix_ms": selection_changed_unix_ms,
             "error": error,
         }
 

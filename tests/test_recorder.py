@@ -1,3 +1,5 @@
+import time
+
 from pynput import keyboard
 
 from robot_automation_studio.models import Step
@@ -330,6 +332,89 @@ def test_recorder_hierarchy_click_waits_for_selection_update_when_bridge_support
 
     assert len(steps) == 1
     assert steps[0].params["hierarchy_path"] == "Main Camera"
+
+
+def test_recorder_hierarchy_click_skips_wait_when_selection_changed_after_mouse_down() -> None:
+    class NoWaitBridge:
+        def __init__(self) -> None:
+            self.wait_called = 0
+
+        def get_selection_state(self) -> dict[str, object]:
+            return {
+                "ok": True,
+                "hierarchy_path": "Main Camera",
+                "selection_version": 11,
+                "selection_changed_unix_ms": int(time.time() * 1000),
+            }
+
+        def wait_for_selection_change(
+            self, after_version: int, timeout_seconds: float | None = None
+        ):
+            _ = after_version
+            _ = timeout_seconds
+            self.wait_called += 1
+            return {"ok": False}
+
+    bridge = NoWaitBridge()
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "UnityEditor.SceneHierarchyWindow",
+            "class_name": "UnityGUIViewWndClass",
+            "control_type": "Pane",
+        },
+        unity_bridge=bridge,
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(120, 180, None, True)
+    recorder._on_click(120, 180, None, False)
+    steps = events_to_steps(recorder.stop())
+
+    assert len(steps) == 1
+    assert steps[0].params["hierarchy_path"] == "Main Camera"
+    assert bridge.wait_called == 0
+
+
+def test_recorder_hierarchy_click_does_not_query_selection_state_on_mouse_down() -> None:
+    class CountingBridge:
+        def __init__(self) -> None:
+            self.selection_state_calls = 0
+
+        def get_selection_state(self) -> dict[str, object]:
+            self.selection_state_calls += 1
+            return {
+                "ok": True,
+                "hierarchy_path": "Main Camera",
+                "selection_version": 11,
+                "selection_changed_unix_ms": int(time.time() * 1000),
+            }
+
+    bridge = CountingBridge()
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "UnityEditor.SceneHierarchyWindow",
+            "class_name": "UnityGUIViewWndClass",
+            "control_type": "Pane",
+        },
+        unity_bridge=bridge,
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(120, 180, None, True)
+    assert bridge.selection_state_calls == 0
+    recorder.stop()
 
 
 def test_has_visible_window_with_hint_true_when_matching_title_exists() -> None:
