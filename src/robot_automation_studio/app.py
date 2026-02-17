@@ -1949,14 +1949,25 @@ class StudioApp(QMainWindow):
 
     def stop_recording(self) -> None:
         from .recorder import events_to_steps
+        from .recording_normalization import (
+            normalize_recorded_hierarchy_paths_to_variables,
+        )
 
         if not self.recorder.is_recording:
             self.log(self._t("app.log.recording_not_running"))
             return
         events = self.recorder.stop()
         steps = events_to_steps(events)
+        start_index = len(self.scenario.steps)
         for step in steps:
             self.scenario.steps.append(step)
+        try:
+            normalize_recorded_hierarchy_paths_to_variables(
+                self.scenario,
+                step_start_index=start_index,
+            )
+        except Exception as error:
+            self.log(f"[recording-normalization] {error}")
         self.refresh_steps()
         if not self._is_robot_running():
             self._stop_overlay()
