@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSplitter,
     QTabWidget,
     QToolButton,
@@ -78,8 +79,8 @@ def build_ui(self, *, bg_light: str) -> None:
     header_bar.setObjectName("HeaderBar")
     header_bar.setFixedHeight(44)
     header_layout = QHBoxLayout(header_bar)
-    header_layout.setContentsMargins(10, 0, 10, 0)
-    header_layout.setSpacing(8)
+    header_layout.setContentsMargins(8, 0, 8, 0)
+    header_layout.setSpacing(6)
 
     self.title_label = QLabel()
     self.title_label.setObjectName("PanelTitle")
@@ -87,10 +88,9 @@ def build_ui(self, *, bg_light: str) -> None:
 
     self.name_edit = QLineEdit(self.scenario.name)
     self.name_edit.setObjectName("ScenarioNameEdit")
-    self.name_edit.setMinimumWidth(260)
-    header_layout.addWidget(self.name_edit)
-
-    header_layout.addStretch()
+    self.name_edit.setMinimumWidth(120)
+    self.name_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+    header_layout.addWidget(self.name_edit, 1)
 
     self.record_button = QPushButton()
     self.record_button.setObjectName("RecordButton")
@@ -131,6 +131,10 @@ def build_ui(self, *, bg_light: str) -> None:
 
     self.help_status_label = QLabel()
     self.help_status_label.setObjectName("HeaderHelpLabel")
+    self.help_status_label.setMinimumWidth(0)
+    self.help_status_label.setSizePolicy(
+        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+    )
     header_layout.addWidget(self.help_status_label, 1)
 
     self._rec_indicator = QLabel()
@@ -545,6 +549,15 @@ def apply_localized_texts(self) -> None:
     self.record_stop_button.setText(self._t("app.button.record_stop"))
     self.run_button.setText(self._t("app.button.run_robot"))
     self.stop_robot_button.setText(self._t("app.button.stop_robot"))
+    for _btn in (
+        self.record_button,
+        self.record_stop_button,
+        self.run_button,
+        self.stop_robot_button,
+    ):
+        _fm = _btn.fontMetrics()
+        _btn.setMinimumWidth(_fm.horizontalAdvance(_btn.text()) + 20)
+        _btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
     self._status_pill.setToolTip(self._t("app.status.run_tooltip"))
     self.help_status_label.setText(self._t("app.help.header"))
     self._rec_indicator.setToolTip(self._t("app.status.record_tooltip"))
@@ -560,10 +573,12 @@ def apply_localized_texts(self) -> None:
     self.file_json_action.setText(self._t("app.menu.file.full_json"))
     self.file_help_action.setText(self._t("app.menu.file.help"))
     self.file_run_diagnostics_action.setText(self._t("app.menu.file.run_diagnostics"))
-    self.hotkey_button.setText(
+    self.hotkey_button.setText("\u22f9 " + self._stop_hotkey_spec.label)
+    self.hotkey_button.setToolTip(
         self._t("app.button.hotkey_with_value", hotkey=self._stop_hotkey_spec.label)
+        + "\n"
+        + self._t("app.tooltip.stop_hotkey")
     )
-    self.hotkey_button.setToolTip(self._t("app.tooltip.stop_hotkey"))
     self._set_action_help(
         self.file_save_action,
         "app.help.menu.file.save.summary",

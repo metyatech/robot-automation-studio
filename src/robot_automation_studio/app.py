@@ -118,6 +118,7 @@ _BTN_BG = "#45475a"
 _BTN_HOVER = "#585b70"
 _LOG_BG = "#1a1a2e"
 _PYWINAUTO_PREPARED = False
+_COMBO_ARROW_PATH: str | None = None
 
 
 def _import_pywinauto_with_warning_filters(importer) -> None:
@@ -272,7 +273,35 @@ def _is_effectively_empty_json_payload(raw_text: str) -> bool:
     return False
 
 
-_STYLESHEET = f"""
+def _ensure_combo_arrow_icon() -> str:
+    """Create a triangle arrow icon for QComboBox and return its file path."""
+    global _COMBO_ARROW_PATH
+    if _COMBO_ARROW_PATH is not None:
+        return _COMBO_ARROW_PATH
+    import tempfile
+
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QColor, QPainter, QPixmap
+
+    size = 10
+    pixmap = QPixmap(size, size)
+    pixmap.fill(QColor(0, 0, 0, 0))
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setBrush(QColor(_FG))
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.drawPolygon([QPointF(1, 2), QPointF(9, 2), QPointF(5, 8)])
+    painter.end()
+    path = os.path.join(tempfile.gettempdir(), "ras_combo_arrow.png")
+    pixmap.save(path)
+    _COMBO_ARROW_PATH = path.replace("\\", "/")
+    return _COMBO_ARROW_PATH
+
+
+def _build_stylesheet() -> str:
+    """Build the application stylesheet (must be called after QApplication init)."""
+    arrow_path = _ensure_combo_arrow_icon()
+    return f"""
 QMainWindow, QWidget {{
     background: {_BG};
     color: {_FG};
@@ -285,7 +314,7 @@ QPushButton {{
     color: {_FG};
     border: none;
     border-radius: 4px;
-    padding: 4px 10px;
+    padding: 4px 8px;
 }}
 
 QPushButton:hover {{
@@ -310,15 +339,16 @@ QLineEdit:focus, QComboBox:focus {{
 }}
 
 QComboBox::drop-down {{
+    subcontrol-position: center right;
+    subcontrol-origin: padding;
+    width: 20px;
     border: none;
 }}
 
 QComboBox::down-arrow {{
-    image: none;
-    border-left: 3px solid transparent;
-    border-right: 3px solid transparent;
-    border-top: 5px solid {_FG};
-    margin-right: 6px;
+    image: url({arrow_path});
+    width: 10px;
+    height: 10px;
 }}
 
 QComboBox QAbstractItemView {{
@@ -550,7 +580,7 @@ QPushButton#ApplyButton:hover {{
 QLabel#StatusPill {{
     background: {_BG_LIGHT};
     color: {_FG_DIM};
-    padding: 4px 14px;
+    padding: 4px 10px;
     font-weight: bold;
     border-radius: 10px;
 }}
@@ -877,8 +907,12 @@ class StudioApp(QMainWindow):
         self._stop_hotkey_spec = spec
         self.recorder.set_stop_hotkey(spec.main_key, set(spec.required_modifiers))
         if hasattr(self, "hotkey_button"):
-            self.hotkey_button.setText(self._t("app.button.hotkey_with_value", hotkey=spec.label))
-            self.hotkey_button.setToolTip(self._t("app.tooltip.stop_hotkey"))
+            self.hotkey_button.setText("\u22f9 " + spec.label)
+            self.hotkey_button.setToolTip(
+                self._t("app.button.hotkey_with_value", hotkey=spec.label)
+                + "\n"
+                + self._t("app.tooltip.stop_hotkey")
+            )
         if self._overlay is not None:
             self._overlay.set_stop_hotkey_label(spec.label)
             self._overlay.set_progress_text(self._status_pill.text())
@@ -2675,7 +2709,7 @@ class StudioApp(QMainWindow):
 
 def main() -> None:
     app = QApplication(sys.argv)
-    app.setStyleSheet(_STYLESHEET)
+    app.setStyleSheet(_build_stylesheet())
     window = StudioApp()
     window.show()
     sys.exit(app.exec())
