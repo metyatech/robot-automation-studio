@@ -109,8 +109,8 @@ def test_recorder_click_and_drag_record_element_selectors() -> None:
     steps = events_to_steps(events)
     assert [step.action for step in steps] == ["click", "drag_drop"]
     assert steps[0].params["automation_id"] == "MainMenuFile"
-    assert steps[1].params["source_automation_id"] == "Source"
-    assert steps[1].params["target_automation_id"] == "Target"
+    assert steps[1].params["input"]["source"]["uia"]["automation_id"] == "Source"
+    assert steps[1].params["target"]["uia"]["automation_id"] == "Target"
 
 
 def test_recorder_click_records_uia_target_with_fallbacks() -> None:
@@ -139,11 +139,71 @@ def test_recorder_click_records_uia_target_with_fallbacks() -> None:
     assert target["strategy"] == "uia"
     assert target["uia"]["automation_id"] == "MainMenuFile"
     fallbacks = list(target.get("fallbacks") or [])
-    assert len(fallbacks) >= 1
+    assert len(fallbacks) >= 2
     assert any(
         str((candidate.get("uia") or {}).get("automation_id") or "") == "MainMenuFile"
         for candidate in fallbacks
         if isinstance(candidate, dict)
+    )
+    coordinate_fallbacks = [
+        candidate
+        for candidate in fallbacks
+        if isinstance(candidate, dict) and str(candidate.get("strategy") or "") == "coordinate"
+    ]
+    assert len(coordinate_fallbacks) == 1
+    coordinate = coordinate_fallbacks[0]["coordinate"]
+    assert coordinate["x_ratio"] == 0.1
+    assert coordinate["y_ratio"] == 0.15
+    assert coordinate["anchor_window_hint"] == "Unity"
+
+
+def test_recorder_drag_records_selector_objects_with_coordinate_fallbacks() -> None:
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda x, y: (
+            {
+                "title": "Source",
+                "automation_id": "Source",
+                "class_name": "Button",
+                "control_type": "Button",
+            }
+            if (x, y) == (250, 200)
+            else {
+                "title": "Target",
+                "automation_id": "Target",
+                "class_name": "Pane",
+                "control_type": "Pane",
+            }
+        ),
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(250, 200, None, True)
+    recorder._on_click(750, 600, None, False)
+    steps = events_to_steps(recorder.stop())
+
+    assert len(steps) == 1
+    assert steps[0].action == "drag_drop"
+    source = steps[0].params["input"]["source"]
+    target = steps[0].params["target"]
+    assert source["strategy"] == "uia"
+    assert target["strategy"] == "uia"
+    assert source["uia"]["automation_id"] == "Source"
+    assert target["uia"]["automation_id"] == "Target"
+    source_fallbacks = list(source.get("fallbacks") or [])
+    target_fallbacks = list(target.get("fallbacks") or [])
+    assert any(
+        isinstance(candidate, dict) and str(candidate.get("strategy") or "") == "coordinate"
+        for candidate in source_fallbacks
+    )
+    assert any(
+        isinstance(candidate, dict) and str(candidate.get("strategy") or "") == "coordinate"
+        for candidate in target_fallbacks
     )
 
 

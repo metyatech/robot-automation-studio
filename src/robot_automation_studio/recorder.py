@@ -180,6 +180,44 @@ def _build_hierarchy_target_with_fallbacks(path: str) -> dict[str, Any]:
     return target
 
 
+def _build_coordinate_target(
+    x: int,
+    y: int,
+    snapshot: WindowSnapshot,
+    *,
+    anchor_window_hint: str,
+) -> dict[str, Any] | None:
+    width = int(snapshot.width)
+    height = int(snapshot.height)
+    if width <= 0 or height <= 0:
+        return None
+    x_ratio = (float(x) - float(snapshot.left)) / float(width)
+    y_ratio = (float(y) - float(snapshot.top)) / float(height)
+    # Clamp to avoid out-of-window jitter from window borders.
+    x_ratio = max(0.0, min(1.0, x_ratio))
+    y_ratio = max(0.0, min(1.0, y_ratio))
+    return {
+        "strategy": "coordinate",
+        "coordinate": {
+            "x_ratio": x_ratio,
+            "y_ratio": y_ratio,
+            "anchor_window_hint": anchor_window_hint,
+        },
+    }
+
+
+def _append_selector_fallback(selector: dict[str, Any], fallback: dict[str, Any]) -> None:
+    if not isinstance(selector, dict) or not isinstance(fallback, dict):
+        return
+    fallbacks = selector.get("fallbacks")
+    if fallbacks is None:
+        fallbacks = []
+        selector["fallbacks"] = fallbacks
+    if not isinstance(fallbacks, list):
+        return
+    fallbacks.append(fallback)
+
+
 def _title_matches_window_hint(title: str, window_hint: str) -> bool:
     normalized_title = str(title or "").strip().lower()
     if normalized_title == "":
@@ -498,20 +536,33 @@ class ScenarioRecorder:
                     )
                     result = "error_drag_target_missing_keys"
                     return
-                payload: dict[str, Any] = {}
-                source_title = str(source_selector.get("title") or "").strip()
-                if source_title:
-                    payload["source_title"] = source_title
-                source_automation_id = str(source_selector.get("automation_id") or "").strip()
-                if source_automation_id:
-                    payload["source_automation_id"] = source_automation_id
-                target_title = str(target_selector.get("title") or "").strip()
-                if target_title:
-                    payload["target_title"] = target_title
-                target_automation_id = str(target_selector.get("automation_id") or "").strip()
-                if target_automation_id:
-                    payload["target_automation_id"] = target_automation_id
-                self._append_event("drag", payload, timestamp_ms=timestamp_ms)
+                source_target = _build_uia_target_with_fallbacks(source_selector)
+                target_target = _build_uia_target_with_fallbacks(target_selector)
+                window_hint = str(self._window_hint or "").strip()
+                source_coordinate = _build_coordinate_target(
+                    start_x,
+                    start_y,
+                    snapshot,
+                    anchor_window_hint=window_hint,
+                )
+                if source_coordinate is not None:
+                    _append_selector_fallback(source_target, source_coordinate)
+                target_coordinate = _build_coordinate_target(
+                    x,
+                    y,
+                    snapshot,
+                    anchor_window_hint=window_hint,
+                )
+                if target_coordinate is not None:
+                    _append_selector_fallback(target_target, target_coordinate)
+                self._append_event(
+                    "drag",
+                    {
+                        "input": {"source": source_target},
+                        "target": target_target,
+                    },
+                    timestamp_ms=timestamp_ms,
+                )
                 result = "recorded_drag"
                 return
 
@@ -573,7 +624,17 @@ class ScenarioRecorder:
                 return
 
             payload = dict(selector)
-            payload["target"] = _build_uia_target_with_fallbacks(selector)
+            target = _build_uia_target_with_fallbacks(selector)
+            window_hint = str(self._window_hint or "").strip()
+            coordinate_target = _build_coordinate_target(
+                x,
+                y,
+                snapshot,
+                anchor_window_hint=window_hint,
+            )
+            if coordinate_target is not None:
+                _append_selector_fallback(target, coordinate_target)
+            payload["target"] = target
             self._append_event("click", payload, timestamp_ms=timestamp_ms)
             result = "recorded_click_uia"
         except Exception as ex:
