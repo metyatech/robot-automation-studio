@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import os
 import platform
+import threading
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import win32gui  # type: ignore[import-not-found]
@@ -17,6 +21,9 @@ from .models import Step
 STOP_HOTKEY_MAIN_KEY = "F12"
 STOP_HOTKEY_REQUIRED_MODIFIERS = {"ALT", "SHIFT"}
 HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS = 1.0
+RECORD_PERF_ENV_VAR = "RAS_RECORD_PERF"
+RECORD_PERF_PATH_ENV_VAR = "RAS_RECORD_PERF_PATH"
+RECORD_PERF_MAX_SAMPLES = 20000
 _UIA_SELECTOR_KEYS = ("title", "automation_id", "class_name", "control_type", "index")
 
 
@@ -34,6 +41,18 @@ class RecordedEvent:
     kind: str
     payload: dict[str, Any]
     timestamp_ms: int
+
+
+def _env_flag(name: str) -> bool:
+    value = os.getenv(name, None)
+    if value is None:
+        return False
+    normalized = str(value).strip().lower()
+    if normalized in {"", "0", "false", "no", "off"}:
+        return False
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    return True
 
 
 def resolve_selector_from_point(x: int, y: int) -> dict[str, Any] | None:
@@ -280,6 +299,11 @@ class ScenarioRecorder:
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
         self._last_hierarchy_bridge_diag = ""
+        self._record_perf_enabled = False
+        self._record_perf_path: Path | None = None
+        self._record_perf_session_id = ""
+        self._record_perf_samples: list[dict[str, Any]] = []
+        self._record_perf_lock = threading.Lock()
 
     def set_stop_hotkey(self, main_key: str, required_modifiers: set[str] | frozenset[str]) -> None:
         self._stop_hotkey_main_key = str(main_key or STOP_HOTKEY_MAIN_KEY).upper()
@@ -292,6 +316,41 @@ class ScenarioRecorder:
     def is_recording(self) -> bool:
         return self._recording
 
+    def _resolve_record_perf_path(self) -> Path:
+        configured = str(os.getenv(RECORD_PERF_PATH_ENV_VAR, "") or "").strip()
+        if configured:
+            return Path(configured).expanduser()
+        return Path("artifacts/studio").resolve() / "diagnostics" / "recording-perf.jsonl"
+
+    def _add_record_perf_sample(self, sample: dict[str, Any]) -> None:
+        if not self._record_perf_enabled:
+            return
+        with self._record_perf_lock:
+            if len(self._record_perf_samples) >= RECORD_PERF_MAX_SAMPLES:
+                return
+            self._record_perf_samples.append(dict(sample))
+
+    def _flush_record_perf_samples(self) -> None:
+        if not self._record_perf_enabled:
+            return
+        path = self._record_perf_path
+        if path is None:
+            return
+        with self._record_perf_lock:
+            samples = list(self._record_perf_samples)
+            self._record_perf_samples.clear()
+        if not samples:
+            return
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8", newline="\n") as stream:
+                for sample in samples:
+                    stream.write(json.dumps(sample, ensure_ascii=False) + "\n")
+        except OSError as error:
+            self._report_record_error(
+                f"[diagnostics] Failed to persist recording perf log to {path}: {error}"
+            )
+
     def start(self, window_hint: str = "Unity") -> None:
         self._events.clear()
         self._recording = True
@@ -302,6 +361,15 @@ class ScenarioRecorder:
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
         self._last_hierarchy_bridge_diag = ""
+        self._record_perf_enabled = _env_flag(RECORD_PERF_ENV_VAR)
+        self._record_perf_path = (
+            self._resolve_record_perf_path() if self._record_perf_enabled else None
+        )
+        self._record_perf_session_id = (
+            f"{int(time.time() * 1000)}-{os.getpid()}" if self._record_perf_enabled else ""
+        )
+        with self._record_perf_lock:
+            self._record_perf_samples.clear()
         self._mouse_listener = mouse.Listener(on_click=self._on_click)
         self._keyboard_listener = keyboard.Listener(
             on_press=self._on_key_press, on_release=self._on_key_release
@@ -323,6 +391,7 @@ class ScenarioRecorder:
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
         self._last_hierarchy_bridge_diag = ""
+        self._flush_record_perf_samples()
         return list(self._events)
 
     def append(self, kind: str, payload: dict[str, Any]) -> None:
@@ -353,6 +422,7 @@ class ScenarioRecorder:
         self,
         snapshot: WindowSnapshot | None = None,
         mouse_down_unix_ms: int | None = None,
+        perf_sample: dict[str, Any] | None = None,
     ) -> str | None:
         if time.monotonic() < self._bridge_retry_backoff_until:
             return None
@@ -365,10 +435,17 @@ class ScenarioRecorder:
         state_getter = getattr(bridge, "get_selection_state", None)
         if state_getter is not None:
             payload: Any | None
+            state_started_ns: int | None = None
+            if perf_sample is not None:
+                state_started_ns = time.perf_counter_ns()
             try:
                 payload = state_getter()
             except Exception:
                 payload = None
+            if perf_sample is not None and state_started_ns is not None:
+                perf_sample["t_bridge_get_selection_state_ms"] = (
+                    time.perf_counter_ns() - state_started_ns
+                ) / 1e6
 
             if isinstance(payload, dict) and bool(payload.get("ok", False)):
                 normalized = (
@@ -402,6 +479,9 @@ class ScenarioRecorder:
                 waiter = getattr(bridge, "wait_for_selection_change", None)
                 if waiter is not None and selection_version is not None:
                     waited_payload: Any | None
+                    wait_started_ns: int | None = None
+                    if perf_sample is not None:
+                        wait_started_ns = time.perf_counter_ns()
                     try:
                         waited_payload = waiter(
                             selection_version,
@@ -414,6 +494,10 @@ class ScenarioRecorder:
                             waited_payload = None
                     except Exception:
                         waited_payload = None
+                    if perf_sample is not None and wait_started_ns is not None:
+                        perf_sample["t_bridge_wait_for_selection_change_ms"] = (
+                            time.perf_counter_ns() - wait_started_ns
+                        ) / 1e6
                     if isinstance(waited_payload, dict) and bool(waited_payload.get("ok", False)):
                         waited_normalized = (
                             str(waited_payload.get("hierarchy_path") or "")
@@ -432,6 +516,9 @@ class ScenarioRecorder:
         getter = getattr(bridge, "get_selected_hierarchy_path", None)
         if getter is None:
             return None
+        fallback_started_ns: int | None = None
+        if perf_sample is not None:
+            fallback_started_ns = time.perf_counter_ns()
         for _ in range(4):
             try:
                 path = getter()
@@ -440,10 +527,18 @@ class ScenarioRecorder:
             normalized = str(path or "").strip().replace("\\", "/").strip("/")
             if normalized:
                 self._last_hierarchy_bridge_diag = ""
+                if perf_sample is not None and fallback_started_ns is not None:
+                    perf_sample["t_bridge_get_selected_hierarchy_path_ms"] = (
+                        time.perf_counter_ns() - fallback_started_ns
+                    ) / 1e6
                 return normalized
             time.sleep(0.02)
         self._bridge_retry_backoff_until = time.monotonic() + 0.8
         self._last_hierarchy_bridge_diag = self._build_hierarchy_bridge_diagnostics(snapshot)
+        if perf_sample is not None and fallback_started_ns is not None:
+            perf_sample["t_bridge_get_selected_hierarchy_path_ms"] = (
+                time.perf_counter_ns() - fallback_started_ns
+            ) / 1e6
         return None
 
     def _build_hierarchy_bridge_diagnostics(self, snapshot: WindowSnapshot | None) -> str:
@@ -493,20 +588,76 @@ class ScenarioRecorder:
         self._mouse_down_unix_ms = None
         if start_point is None:
             return
+
+        perf_sample: dict[str, Any] | None = None
+        perf_start_ns = 0
+        perf_enabled = self._record_perf_enabled
+        if perf_enabled:
+            perf_start_ns = time.perf_counter_ns()
+            start_x, start_y = start_point
+            perf_sample = {
+                "session_id": self._record_perf_session_id,
+                "event": "click_release",
+                "unix_ms": int(time.time() * 1000),
+                "window_hint": self._window_hint,
+                "x": x,
+                "y": y,
+                "start_x": start_x,
+                "start_y": start_y,
+                "mouse_down_unix_ms": start_mouse_down_unix_ms,
+            }
+
+        def _finalize_perf(result: str) -> None:
+            if perf_sample is None:
+                return
+            perf_sample["result"] = result
+            perf_sample["total_ms"] = (time.perf_counter_ns() - perf_start_ns) / 1e6
+            self._add_record_perf_sample(perf_sample)
+
+        snapshot_started_ns: int | None = None
+        if perf_sample is not None:
+            snapshot_started_ns = time.perf_counter_ns()
         snapshot = self._window_provider()
+        if perf_sample is not None and snapshot_started_ns is not None:
+            perf_sample["t_window_provider_ms"] = (
+                time.perf_counter_ns() - snapshot_started_ns
+            ) / 1e6
         if not self._window_matches(snapshot):
+            if perf_sample is not None:
+                perf_sample["window_matches"] = False
+            _finalize_perf("ignored_window_mismatch")
             return
+        if perf_sample is not None:
+            perf_sample["window_matches"] = True
         assert snapshot is not None
 
         start_x, start_y = start_point
         distance = abs(start_x - x) + abs(start_y - y)
+        if perf_sample is not None:
+            perf_sample["distance"] = distance
         if distance >= 10:
+            source_started_ns: int | None = None
+            if perf_sample is not None:
+                source_started_ns = time.perf_counter_ns()
             source_selector = self._element_resolver(start_x, start_y)
+            if perf_sample is not None and source_started_ns is not None:
+                perf_sample["t_source_element_resolver_ms"] = (
+                    time.perf_counter_ns() - source_started_ns
+                ) / 1e6
+
+            target_started_ns: int | None = None
+            if perf_sample is not None:
+                target_started_ns = time.perf_counter_ns()
             target_selector = self._element_resolver(x, y)
+            if perf_sample is not None and target_started_ns is not None:
+                perf_sample["t_target_element_resolver_ms"] = (
+                    time.perf_counter_ns() - target_started_ns
+                ) / 1e6
             if source_selector is None or target_selector is None:
                 self._report_record_error(
                     "Could not resolve UI element selector for drag source/target."
                 )
+                _finalize_perf("error_drag_selector_missing")
                 return
             source_is_generic = _is_generic_unity_hierarchy_pane(source_selector)
             target_is_generic = _is_generic_unity_hierarchy_pane(target_selector)
@@ -514,16 +665,19 @@ class ScenarioRecorder:
                 self._report_record_error(
                     "Could not resolve reliable drag selector in Unity hierarchy pane."
                 )
+                _finalize_perf("error_drag_in_hierarchy_pane")
                 return
             if not (source_selector.get("title") or source_selector.get("automation_id")):
                 self._report_record_error(
                     "Drag source element needs title or automation_id for reliable execution."
                 )
+                _finalize_perf("error_drag_source_missing_keys")
                 return
             if not (target_selector.get("title") or target_selector.get("automation_id")):
                 self._report_record_error(
                     "Drag target element needs title or automation_id for reliable execution."
                 )
+                _finalize_perf("error_drag_target_missing_keys")
                 return
             payload: dict[str, Any] = {}
             source_title = str(source_selector.get("title") or "").strip()
@@ -542,17 +696,37 @@ class ScenarioRecorder:
                 "drag",
                 payload,
             )
+            _finalize_perf("recorded_drag")
             return
 
+        selector_started_ns: int | None = None
+        if perf_sample is not None:
+            selector_started_ns = time.perf_counter_ns()
         selector = self._element_resolver(x, y)
+        if perf_sample is not None and selector_started_ns is not None:
+            perf_sample["t_element_resolver_ms"] = (
+                time.perf_counter_ns() - selector_started_ns
+            ) / 1e6
         if selector is None:
             self._report_record_error("Could not resolve UI element selector for click.")
+            _finalize_perf("error_click_selector_missing")
             return
-        if _is_generic_unity_hierarchy_pane(selector):
+        is_hierarchy_pane = _is_generic_unity_hierarchy_pane(selector)
+        if perf_sample is not None:
+            perf_sample["is_hierarchy_pane"] = is_hierarchy_pane
+        if is_hierarchy_pane:
+            hierarchy_started_ns: int | None = None
+            if perf_sample is not None:
+                hierarchy_started_ns = time.perf_counter_ns()
             hierarchy_path = self._resolve_hierarchy_path(
                 snapshot,
                 mouse_down_unix_ms=start_mouse_down_unix_ms,
+                perf_sample=perf_sample,
             )
+            if perf_sample is not None and hierarchy_started_ns is not None:
+                perf_sample["t_resolve_hierarchy_path_ms"] = (
+                    time.perf_counter_ns() - hierarchy_started_ns
+                ) / 1e6
             if hierarchy_path is None:
                 now = time.monotonic()
                 if now >= self._hierarchy_error_suppress_until:
@@ -566,6 +740,7 @@ class ScenarioRecorder:
                     self._hierarchy_error_suppress_until = (
                         now + HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS
                     )
+                _finalize_perf("error_hierarchy_path_unresolved")
                 return
             self.append(
                 "click",
@@ -574,6 +749,7 @@ class ScenarioRecorder:
                     "target": _build_hierarchy_target_with_fallbacks(hierarchy_path),
                 },
             )
+            _finalize_perf("recorded_click_hierarchy")
             return
         payload = dict(selector)
         payload["target"] = _build_uia_target_with_fallbacks(selector)
@@ -581,6 +757,7 @@ class ScenarioRecorder:
             "click",
             payload,
         )
+        _finalize_perf("recorded_click_uia")
 
     def _on_key_press(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:
         if not self._recording or key is None:

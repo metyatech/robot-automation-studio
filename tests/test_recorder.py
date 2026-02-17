@@ -1,3 +1,4 @@
+import json
 import time
 
 from pynput import keyboard
@@ -415,6 +416,66 @@ def test_recorder_hierarchy_click_does_not_query_selection_state_on_mouse_down()
     recorder._on_click(120, 180, None, True)
     assert bridge.selection_state_calls == 0
     recorder.stop()
+
+
+def test_recording_perf_disabled_does_not_write_log(tmp_path, monkeypatch) -> None:
+    perf_path = tmp_path / "recording-perf.jsonl"
+    monkeypatch.delenv("RAS_RECORD_PERF", raising=False)
+    monkeypatch.setenv("RAS_RECORD_PERF_PATH", str(perf_path))
+
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "File",
+            "automation_id": "MainMenuFile",
+            "class_name": "MenuItem",
+            "control_type": "MenuItem",
+        },
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(120, 180, None, True)
+    recorder._on_click(120, 180, None, False)
+    recorder.stop()
+
+    assert not perf_path.exists()
+
+
+def test_recording_perf_enabled_writes_jsonl(tmp_path, monkeypatch) -> None:
+    perf_path = tmp_path / "recording-perf.jsonl"
+    monkeypatch.setenv("RAS_RECORD_PERF", "1")
+    monkeypatch.setenv("RAS_RECORD_PERF_PATH", str(perf_path))
+
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="Unity",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "File",
+            "automation_id": "MainMenuFile",
+            "class_name": "MenuItem",
+            "control_type": "MenuItem",
+        },
+    )
+    recorder.start(window_hint="Unity")
+    recorder._on_click(120, 180, None, True)
+    recorder._on_click(120, 180, None, False)
+    recorder.stop()
+
+    raw = perf_path.read_text(encoding="utf-8")
+    lines = [line for line in raw.splitlines() if line.strip() != ""]
+    assert len(lines) == 1
+    payload = json.loads(lines[0])
+    assert payload["event"] == "click_release"
 
 
 def test_has_visible_window_with_hint_true_when_matching_title_exists() -> None:
