@@ -1,3 +1,6 @@
+import base64
+import json
+import re
 from pathlib import Path
 
 import pytest
@@ -242,6 +245,100 @@ def test_generate_robot_suite_supports_uia_fallback_candidates_for_click() -> No
 
     text = generate_robot_suite(scenario, suite_name="uia-fallback-click")
     assert "Click Unity Element With Fallbacks" in text
+
+
+def test_generate_robot_suite_supports_mixed_uia_and_coordinate_fallbacks_for_click() -> None:
+    scenario = Scenario(
+        name="Mixed Fallback Click",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="click",
+                title="Click file",
+                params={
+                    "target": {
+                        "strategy": "uia",
+                        "uia": {
+                            "automation_id": "MainMenuFile",
+                            "class_name": "MenuItem",
+                            "control_type": "MenuItem",
+                        },
+                        "fallbacks": [
+                            {
+                                "strategy": "coordinate",
+                                "coordinate": {"x_ratio": 0.1, "y_ratio": 0.2},
+                            }
+                        ],
+                    }
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="mixed-fallback-click")
+
+    match = re.search(r"selectors_b64=([A-Za-z0-9+/=]+)", text)
+    assert match is not None
+    selectors = json.loads(base64.b64decode(match.group(1)).decode("utf-8"))
+    assert any(
+        isinstance(item, dict) and str(item.get("strategy") or "") == "coordinate"
+        for item in selectors
+    )
+
+
+def test_generate_robot_suite_supports_mixed_uia_and_coordinate_fallbacks_for_drag_drop() -> None:
+    scenario = Scenario(
+        name="Mixed Fallback Drag",
+        target_window_hint="Unity",
+        steps=[
+            Step(
+                action="drag_drop",
+                title="Drag item",
+                params={
+                    "input": {
+                        "source": {
+                            "strategy": "uia",
+                            "uia": {
+                                "automation_id": "Source",
+                                "class_name": "Button",
+                                "control_type": "Button",
+                            },
+                            "fallbacks": [
+                                {
+                                    "strategy": "coordinate",
+                                    "coordinate": {"x_ratio": 0.25, "y_ratio": 0.4},
+                                }
+                            ],
+                        }
+                    },
+                    "target": {
+                        "strategy": "uia",
+                        "uia": {
+                            "automation_id": "Target",
+                            "class_name": "Pane",
+                            "control_type": "Pane",
+                        },
+                        "fallbacks": [
+                            {
+                                "strategy": "coordinate",
+                                "coordinate": {"x_ratio": 0.75, "y_ratio": 0.6},
+                            }
+                        ],
+                    },
+                },
+            )
+        ],
+    )
+
+    text = generate_robot_suite(scenario, suite_name="mixed-fallback-drag")
+
+    match = re.search(r"candidates_b64=([A-Za-z0-9+/=]+)", text)
+    assert match is not None
+    candidates = json.loads(base64.b64decode(match.group(1)).decode("utf-8"))
+    assert any(
+        isinstance(item, dict) and str(item.get("strategy") or "") == "coordinate"
+        for item in candidates
+    )
 
 
 def test_generate_robot_suite_supports_open_menu_candidates() -> None:

@@ -285,6 +285,70 @@ def _uia_selector_payloads_from_targets(
     )
 
 
+def _coordinate_payloads_from_targets(
+    targets: list[dict[str, Any]],
+    *,
+    action: str,
+) -> list[dict[str, Any]]:
+    payloads: list[dict[str, Any]] = []
+    seen: set[tuple[tuple[str, str], ...]] = set()
+    for target in targets:
+        coordinate = target.get("coordinate")
+        if not isinstance(coordinate, dict):
+            raise ValueError(f"{action} coordinate target must include coordinate object.")
+        x_ratio = coordinate.get("x_ratio")
+        y_ratio = coordinate.get("y_ratio")
+        if x_ratio is None or y_ratio is None:
+            continue
+        selector_payload: dict[str, Any] = {"x_ratio": x_ratio, "y_ratio": y_ratio}
+        anchor = coordinate.get("anchor_window_hint")
+        if isinstance(anchor, str) and anchor.strip() != "":
+            selector_payload["anchor_window_hint"] = anchor.strip()
+        signature = tuple((key, str(selector_payload[key])) for key in sorted(selector_payload))
+        if signature in seen:
+            continue
+        seen.add(signature)
+        payloads.append(selector_payload)
+    return payloads
+
+
+def _mixed_uia_coordinate_selector_payloads(
+    target: dict[str, Any],
+    *,
+    action: str,
+) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    _collect_target_candidates(target, output=candidates, visited_ids=set())
+    payloads: list[dict[str, Any]] = []
+    seen: set[tuple[tuple[str, str], ...]] = set()
+    for candidate in candidates:
+        strategy = str(candidate.get("strategy") or "").strip().lower()
+        payload: dict[str, Any] | None = None
+        if strategy == "uia":
+            uia = candidate.get("uia")
+            if not isinstance(uia, dict):
+                raise ValueError(f"{action} uia target must include uia object.")
+            selector_payload = _uia_selector_args(uia)
+            if selector_payload:
+                payload = {"strategy": "uia"}
+                payload.update(selector_payload)
+        elif strategy == "coordinate":
+            coordinate_payloads = _coordinate_payloads_from_targets([candidate], action=action)
+            if coordinate_payloads:
+                payload = {"strategy": "coordinate"}
+                payload.update(coordinate_payloads[0])
+        if payload is None:
+            continue
+        signature = tuple((key, str(payload[key])) for key in sorted(payload))
+        if signature in seen:
+            continue
+        seen.add(signature)
+        payloads.append(payload)
+    if payloads:
+        return payloads
+    raise ValueError(f"{action} requires target selector candidates.")
+
+
 def _encode_json_base64(value: Any) -> str:
     serialized = json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
     return base64.b64encode(serialized.encode("utf-8")).decode("ascii")
@@ -705,15 +769,11 @@ def _step_robot_lines_from_payload(
                 title=title,
             )
         if strategy == "uia":
-            uia_targets = _target_candidates_by_strategy(
-                target,
-                action="click",
-                allowed_strategies={"uia"},
-            )
-            selectors = _uia_selector_payloads_from_targets(uia_targets, action="click")
-            if len(selectors) == 1:
+            candidates = _mixed_uia_coordinate_selector_payloads(target, action="click")
+            if len(candidates) == 1 and str(candidates[0].get("strategy") or "") == "uia":
+                selector = {key: value for key, value in candidates[0].items() if key != "strategy"}
                 selector_args = _robot_named_args(
-                    selectors[0],
+                    selector,
                     ("title", "automation_id", "class_name", "control_type", "index"),
                 )
                 if selector_args == "":
@@ -727,7 +787,7 @@ def _step_robot_lines_from_payload(
                     f"{indent}Emit Annotation Metadata    ${{annotation}}",
                 ]
             else:
-                selectors_b64 = _encode_json_base64(selectors)
+                selectors_b64 = _encode_json_base64(candidates)
                 lines = [
                     (
                         f"{indent}${{annotation}}=    Click Unity Element With Fallbacks"
@@ -809,36 +869,119 @@ def _step_robot_lines_from_payload(
         target_strategy = str(target.get("strategy") or "").strip().lower()
         source_strategy = str(source.get("strategy") or "").strip().lower()
         if target_strategy == "uia" and source_strategy == "uia":
-            target_uia = target.get("uia")
-            source_uia = source.get("uia")
-            if not isinstance(target_uia, dict) or not isinstance(source_uia, dict):
-                raise ValueError(
-                    "drag_drop uia strategy requires uia objects on source and target."
-                )
-            merged = {}
-            merged.update(_uia_selector_args(source_uia, prefix="source_"))
-            merged.update(_uia_selector_args(target_uia, prefix="target_"))
-            source_args = _robot_named_args(
-                merged,
-                (
-                    "source_title",
-                    "source_automation_id",
-                ),
+            timeout_seconds = _timeout_seconds_from_step(step_payload, default=10.0)
+            source_candidates: list[dict[str, Any]] = []
+            target_candidates: list[dict[str, Any]] = []
+            _collect_target_candidates(source, output=source_candidates, visited_ids=set())
+            _collect_target_candidates(target, output=target_candidates, visited_ids=set())
+            source_uia_targets = [
+                candidate
+                for candidate in source_candidates
+                if str(candidate.get("strategy") or "").strip().lower() == "uia"
+            ]
+            target_uia_targets = [
+                candidate
+                for candidate in target_candidates
+                if str(candidate.get("strategy") or "").strip().lower() == "uia"
+            ]
+            source_coordinate_targets = [
+                candidate
+                for candidate in source_candidates
+                if str(candidate.get("strategy") or "").strip().lower() == "coordinate"
+            ]
+            target_coordinate_targets = [
+                candidate
+                for candidate in target_candidates
+                if str(candidate.get("strategy") or "").strip().lower() == "coordinate"
+            ]
+            source_selectors = _uia_selector_payloads_from_targets(
+                source_uia_targets, action="drag_drop"
             )
-            target_args = _robot_named_args(
-                merged,
-                (
-                    "target_title",
-                    "target_automation_id",
-                ),
+            target_selectors = _uia_selector_payloads_from_targets(
+                target_uia_targets, action="drag_drop"
             )
-            if source_args == "" or target_args == "":
-                raise ValueError(
-                    "drag_drop uia strategy requires both source and target selector fields."
+            source_coordinates = _coordinate_payloads_from_targets(
+                source_coordinate_targets,
+                action="drag_drop",
+            )
+            target_coordinates = _coordinate_payloads_from_targets(
+                target_coordinate_targets,
+                action="drag_drop",
+            )
+            has_multiple_uia = len(source_selectors) > 1 or len(target_selectors) > 1
+            has_coordinate_pair = bool(source_coordinates) and bool(target_coordinates)
+            if not has_multiple_uia and not has_coordinate_pair:
+                merged = {}
+                merged.update(
+                    _uia_selector_args(
+                        source_selectors[0],
+                        prefix="source_",
+                    )
                 )
+                merged.update(
+                    _uia_selector_args(
+                        target_selectors[0],
+                        prefix="target_",
+                    )
+                )
+                source_args = _robot_named_args(
+                    merged,
+                    (
+                        "source_title",
+                        "source_automation_id",
+                    ),
+                )
+                target_args = _robot_named_args(
+                    merged,
+                    (
+                        "target_title",
+                        "target_automation_id",
+                    ),
+                )
+                if source_args == "" or target_args == "":
+                    raise ValueError(
+                        "drag_drop uia strategy requires both source and target selector fields."
+                    )
+                drag_keyword_line = (
+                    f"{indent}${{annotation}}=    Drag Unity Element To Element"
+                    f"{source_args}{target_args}    timeout_seconds={timeout_seconds}"
+                )
+                return _apply_step_guards(
+                    step_payload=step_payload,
+                    lines=[
+                        drag_keyword_line,
+                        f"{indent}Wait For Seconds    {wait_seconds}",
+                        f"{indent}Emit Annotation Metadata    ${{annotation}}",
+                    ],
+                    indent=indent,
+                    path=path,
+                    title=title,
+                )
+
+            candidates: list[dict[str, Any]] = []
+            for source_selector in source_selectors:
+                for target_selector in target_selectors:
+                    candidates.append(
+                        {
+                            "strategy": "uia",
+                            "source": dict(source_selector),
+                            "target": dict(target_selector),
+                        }
+                    )
+            if has_coordinate_pair:
+                for source_coord in source_coordinates:
+                    for target_coord in target_coordinates:
+                        candidates.append(
+                            {
+                                "strategy": "coordinate",
+                                "source": dict(source_coord),
+                                "target": dict(target_coord),
+                            }
+                        )
+            candidates_b64 = _encode_json_base64(candidates)
             drag_keyword_line = (
-                f"{indent}${{annotation}}=    Drag Unity Element To Element"
-                f"{source_args}{target_args}"
+                f"{indent}${{annotation}}=    Drag Unity Target With Fallbacks"
+                f"    candidates_b64={candidates_b64}    timeout_seconds={timeout_seconds}"
             )
             return _apply_step_guards(
                 step_payload=step_payload,
@@ -915,14 +1058,9 @@ def _step_robot_lines_from_payload(
             )
         if strategy == "uia":
             timeout_seconds = _timeout_seconds_from_step(step_payload, default=10.0)
-            uia_targets = _target_candidates_by_strategy(
-                target,
-                action="double_click",
-                allowed_strategies={"uia"},
-            )
-            selectors = _uia_selector_payloads_from_targets(uia_targets, action="double_click")
-            if len(selectors) == 1:
-                args = dict(selectors[0])
+            candidates = _mixed_uia_coordinate_selector_payloads(target, action="double_click")
+            if len(candidates) == 1 and str(candidates[0].get("strategy") or "") == "uia":
+                args = {key: value for key, value in candidates[0].items() if key != "strategy"}
                 args["timeout_seconds"] = timeout_seconds
                 selector_args = _robot_named_args(
                     args,
@@ -946,7 +1084,7 @@ def _step_robot_lines_from_payload(
                     f"{indent}Emit Annotation Metadata    ${{annotation}}",
                 ]
             else:
-                selectors_b64 = _encode_json_base64(selectors)
+                selectors_b64 = _encode_json_base64(candidates)
                 lines = [
                     (
                         f"{indent}${{annotation}}=    Double Click Unity Element With Fallbacks"
@@ -988,15 +1126,11 @@ def _step_robot_lines_from_payload(
                 title=title,
             )
         if strategy == "uia":
-            uia_targets = _target_candidates_by_strategy(
-                target,
-                action="right_click",
-                allowed_strategies={"uia"},
-            )
-            selectors = _uia_selector_payloads_from_targets(uia_targets, action="right_click")
-            if len(selectors) == 1:
+            candidates = _mixed_uia_coordinate_selector_payloads(target, action="right_click")
+            if len(candidates) == 1 and str(candidates[0].get("strategy") or "") == "uia":
+                selector = {key: value for key, value in candidates[0].items() if key != "strategy"}
                 selector_args = _robot_named_args(
-                    selectors[0],
+                    selector,
                     ("title", "automation_id", "class_name", "control_type", "index"),
                 )
                 if selector_args == "":
@@ -1013,7 +1147,7 @@ def _step_robot_lines_from_payload(
                     f"{indent}Emit Annotation Metadata    ${{annotation}}",
                 ]
             else:
-                selectors_b64 = _encode_json_base64(selectors)
+                selectors_b64 = _encode_json_base64(candidates)
                 lines = [
                     (
                         f"{indent}${{annotation}}=    Click Unity Element With Fallbacks"
@@ -1403,15 +1537,120 @@ def _generate_robot_suite_from_resolved(
             "    ${last_error}=    Set Variable    ${EMPTY}",
             "    FOR    ${selector}    IN    @{selectors}",
             (
-                "        ${status}    ${result}=    Run Keyword And Ignore Error"
-                "    Click Unity Element    &{selector}    button=${button}"
+                "        ${strategy}=    Evaluate"
+                "    str($selector.get('strategy', '')).strip().lower()"
+                " if isinstance($selector, dict) else ''"
             ),
+            "        IF    '${strategy}' == 'coordinate'",
+            "            ${x_ratio}=    Evaluate    $selector.get('x_ratio')",
+            "            ${y_ratio}=    Evaluate    $selector.get('y_ratio')",
+            (
+                "            ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Click Unity Relative    ${x_ratio}    ${y_ratio}    button=${button}"
+            ),
+            "        ELSE",
+            (
+                "            ${selector_args}=    Evaluate"
+                "    {k: v for k, v in $selector.items() if k != 'strategy'}"
+            ),
+            (
+                "            ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Click Unity Element    &{selector_args}    button=${button}"
+            ),
+            "        END",
             "        IF    '${status}' == 'PASS'",
             "            RETURN    ${result}",
             "        END",
             "        ${last_error}=    Set Variable    ${result}",
             "    END",
             "    Fail    Failed to click Unity element using selector fallbacks: ${last_error}",
+            "",
+            "Drag Unity Target With Fallbacks",
+            "    [Arguments]    ${candidates_b64}    ${timeout_seconds}=10.0",
+            (
+                "    ${candidates_json}=    Evaluate"
+                "    __import__('base64').b64decode($candidates_b64).decode('utf-8')"
+            ),
+            "    ${candidates}=    Evaluate    __import__('json').loads($candidates_json)",
+            "    ${last_error}=    Set Variable    ${EMPTY}",
+            "    FOR    ${candidate}    IN    @{candidates}",
+            (
+                "        ${strategy}=    Evaluate"
+                "    str($candidate.get('strategy', '')).strip().lower()"
+                " if isinstance($candidate, dict) else ''"
+            ),
+            (
+                "        ${source}=    Evaluate"
+                "    $candidate.get('source', {}) if isinstance($candidate, dict) else {}"
+            ),
+            (
+                "        ${target}=    Evaluate"
+                "    $candidate.get('target', {}) if isinstance($candidate, dict) else {}"
+            ),
+            "        IF    '${strategy}' == 'coordinate'",
+            "            ${from_x_ratio}=    Evaluate    $source.get('x_ratio')",
+            "            ${from_y_ratio}=    Evaluate    $source.get('y_ratio')",
+            "            ${to_x_ratio}=    Evaluate    $target.get('x_ratio')",
+            "            ${to_y_ratio}=    Evaluate    $target.get('y_ratio')",
+            (
+                "            ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Drag Unity Relative"
+                "    ${from_x_ratio}    ${from_y_ratio}    ${to_x_ratio}    ${to_y_ratio}"
+            ),
+            "        ELSE",
+            (
+                "            ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Drag Unity Element By Selectors"
+                "    ${source}    ${target}    timeout_seconds=${timeout_seconds}"
+            ),
+            "        END",
+            "        IF    '${status}' == 'PASS'",
+            "            RETURN    ${result}",
+            "        END",
+            "        ${last_error}=    Set Variable    ${result}",
+            "    END",
+            "    Fail    Failed to drag Unity element using candidates: ${last_error}",
+            "",
+            "Drag Unity Element By Selectors",
+            "    [Arguments]    ${source}    ${target}    ${timeout_seconds}=10.0",
+            "    ${window}=    Get Unity Window Rect",
+            (
+                "    ${source_rect}=    Get Unity Element Rect    &{source}"
+                "    timeout_seconds=${timeout_seconds}"
+            ),
+            (
+                "    ${target_rect}=    Get Unity Element Rect    &{target}"
+                "    timeout_seconds=${timeout_seconds}"
+            ),
+            (
+                "    ${from_x_ratio}=    Evaluate"
+                "    max(0.0, min(1.0,"
+                " (float($source_rect['left']) + (float($source_rect['width']) / 2.0)"
+                " - float($window['left'])) / max(1.0, float($window['width']))))"
+            ),
+            (
+                "    ${from_y_ratio}=    Evaluate"
+                "    max(0.0, min(1.0,"
+                " (float($source_rect['top']) + (float($source_rect['height']) / 2.0)"
+                " - float($window['top'])) / max(1.0, float($window['height']))))"
+            ),
+            (
+                "    ${to_x_ratio}=    Evaluate"
+                "    max(0.0, min(1.0,"
+                " (float($target_rect['left']) + (float($target_rect['width']) / 2.0)"
+                " - float($window['left'])) / max(1.0, float($window['width']))))"
+            ),
+            (
+                "    ${to_y_ratio}=    Evaluate"
+                "    max(0.0, min(1.0,"
+                " (float($target_rect['top']) + (float($target_rect['height']) / 2.0)"
+                " - float($window['top'])) / max(1.0, float($window['height']))))"
+            ),
+            (
+                "    ${annotation}=    Drag Unity Relative"
+                "    ${from_x_ratio}    ${from_y_ratio}    ${to_x_ratio}    ${to_y_ratio}"
+            ),
+            "    RETURN    ${annotation}",
             "",
             "Double Click Unity Element With Fallbacks",
             "    [Arguments]    ${selectors_b64}    ${timeout_seconds}=10.0",
@@ -1423,10 +1662,28 @@ def _generate_robot_suite_from_resolved(
             "    ${last_error}=    Set Variable    ${EMPTY}",
             "    FOR    ${selector}    IN    @{selectors}",
             (
-                "        ${status}    ${result}=    Run Keyword And Ignore Error"
-                "    Double Click Unity Element"
-                "    &{selector}    timeout_seconds=${timeout_seconds}"
+                "        ${strategy}=    Evaluate"
+                "    str($selector.get('strategy', '')).strip().lower()"
+                " if isinstance($selector, dict) else ''"
             ),
+            "        IF    '${strategy}' == 'coordinate'",
+            "            ${x_ratio}=    Evaluate    $selector.get('x_ratio')",
+            "            ${y_ratio}=    Evaluate    $selector.get('y_ratio')",
+            (
+                "            ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Double Click Unity Relative    ${x_ratio}    ${y_ratio}"
+            ),
+            "        ELSE",
+            (
+                "            ${selector_args}=    Evaluate"
+                "    {k: v for k, v in $selector.items() if k != 'strategy'}"
+            ),
+            (
+                "            ${status}    ${result}=    Run Keyword And Ignore Error"
+                "    Double Click Unity Element"
+                "    &{selector_args}    timeout_seconds=${timeout_seconds}"
+            ),
+            "        END",
             "        IF    '${status}' == 'PASS'",
             "            RETURN    ${result}",
             "        END",
