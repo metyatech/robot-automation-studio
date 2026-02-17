@@ -16,6 +16,7 @@ def focus_visible_window_with_hint(
     *,
     enum_windows_func: Callable[[Callable[[int, Any], bool], int], Any] = win32gui.EnumWindows,
     is_window_visible_func: Callable[[int], int | bool] = win32gui.IsWindowVisible,
+    is_iconic_func: Callable[[int], int | bool] = win32gui.IsIconic,
     get_window_text_func: Callable[[int], str] = win32gui.GetWindowText,
     get_foreground_window_func: Callable[[], int] = win32gui.GetForegroundWindow,
     show_window_func: Callable[[int, int], Any] = win32gui.ShowWindow,
@@ -31,7 +32,8 @@ def focus_visible_window_with_hint(
         title = str(get_window_text_func(foreground) or "").strip().lower()
         if normalized_hint in title:
             try:
-                show_window_func(foreground, restore_flag)
+                if bool(is_iconic_func(foreground)):
+                    show_window_func(foreground, restore_flag)
                 set_foreground_window_func(foreground)
                 return True
             except Exception:
@@ -54,7 +56,8 @@ def focus_visible_window_with_hint(
         return False
 
     try:
-        show_window_func(matched_handle, restore_flag)
+        if bool(is_iconic_func(matched_handle)):
+            show_window_func(matched_handle, restore_flag)
         set_foreground_window_func(matched_handle)
     except Exception:
         return False
