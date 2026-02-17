@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import platform
+import queue
 import threading
 import time
 from collections.abc import Callable, Sequence
@@ -24,6 +26,7 @@ HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS = 1.0
 RECORD_PERF_ENV_VAR = "RAS_RECORD_PERF"
 RECORD_PERF_PATH_ENV_VAR = "RAS_RECORD_PERF_PATH"
 RECORD_PERF_MAX_SAMPLES = 20000
+RECORD_PENDING_ACTIONS_MAX_SIZE = 5000
 _UIA_SELECTOR_KEYS = ("title", "automation_id", "class_name", "control_type", "index")
 
 
@@ -280,6 +283,7 @@ class ScenarioRecorder:
         if platform.system().lower() != "windows":
             raise RuntimeError("ScenarioRecorder supports Windows only.")
         self._events: list[RecordedEvent] = []
+        self._events_lock = threading.Lock()
         self._recording = False
         self._window_provider = window_provider
         self._element_resolver = element_resolver
@@ -304,6 +308,12 @@ class ScenarioRecorder:
         self._record_perf_session_id = ""
         self._record_perf_samples: list[dict[str, Any]] = []
         self._record_perf_lock = threading.Lock()
+        self._pending_actions: queue.PriorityQueue[tuple[int, int, dict[str, Any]]] | None = None
+        self._pending_seq = 0
+        self._pending_seq_lock = threading.Lock()
+        self._worker_thread: threading.Thread | None = None
+        self._worker_stop_event: threading.Event | None = None
+        self._queue_drop_suppress_until = 0.0
 
     def set_stop_hotkey(self, main_key: str, required_modifiers: set[str] | frozenset[str]) -> None:
         self._stop_hotkey_main_key = str(main_key or STOP_HOTKEY_MAIN_KEY).upper()
@@ -315,6 +325,265 @@ class ScenarioRecorder:
     @property
     def is_recording(self) -> bool:
         return self._recording
+
+    def _append_event(self, kind: str, payload: dict[str, Any], timestamp_ms: int) -> None:
+        with self._events_lock:
+            self._events.append(
+                RecordedEvent(kind=kind, payload=dict(payload), timestamp_ms=timestamp_ms)
+            )
+
+    def _next_pending_seq(self) -> int:
+        with self._pending_seq_lock:
+            self._pending_seq += 1
+            return self._pending_seq
+
+    def _enqueue_pending_action(
+        self,
+        sort_key_ns: int,
+        action: dict[str, Any],
+        perf_sample: dict[str, Any] | None,
+    ) -> None:
+        q = self._pending_actions
+        if q is None:
+            return
+        seq = self._next_pending_seq()
+        try:
+            q.put_nowait((int(sort_key_ns), seq, action))
+        except queue.Full:
+            now = time.monotonic()
+            if now >= self._queue_drop_suppress_until:
+                self._report_record_error(
+                    "Recording queue is full; some actions may be missing. "
+                    "Stop recording sooner or reduce input rate."
+                )
+                self._queue_drop_suppress_until = now + 1.0
+            if perf_sample is not None:
+                perf_sample["result"] = "dropped_queue_full"
+                self._add_record_perf_sample(perf_sample)
+
+    def _record_worker_loop(self) -> None:
+        q = self._pending_actions
+        stop_event = self._worker_stop_event
+        if q is None or stop_event is None:
+            return
+
+        pythoncom: Any | None = None
+        try:
+            import pythoncom as _pythoncom  # type: ignore[import-not-found]
+
+            _pythoncom.CoInitialize()
+            pythoncom = _pythoncom
+        except Exception:
+            pythoncom = None
+
+        try:
+            while True:
+                try:
+                    sort_key_ns, _seq, action = q.get(timeout=0.05)
+                except queue.Empty:
+                    if stop_event.is_set():
+                        return
+                    continue
+                try:
+                    self._process_pending_action(int(sort_key_ns), action)
+                finally:
+                    q.task_done()
+        finally:
+            if pythoncom is not None:
+                with contextlib.suppress(Exception):
+                    pythoncom.CoUninitialize()
+
+    def _process_pending_action(self, sort_key_ns: int, action: dict[str, Any]) -> None:
+        kind = str(action.get("kind") or "").strip()
+        timestamp_ms = int(action.get("timestamp_ms") or int(time.time() * 1000))
+        perf_sample = action.get("perf_sample")
+        if perf_sample is not None and isinstance(perf_sample, dict):
+            started_ns = time.perf_counter_ns()
+            perf_sample["queue_delay_ms"] = (started_ns - sort_key_ns) / 1e6
+            proc_started_ns = started_ns
+        else:
+            proc_started_ns = 0
+            perf_sample = None
+
+        result = "unknown"
+        try:
+            if kind == "shortcut":
+                shortcut = str(action.get("shortcut") or "").strip()
+                if shortcut:
+                    self._append_event(
+                        "shortcut", {"shortcut": shortcut}, timestamp_ms=timestamp_ms
+                    )
+                    result = "recorded_shortcut"
+                else:
+                    result = "ignored_shortcut_empty"
+                return
+
+            if kind != "mouse_release":
+                result = "ignored_unknown_kind"
+                return
+
+            snapshot = action.get("snapshot")
+            if not isinstance(snapshot, WindowSnapshot):
+                result = "ignored_missing_snapshot"
+                return
+
+            start_point = action.get("start_point")
+            end_point = action.get("end_point")
+            if (
+                not isinstance(start_point, tuple)
+                or len(start_point) != 2
+                or not isinstance(end_point, tuple)
+                or len(end_point) != 2
+            ):
+                result = "ignored_missing_points"
+                return
+
+            start_x, start_y = int(start_point[0]), int(start_point[1])
+            x, y = int(end_point[0]), int(end_point[1])
+            distance = abs(start_x - x) + abs(start_y - y)
+            mouse_down_unix_ms = action.get("mouse_down_unix_ms")
+            if isinstance(mouse_down_unix_ms, bool):
+                mouse_down_unix_ms = None
+            if mouse_down_unix_ms is not None:
+                try:
+                    mouse_down_unix_ms = int(mouse_down_unix_ms)
+                except (TypeError, ValueError):
+                    mouse_down_unix_ms = None
+
+            if perf_sample is not None:
+                perf_sample["distance"] = distance
+
+            if distance >= 10:
+                source_started_ns: int | None = None
+                if perf_sample is not None:
+                    source_started_ns = time.perf_counter_ns()
+                source_selector = self._element_resolver(start_x, start_y)
+                if perf_sample is not None and source_started_ns is not None:
+                    perf_sample["t_source_element_resolver_ms"] = (
+                        time.perf_counter_ns() - source_started_ns
+                    ) / 1e6
+
+                target_started_ns: int | None = None
+                if perf_sample is not None:
+                    target_started_ns = time.perf_counter_ns()
+                target_selector = self._element_resolver(x, y)
+                if perf_sample is not None and target_started_ns is not None:
+                    perf_sample["t_target_element_resolver_ms"] = (
+                        time.perf_counter_ns() - target_started_ns
+                    ) / 1e6
+
+                if source_selector is None or target_selector is None:
+                    self._report_record_error(
+                        "Could not resolve UI element selector for drag source/target."
+                    )
+                    result = "error_drag_selector_missing"
+                    return
+                source_is_generic = _is_generic_unity_hierarchy_pane(source_selector)
+                target_is_generic = _is_generic_unity_hierarchy_pane(target_selector)
+                if source_is_generic or target_is_generic:
+                    self._report_record_error(
+                        "Could not resolve reliable drag selector in Unity hierarchy pane."
+                    )
+                    result = "error_drag_in_hierarchy_pane"
+                    return
+                if not (source_selector.get("title") or source_selector.get("automation_id")):
+                    self._report_record_error(
+                        "Drag source element needs title or automation_id for reliable execution."
+                    )
+                    result = "error_drag_source_missing_keys"
+                    return
+                if not (target_selector.get("title") or target_selector.get("automation_id")):
+                    self._report_record_error(
+                        "Drag target element needs title or automation_id for reliable execution."
+                    )
+                    result = "error_drag_target_missing_keys"
+                    return
+                payload: dict[str, Any] = {}
+                source_title = str(source_selector.get("title") or "").strip()
+                if source_title:
+                    payload["source_title"] = source_title
+                source_automation_id = str(source_selector.get("automation_id") or "").strip()
+                if source_automation_id:
+                    payload["source_automation_id"] = source_automation_id
+                target_title = str(target_selector.get("title") or "").strip()
+                if target_title:
+                    payload["target_title"] = target_title
+                target_automation_id = str(target_selector.get("automation_id") or "").strip()
+                if target_automation_id:
+                    payload["target_automation_id"] = target_automation_id
+                self._append_event("drag", payload, timestamp_ms=timestamp_ms)
+                result = "recorded_drag"
+                return
+
+            selector_started_ns: int | None = None
+            if perf_sample is not None:
+                selector_started_ns = time.perf_counter_ns()
+            selector = self._element_resolver(x, y)
+            if perf_sample is not None and selector_started_ns is not None:
+                perf_sample["t_element_resolver_ms"] = (
+                    time.perf_counter_ns() - selector_started_ns
+                ) / 1e6
+
+            if selector is None:
+                self._report_record_error("Could not resolve UI element selector for click.")
+                result = "error_click_selector_missing"
+                return
+
+            is_hierarchy_pane = _is_generic_unity_hierarchy_pane(selector)
+            if perf_sample is not None:
+                perf_sample["is_hierarchy_pane"] = is_hierarchy_pane
+
+            if is_hierarchy_pane:
+                hierarchy_started_ns: int | None = None
+                if perf_sample is not None:
+                    hierarchy_started_ns = time.perf_counter_ns()
+                hierarchy_path = self._resolve_hierarchy_path(
+                    snapshot,
+                    mouse_down_unix_ms=mouse_down_unix_ms,
+                    perf_sample=perf_sample,
+                )
+                if perf_sample is not None and hierarchy_started_ns is not None:
+                    perf_sample["t_resolve_hierarchy_path_ms"] = (
+                        time.perf_counter_ns() - hierarchy_started_ns
+                    ) / 1e6
+                if hierarchy_path is None:
+                    now = time.monotonic()
+                    if now >= self._hierarchy_error_suppress_until:
+                        message = (
+                            "Could not resolve hierarchy path via Unity bridge (hierarchy click)."
+                        )
+                        diagnostics = str(self._last_hierarchy_bridge_diag or "").strip()
+                        if diagnostics:
+                            message = f"{message} {diagnostics}"
+                        self._report_record_error(message)
+                        self._hierarchy_error_suppress_until = (
+                            now + HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS
+                        )
+                    result = "error_hierarchy_path_unresolved"
+                    return
+                self._append_event(
+                    "click",
+                    {
+                        "hierarchy_path": hierarchy_path,
+                        "target": _build_hierarchy_target_with_fallbacks(hierarchy_path),
+                    },
+                    timestamp_ms=timestamp_ms,
+                )
+                result = "recorded_click_hierarchy"
+                return
+
+            payload = dict(selector)
+            payload["target"] = _build_uia_target_with_fallbacks(selector)
+            self._append_event("click", payload, timestamp_ms=timestamp_ms)
+            result = "recorded_click_uia"
+        except Exception as ex:
+            self._report_record_error(f"Recording worker failed to process action ({kind}): {ex}")
+            result = "error_worker_exception"
+        finally:
+            if perf_sample is not None:
+                perf_sample["result"] = result
+                perf_sample["proc_total_ms"] = (time.perf_counter_ns() - proc_started_ns) / 1e6
+                self._add_record_perf_sample(perf_sample)
 
     def _resolve_record_perf_path(self) -> Path:
         configured = str(os.getenv(RECORD_PERF_PATH_ENV_VAR, "") or "").strip()
@@ -352,7 +621,8 @@ class ScenarioRecorder:
             )
 
     def start(self, window_hint: str = "Unity") -> None:
-        self._events.clear()
+        with self._events_lock:
+            self._events.clear()
         self._recording = True
         self._window_hint = window_hint
         self._mouse_down_point = None
@@ -361,6 +631,7 @@ class ScenarioRecorder:
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
         self._last_hierarchy_bridge_diag = ""
+        self._queue_drop_suppress_until = 0.0
         self._record_perf_enabled = _env_flag(RECORD_PERF_ENV_VAR)
         self._record_perf_path = (
             self._resolve_record_perf_path() if self._record_perf_enabled else None
@@ -370,6 +641,14 @@ class ScenarioRecorder:
         )
         with self._record_perf_lock:
             self._record_perf_samples.clear()
+
+        self._pending_actions = queue.PriorityQueue(maxsize=RECORD_PENDING_ACTIONS_MAX_SIZE)
+        with self._pending_seq_lock:
+            self._pending_seq = 0
+        self._worker_stop_event = threading.Event()
+        self._worker_thread = threading.Thread(target=self._record_worker_loop, daemon=True)
+        self._worker_thread.start()
+
         self._mouse_listener = mouse.Listener(on_click=self._on_click)
         self._keyboard_listener = keyboard.Listener(
             on_press=self._on_key_press, on_release=self._on_key_release
@@ -388,25 +667,53 @@ class ScenarioRecorder:
         self._mouse_down_point = None
         self._mouse_down_unix_ms = None
         self._modifier_keys.clear()
+
+        worker_stop_event = self._worker_stop_event
+        if worker_stop_event is not None:
+            worker_stop_event.set()
+
+        pending_actions = self._pending_actions
+        if pending_actions is not None:
+            deadline = time.monotonic() + 15.0
+            while True:
+                remaining = int(getattr(pending_actions, "unfinished_tasks", 0) or 0)
+                if remaining <= 0:
+                    break
+                if time.monotonic() >= deadline:
+                    self._report_record_error(
+                        f"Recording stopped before all pending actions were processed "
+                        f"(remaining={remaining}). Some steps may be missing."
+                    )
+                    break
+                time.sleep(0.05)
+
+        worker_thread = self._worker_thread
+        if worker_thread is not None:
+            worker_thread.join(timeout=2.0)
+            if worker_thread.is_alive():
+                self._report_record_error(
+                    "Recording worker did not terminate cleanly. Some steps may be missing."
+                )
+
+        self._pending_actions = None
+        self._worker_stop_event = None
+        self._worker_thread = None
         self._bridge_retry_backoff_until = 0.0
         self._hierarchy_error_suppress_until = 0.0
         self._last_hierarchy_bridge_diag = ""
         self._flush_record_perf_samples()
-        return list(self._events)
+        with self._events_lock:
+            return list(self._events)
 
     def append(self, kind: str, payload: dict[str, Any]) -> None:
         if not self._recording:
             return
-        self._events.append(
-            RecordedEvent(kind=kind, payload=dict(payload), timestamp_ms=int(time.time() * 1000))
-        )
+        self._append_event(kind, payload, timestamp_ms=int(time.time() * 1000))
 
     def append_with_timestamp(self, kind: str, payload: dict[str, Any], timestamp_ms: int) -> None:
         if not self._recording:
             return
-        self._events.append(
-            RecordedEvent(kind=kind, payload=dict(payload), timestamp_ms=timestamp_ms)
-        )
+        self._append_event(kind, payload, timestamp_ms=int(timestamp_ms))
 
     def _report_record_error(self, message: str) -> None:
         if self._on_record_error is None:
@@ -589,16 +896,18 @@ class ScenarioRecorder:
         if start_point is None:
             return
 
-        perf_sample: dict[str, Any] | None = None
-        perf_start_ns = 0
+        sort_key_ns = time.perf_counter_ns()
+        timestamp_ms = int(time.time() * 1000)
         perf_enabled = self._record_perf_enabled
+        perf_sample: dict[str, Any] | None = None
+        perf_start_ns: int | None = None
         if perf_enabled:
-            perf_start_ns = time.perf_counter_ns()
+            perf_start_ns = sort_key_ns
             start_x, start_y = start_point
             perf_sample = {
                 "session_id": self._record_perf_session_id,
                 "event": "click_release",
-                "unix_ms": int(time.time() * 1000),
+                "unix_ms": timestamp_ms,
                 "window_hint": self._window_hint,
                 "x": x,
                 "y": y,
@@ -606,13 +915,6 @@ class ScenarioRecorder:
                 "start_y": start_y,
                 "mouse_down_unix_ms": start_mouse_down_unix_ms,
             }
-
-        def _finalize_perf(result: str) -> None:
-            if perf_sample is None:
-                return
-            perf_sample["result"] = result
-            perf_sample["total_ms"] = (time.perf_counter_ns() - perf_start_ns) / 1e6
-            self._add_record_perf_sample(perf_sample)
 
         snapshot_started_ns: int | None = None
         if perf_sample is not None:
@@ -625,7 +927,11 @@ class ScenarioRecorder:
         if not self._window_matches(snapshot):
             if perf_sample is not None:
                 perf_sample["window_matches"] = False
-            _finalize_perf("ignored_window_mismatch")
+                if perf_start_ns is not None:
+                    perf_sample["hook_total_ms"] = (time.perf_counter_ns() - perf_start_ns) / 1e6
+                    perf_sample["total_ms"] = perf_sample["hook_total_ms"]
+                perf_sample["result"] = "ignored_window_mismatch"
+                self._add_record_perf_sample(perf_sample)
             return
         if perf_sample is not None:
             perf_sample["window_matches"] = True
@@ -635,129 +941,23 @@ class ScenarioRecorder:
         distance = abs(start_x - x) + abs(start_y - y)
         if perf_sample is not None:
             perf_sample["distance"] = distance
-        if distance >= 10:
-            source_started_ns: int | None = None
-            if perf_sample is not None:
-                source_started_ns = time.perf_counter_ns()
-            source_selector = self._element_resolver(start_x, start_y)
-            if perf_sample is not None and source_started_ns is not None:
-                perf_sample["t_source_element_resolver_ms"] = (
-                    time.perf_counter_ns() - source_started_ns
-                ) / 1e6
+        if perf_sample is not None and perf_start_ns is not None:
+            perf_sample["hook_total_ms"] = (time.perf_counter_ns() - perf_start_ns) / 1e6
+            perf_sample["total_ms"] = perf_sample["hook_total_ms"]
 
-            target_started_ns: int | None = None
-            if perf_sample is not None:
-                target_started_ns = time.perf_counter_ns()
-            target_selector = self._element_resolver(x, y)
-            if perf_sample is not None and target_started_ns is not None:
-                perf_sample["t_target_element_resolver_ms"] = (
-                    time.perf_counter_ns() - target_started_ns
-                ) / 1e6
-            if source_selector is None or target_selector is None:
-                self._report_record_error(
-                    "Could not resolve UI element selector for drag source/target."
-                )
-                _finalize_perf("error_drag_selector_missing")
-                return
-            source_is_generic = _is_generic_unity_hierarchy_pane(source_selector)
-            target_is_generic = _is_generic_unity_hierarchy_pane(target_selector)
-            if source_is_generic or target_is_generic:
-                self._report_record_error(
-                    "Could not resolve reliable drag selector in Unity hierarchy pane."
-                )
-                _finalize_perf("error_drag_in_hierarchy_pane")
-                return
-            if not (source_selector.get("title") or source_selector.get("automation_id")):
-                self._report_record_error(
-                    "Drag source element needs title or automation_id for reliable execution."
-                )
-                _finalize_perf("error_drag_source_missing_keys")
-                return
-            if not (target_selector.get("title") or target_selector.get("automation_id")):
-                self._report_record_error(
-                    "Drag target element needs title or automation_id for reliable execution."
-                )
-                _finalize_perf("error_drag_target_missing_keys")
-                return
-            payload: dict[str, Any] = {}
-            source_title = str(source_selector.get("title") or "").strip()
-            if source_title:
-                payload["source_title"] = source_title
-            source_automation_id = str(source_selector.get("automation_id") or "").strip()
-            if source_automation_id:
-                payload["source_automation_id"] = source_automation_id
-            target_title = str(target_selector.get("title") or "").strip()
-            if target_title:
-                payload["target_title"] = target_title
-            target_automation_id = str(target_selector.get("automation_id") or "").strip()
-            if target_automation_id:
-                payload["target_automation_id"] = target_automation_id
-            self.append(
-                "drag",
-                payload,
-            )
-            _finalize_perf("recorded_drag")
-            return
-
-        selector_started_ns: int | None = None
-        if perf_sample is not None:
-            selector_started_ns = time.perf_counter_ns()
-        selector = self._element_resolver(x, y)
-        if perf_sample is not None and selector_started_ns is not None:
-            perf_sample["t_element_resolver_ms"] = (
-                time.perf_counter_ns() - selector_started_ns
-            ) / 1e6
-        if selector is None:
-            self._report_record_error("Could not resolve UI element selector for click.")
-            _finalize_perf("error_click_selector_missing")
-            return
-        is_hierarchy_pane = _is_generic_unity_hierarchy_pane(selector)
-        if perf_sample is not None:
-            perf_sample["is_hierarchy_pane"] = is_hierarchy_pane
-        if is_hierarchy_pane:
-            hierarchy_started_ns: int | None = None
-            if perf_sample is not None:
-                hierarchy_started_ns = time.perf_counter_ns()
-            hierarchy_path = self._resolve_hierarchy_path(
-                snapshot,
-                mouse_down_unix_ms=start_mouse_down_unix_ms,
-                perf_sample=perf_sample,
-            )
-            if perf_sample is not None and hierarchy_started_ns is not None:
-                perf_sample["t_resolve_hierarchy_path_ms"] = (
-                    time.perf_counter_ns() - hierarchy_started_ns
-                ) / 1e6
-            if hierarchy_path is None:
-                now = time.monotonic()
-                if now >= self._hierarchy_error_suppress_until:
-                    message = (
-                        "Could not resolve hierarchy path from Unity bridge for hierarchy click."
-                    )
-                    diagnostics = str(self._last_hierarchy_bridge_diag or "").strip()
-                    if diagnostics:
-                        message = f"{message} {diagnostics}"
-                    self._report_record_error(message)
-                    self._hierarchy_error_suppress_until = (
-                        now + HIERARCHY_BRIDGE_ERROR_SUPPRESS_SECONDS
-                    )
-                _finalize_perf("error_hierarchy_path_unresolved")
-                return
-            self.append(
-                "click",
-                {
-                    "hierarchy_path": hierarchy_path,
-                    "target": _build_hierarchy_target_with_fallbacks(hierarchy_path),
-                },
-            )
-            _finalize_perf("recorded_click_hierarchy")
-            return
-        payload = dict(selector)
-        payload["target"] = _build_uia_target_with_fallbacks(selector)
-        self.append(
-            "click",
-            payload,
+        self._enqueue_pending_action(
+            sort_key_ns,
+            {
+                "kind": "mouse_release",
+                "timestamp_ms": timestamp_ms,
+                "start_point": (start_x, start_y),
+                "end_point": (x, y),
+                "mouse_down_unix_ms": start_mouse_down_unix_ms,
+                "snapshot": snapshot,
+                "perf_sample": perf_sample,
+            },
+            perf_sample,
         )
-        _finalize_perf("recorded_click_uia")
 
     def _on_key_press(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:
         if not self._recording or key is None:
@@ -776,7 +976,15 @@ class ScenarioRecorder:
 
         if "CTRL" in self._modifier_keys:
             shortcut = f"CTRL+{name}"
-            self.append("shortcut", {"shortcut": shortcut})
+            self._enqueue_pending_action(
+                time.perf_counter_ns(),
+                {
+                    "kind": "shortcut",
+                    "timestamp_ms": int(time.time() * 1000),
+                    "shortcut": shortcut,
+                },
+                None,
+            )
 
     def _on_key_release(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:
         if key is None:

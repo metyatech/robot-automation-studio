@@ -1,4 +1,5 @@
 import json
+import threading
 import time
 
 from pynput import keyboard
@@ -478,6 +479,124 @@ def test_recording_perf_enabled_writes_jsonl(tmp_path, monkeypatch) -> None:
     assert payload["event"] == "click_release"
 
 
+def test_recorder_click_does_not_block_on_element_resolver() -> None:
+    resolver_started = threading.Event()
+    allow_resolver = threading.Event()
+
+    def _blocking_resolver(_x: int, _y: int) -> dict[str, object]:
+        resolver_started.set()
+        allow_resolver.wait(timeout=5.0)
+        return {
+            "title": "File",
+            "automation_id": "MainMenuFile",
+            "class_name": "MenuItem",
+            "control_type": "MenuItem",
+        }
+
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="TestWindow",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=_blocking_resolver,
+    )
+    recorder.start(window_hint="TestWindow")
+    recorder._on_click(120, 180, None, True)
+
+    release_thread = threading.Thread(
+        target=lambda: recorder._on_click(120, 180, None, False),
+        daemon=True,
+    )
+    release_thread.start()
+    release_thread.join(timeout=0.2)
+    if release_thread.is_alive():
+        allow_resolver.set()
+        release_thread.join(timeout=5.0)
+        recorder.stop()
+        raise AssertionError("_on_click release must not block on element resolver")
+
+    assert resolver_started.wait(timeout=2.0)
+    allow_resolver.set()
+    steps = events_to_steps(recorder.stop())
+    assert [step.action for step in steps] == ["click"]
+
+
+def test_recorder_hierarchy_click_does_not_block_on_bridge_wait() -> None:
+    wait_started = threading.Event()
+    allow_wait = threading.Event()
+
+    class BlockingBridge:
+        def __init__(self) -> None:
+            self.version = 10
+            self.path = "ComeBody_Armature"
+
+        def get_selected_hierarchy_path(self) -> str | None:
+            return self.path
+
+        def get_selection_state(self) -> dict[str, object]:
+            return {
+                "ok": True,
+                "hierarchy_path": self.path,
+                "selection_version": self.version,
+                "selection_changed_unix_ms": 0,
+            }
+
+        def wait_for_selection_change(
+            self, after_version: int, timeout_seconds: float | None = None
+        ) -> dict[str, object]:
+            _ = after_version
+            _ = timeout_seconds
+            wait_started.set()
+            allow_wait.wait(timeout=5.0)
+            self.version += 1
+            self.path = "Main Camera"
+            return {
+                "ok": True,
+                "hierarchy_path": self.path,
+                "selection_version": self.version,
+            }
+
+    bridge = BlockingBridge()
+    recorder = ScenarioRecorder(
+        window_provider=lambda: WindowSnapshot(
+            title="TestWindow",
+            left=0,
+            top=0,
+            width=1000,
+            height=800,
+        ),
+        element_resolver=lambda _x, _y: {
+            "title": "UnityEditor.SceneHierarchyWindow",
+            "class_name": "UnityGUIViewWndClass",
+            "control_type": "Pane",
+        },
+        unity_bridge=bridge,
+    )
+    recorder.start(window_hint="TestWindow")
+    recorder._on_click(120, 180, None, True)
+
+    release_thread = threading.Thread(
+        target=lambda: recorder._on_click(120, 180, None, False),
+        daemon=True,
+    )
+    release_thread.start()
+    release_thread.join(timeout=0.2)
+    if release_thread.is_alive():
+        allow_wait.set()
+        release_thread.join(timeout=5.0)
+        recorder.stop()
+        raise AssertionError("_on_click release must not block on bridge wait")
+
+    assert wait_started.wait(timeout=2.0)
+    allow_wait.set()
+    steps = events_to_steps(recorder.stop())
+    assert [step.action for step in steps] == ["click"]
+    assert steps[0].params["hierarchy_path"] == "Main Camera"
+
+
 def test_has_visible_window_with_hint_true_when_matching_title_exists() -> None:
     assert has_visible_window_with_hint(
         "Unity",
@@ -657,7 +776,7 @@ def test_recorder_hierarchy_bridge_error_includes_diagnostics() -> None:
     recorder.stop()
 
     assert len(errors) == 1
-    assert "Could not resolve hierarchy path from Unity bridge for hierarchy click." in errors[0]
+    assert "Could not resolve hierarchy path via Unity bridge (hierarchy click)." in errors[0]
     assert "bridge_endpoint=http://127.0.0.1:39067" in errors[0]
     assert "bridge_available=False" in errors[0]
     assert "window_title=Unity" in errors[0]
