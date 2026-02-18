@@ -1139,6 +1139,20 @@ def create_app(*, locale: str = DEFAULT_LOCALE) -> FastAPI:
 
     app = FastAPI(title="Robot Automation Studio Server")
 
+    # Serve the built frontend if available
+    frontend_dist = Path(__file__).resolve().parent.parent.parent / "tauri-app" / "dist"
+    if frontend_dist.is_dir():
+        from starlette.responses import FileResponse
+        from starlette.staticfiles import StaticFiles
+
+        # Serve index.html at root
+        @app.get("/")
+        async def serve_index() -> FileResponse:
+            return FileResponse(frontend_dist / "index.html")
+
+        # Serve static assets (JS/CSS/etc.)
+        app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
+
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -1212,23 +1226,33 @@ def create_app(*, locale: str = DEFAULT_LOCALE) -> FastAPI:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Robot Automation Studio headless server")
-    parser.add_argument("--port", type=int, default=0, help="Port (0 = auto-assign)")
+    parser = argparse.ArgumentParser(description="Robot Automation Studio server")
+    parser.add_argument("--port", type=int, default=8765, help="Port (default: 8765)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Bind host")
     parser.add_argument("--locale", type=str, default=DEFAULT_LOCALE, help="UI locale (en/ja)")
+    parser.add_argument(
+        "--no-browser", action="store_true", help="Do not open browser automatically"
+    )
     args = parser.parse_args()
 
     app = create_app(locale=args.locale)
+    open_browser = not args.no_browser
 
     class _PortReporter(uvicorn.Server):
-        """Subclass that prints PORT:<n> once the server is listening."""
+        """Subclass that prints PORT:<n> and optionally opens a browser."""
 
         def _log_started_message(self, listeners: list[Any]) -> None:  # type: ignore[override]
             super()._log_started_message(listeners)  # type: ignore[arg-type]
             for sock in listeners:
                 addr = sock.getsockname()
                 if isinstance(addr, tuple) and len(addr) >= 2:
-                    print(f"PORT:{addr[1]}", flush=True)
+                    port = addr[1]
+                    print(f"PORT:{port}", flush=True)
+                    if open_browser:
+                        import webbrowser
+
+                        webbrowser.open(f"http://{args.host}:{port}")
+                    break
 
     config = uvicorn.Config(
         app,

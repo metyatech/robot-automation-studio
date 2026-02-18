@@ -87,50 +87,52 @@ cd tauri-app && npm install
 
 ## Usage / How to Run
 
-### 1. Start the backend server
+### Quick start (one command)
+
+Build the frontend once, then start the server:
 
 ```bash
-python -m robot_automation_studio.server --port 8765
+cd tauri-app && npm run build && cd ..
+python -m robot_automation_studio.server
 ```
 
-Optional: override locale at startup:
+The server starts on port 8765 and automatically opens the browser.
+No separate frontend process is needed — the server serves the built UI.
+
+Options:
 
 ```bash
-python -m robot_automation_studio.server --port 8765 --locale ja
+python -m robot_automation_studio.server --port 9000       # custom port
+python -m robot_automation_studio.server --locale ja        # Japanese UI
+python -m robot_automation_studio.server --no-browser       # don't open browser
+robot-automation-studio                                     # installed entry point
 ```
 
-Or use the installed entry point:
+### Development mode (hot reload)
+
+For frontend development with hot reload, run two processes:
 
 ```bash
-robot-automation-studio --port 8765
-```
+# Terminal 1: backend server
+python -m robot_automation_studio.server --no-browser
 
-### 2. Start the frontend (development mode)
-
-```bash
+# Terminal 2: Vite dev server (hot reload)
 cd tauri-app && npm run dev
 ```
 
-Open `http://localhost:1420?port=8765` in your browser.
+Open `http://localhost:1420` in your browser.
 
-### 3. Build the frontend (production)
+### Desktop app (Tauri)
 
-```bash
-cd tauri-app && npm run build
-```
-
-Then open `tauri-app/dist/index.html` in your browser, or serve `tauri-app/dist/` with any static file server.
-
-### 4. Run as a desktop app (Tauri)
-
-To run as a native desktop window instead of a browser tab:
+To run as a native desktop window:
 
 ```bash
+# Terminal 1: backend server
+python -m robot_automation_studio.server --no-browser
+
+# Terminal 2: Tauri desktop shell
 cd tauri-app && npx tauri dev
 ```
-
-This launches the Tauri desktop shell with the React frontend embedded.
-The backend server must be running separately (step 1).
 
 To build a distributable desktop executable:
 

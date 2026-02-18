@@ -93,13 +93,20 @@ export type RunPhase =
 
 const DEFAULT_PORT = 8765;
 
+function resolveServerPort(): number {
+  if (typeof window === "undefined") return DEFAULT_PORT;
+  // Explicit ?port= parameter takes priority
+  const portParam = new URLSearchParams(window.location.search).get("port");
+  if (portParam) return parseInt(portParam, 10);
+  // If served from the Python server (same origin), use the current port
+  const locationPort = parseInt(window.location.port, 10);
+  if (locationPort && locationPort !== 1420) return locationPort;
+  // Fallback (e.g., Vite dev server on port 1420)
+  return DEFAULT_PORT;
+}
+
 export function useStudio() {
-  // Determine port from URL params or env
-  const portParam =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("port")
-      : null;
-  const port = portParam ? parseInt(portParam, 10) : DEFAULT_PORT;
+  const port = resolveServerPort();
 
   const { call, subscribe, connected } = useIpc(port);
 
