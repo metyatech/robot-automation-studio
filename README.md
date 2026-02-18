@@ -74,10 +74,10 @@ The application is composed of two processes:
 ### Python dependencies
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,overlay]"
 ```
 
-This installs `fastapi`, `uvicorn`, `websockets`, `PySide6` (for the overlay subprocess), and all dev tools.
+This installs the server dependencies (`fastapi`, `uvicorn`, `websockets`), PySide6 for the overlay subprocess, and dev tools.
 
 ### Node dependencies
 
@@ -99,10 +99,10 @@ Optional: override locale at startup:
 python -m robot_automation_studio.server --port 8765 --locale ja
 ```
 
-Or use the installed script entry point:
+Or use the installed entry point:
 
 ```bash
-robot-automation-studio-server --port 8765
+robot-automation-studio --port 8765
 ```
 
 ### 2. Start the frontend (development mode)
@@ -120,6 +120,23 @@ cd tauri-app && npm run build
 ```
 
 Then open `tauri-app/dist/index.html` in your browser, or serve `tauri-app/dist/` with any static file server.
+
+### 4. Run as a desktop app (Tauri)
+
+To run as a native desktop window instead of a browser tab:
+
+```bash
+cd tauri-app && npx tauri dev
+```
+
+This launches the Tauri desktop shell with the React frontend embedded.
+The backend server must be running separately (step 1).
+
+To build a distributable desktop executable:
+
+```bash
+cd tauri-app && npx tauri build
+```
 
 ## Dev Commands
 
@@ -219,25 +236,6 @@ powershell -ExecutionPolicy Bypass -File scripts/install-precommit.ps1
 - Studio can auto-install this dependency when `Unity Project Path` is set.
 - During auto-install, Studio also removes legacy `Assets/Editor/RobotFrameworkUnityBridge.cs` if present.
 - Without the bridge, hierarchy row clicks cannot be resolved and recording logs an error.
-
-## Live Unity Integration Smoke Test
-
-Use this only when Unity Editor is running and a target project is available.
-
-```bash
-set ROBOT_AUTOMATION_STUDIO_LIVE_E2E=1
-set ROBOT_AUTOMATION_STUDIO_LIVE_PROJECT_PATH=<your-unity-project-path>
-set ROBOT_AUTOMATION_STUDIO_LIVE_WINDOW_HINT=Unity
-set ROBOT_AUTOMATION_STUDIO_LIVE_HIERARCHY_PATH=<hierarchy-path-for-matrix>
-python -m pytest tests/test_live_unity_attach_e2e.py -q
-```
-
-The live suite covers:
-- attach mode bridge readiness
-- launch mode bridge readiness
-- Japanese locale smoke path
-- export matrix: `attach/launch x profile on/off x hierarchy_path on/off`
-- export matrix: `attach/launch x subflow timeout (blank/fixed/placeholder)`
 
 ## Security Checks in CI
 
