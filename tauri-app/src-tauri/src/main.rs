@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    robot_automation_studio_lib::run()
+    robot_automation_studio::run()
 }

@@ -5,9 +5,9 @@
   "identifier": "com.metyatech.robot-automation-studio",
   "build": {
     "beforeBuildCommand": "npm run build",
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "python -m robot_automation_studio.server --port 8765 --no-browser",
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:1420"
+    "devUrl": "http://127.0.0.1:8765"
   },
   "app": {
     "windows": [
