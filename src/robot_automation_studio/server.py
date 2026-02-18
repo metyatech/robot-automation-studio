@@ -1221,6 +1221,54 @@ def create_app(*, locale: str = DEFAULT_LOCALE) -> FastAPI:
 
 
 # ---------------------------------------------------------------------------
+# App window launcher
+# ---------------------------------------------------------------------------
+
+
+def _find_browser_app_mode() -> str | None:
+    """Find a Chromium-based browser that supports ``--app`` mode."""
+    import shutil
+    import sys
+
+    candidates = ["msedge", "microsoft-edge", "chrome", "google-chrome"]
+    for name in candidates:
+        path = shutil.which(name)
+        if path:
+            return path
+
+    if sys.platform == "win32":
+        # Well-known Windows install paths (not on PATH by default)
+        win_paths = [
+            Path("C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"),
+            Path("C:/Program Files/Microsoft/Edge/Application/msedge.exe"),
+            Path("C:/Program Files/Google/Chrome/Application/chrome.exe"),
+            Path("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"),
+        ]
+        for p in win_paths:
+            if p.exists():
+                return str(p)
+
+    return None
+
+
+def _open_app_window(url: str) -> None:
+    """Open the app URL in a desktop-app-style window (no browser chrome).
+
+    Uses Edge/Chrome ``--app`` mode for a native look, falling back to the
+    default browser if no Chromium browser is found.
+    """
+    import webbrowser
+
+    browser = _find_browser_app_mode()
+    if browser:
+        subprocess.Popen([browser, f"--app={url}"])
+        return
+
+    # Fallback: default browser (opens as a tab)
+    webbrowser.open(url)
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
@@ -1239,7 +1287,7 @@ def main() -> None:
     open_browser = not args.no_browser
 
     class _PortReporter(uvicorn.Server):
-        """Subclass that prints PORT:<n> and optionally opens a browser."""
+        """Subclass that prints PORT:<n> and optionally opens the app window."""
 
         def _log_started_message(self, listeners: list[Any]) -> None:  # type: ignore[override]
             super()._log_started_message(listeners)  # type: ignore[arg-type]
@@ -1249,9 +1297,7 @@ def main() -> None:
                     port = addr[1]
                     print(f"PORT:{port}", flush=True)
                     if open_browser:
-                        import webbrowser
-
-                        webbrowser.open(f"http://{args.host}:{port}")
+                        _open_app_window(f"http://{args.host}:{port}")
                     break
 
     # Check if the port is already in use before starting
