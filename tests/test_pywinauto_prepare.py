@@ -1,6 +1,6 @@
 import warnings
 
-from robot_automation_studio.app import _import_pywinauto_with_warning_filters
+from robot_automation_studio.recorder import _import_pywinauto_with_warning_filters
 
 
 def test_import_pywinauto_with_warning_filters_suppresses_known_warnings() -> None:

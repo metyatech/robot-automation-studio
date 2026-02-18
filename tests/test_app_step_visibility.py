@@ -1,4 +1,4 @@
-from robot_automation_studio.app import step_editor_visibility_for_kind
+from robot_automation_studio.server import step_editor_visibility_for_kind
 
 
 def test_step_editor_visibility_for_action() -> None:

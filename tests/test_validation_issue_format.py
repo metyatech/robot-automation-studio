@@ -1,5 +1,5 @@
-from robot_automation_studio.app_dialogs import format_validation_issues_for_clipboard
 from robot_automation_studio.preflight_validation import ValidationIssue
+from robot_automation_studio.server import format_validation_issues_for_clipboard
 
 
 def test_format_validation_issues_for_clipboard_with_items() -> None:

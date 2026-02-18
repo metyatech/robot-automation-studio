@@ -9,6 +9,7 @@ import platform
 import queue
 import threading
 import time
+import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +20,23 @@ from pynput import keyboard, mouse
 from pywinauto import Desktop
 
 from .models import Step
+
+
+def _import_pywinauto_with_warning_filters(importer: Any) -> None:
+    """Import pywinauto while suppressing known non-actionable startup warnings."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Apply externally defined coinit_flags:.*",
+            category=UserWarning,
+        )
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Revert to STA COM threading mode",
+            category=UserWarning,
+        )
+        importer("pywinauto")
+
 
 STOP_HOTKEY_MAIN_KEY = "F12"
 STOP_HOTKEY_REQUIRED_MODIFIERS = {"ALT", "SHIFT"}

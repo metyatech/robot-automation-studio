@@ -1,0 +1,747 @@
+{
+  "locale": {
+    "en": {
+      "label": "英語"
+    },
+    "ja": {
+      "label": "日本語"
+    }
+  },
+  "app": {
+    "name": "Robot Automation Studio",
+    "window": {
+      "title": {
+        "_self": "Robot Automation Studio",
+        "recording": "Robot Automation Studio [記録中]"
+      },
+      "header_prefix": "Robot Automation Studio -"
+    },
+    "help": {
+      "tooltip": {
+        "fallback": "このコンポーネントのヘルプはありません。"
+      },
+      "header": "各部品にカーソルを合わせるとヒントを表示します。詳細は F1 を押してください。",
+      "dialog": {
+        "title": "GUI ヘルプガイド",
+        "summary": "{{count}} 個の UI コンポーネントに説明があります。",
+        "shown": "{{shown}} / {{total}} 件を表示中。",
+        "no_match": "一致するコンポーネントはありません。",
+        "details": "タイトル: {{title}}\nウィジェット種別: {{widget_class}}\nウィジェットID: {{widget_id}}\n\n概要:\n{{summary}}\n\n詳細:\n{{detail}}\n"
+      },
+      "menu": {
+        "file": {
+          "save": {
+            "summary": "現在のシナリオを保存します。",
+            "detail": "現在のシナリオモデルを .scenario.json ファイルとして保存します。"
+          },
+          "load": {
+            "summary": "シナリオファイルを読み込みます。",
+            "detail": ".scenario.json ファイルをエディタへ読み込み、UIを更新します。"
+          },
+          "full_json": {
+            "summary": "全体 JSON エディタを開きます。",
+            "detail": "v2 シナリオ JSON 全体を1つのダイアログで直接編集します。"
+          },
+          "help": {
+            "summary": "ヘルプガイドを開きます。",
+            "detail": "登録済みUI部品の検索可能なヘルプを開きます。"
+          },
+          "run_diagnostics": {
+            "summary": "直近の実行診断を開きます。",
+            "detail": "直近に生成した実行診断JSONをダイアログで表示します。"
+          }
+        },
+        "add": {
+          "click": {
+            "summary": "クリック操作ステップを追加します。",
+            "detail": "1つの対象をクリックするアクションステップを追加します。"
+          },
+          "drag": {
+            "summary": "ドラッグ操作ステップを追加します。",
+            "detail": "ドラッグ&ドロップのアクションステップを追加します。"
+          },
+          "shortcut": {
+            "summary": "ショートカット操作ステップを追加します。",
+            "detail": "ショートカットキー送信のアクションステップを追加します。"
+          },
+          "menu": {
+            "summary": "メニュー操作ステップを追加します。",
+            "detail": "アプリのメニューを開くアクションステップを追加します。"
+          },
+          "type": {
+            "summary": "文字入力ステップを追加します。",
+            "detail": "文字を入力するアクションステップを追加します。"
+          },
+          "if": {
+            "summary": "制御ステップを追加します。",
+            "detail": "条件分岐やループ用の制御ステップを追加します。"
+          },
+          "group": {
+            "summary": "グループステップを追加します。",
+            "detail": "子ステップ整理用のグループステップを追加します。"
+          }
+        }
+      }
+    },
+    "menubar": {
+      "file": "ファイル",
+      "edit": "編集",
+      "run": "実行",
+      "tools": "ツール",
+      "help": "ヘルプ"
+    },
+    "menu": {
+      "file": {
+        "exit": "終了",
+        "save": "保存",
+        "load": "読込",
+        "full_json": "全体 JSON",
+        "help": "ヘルプガイド (F1)",
+        "run_diagnostics": "実行診断"
+      },
+      "edit": {
+        "add_step": "ステップ追加",
+        "delete": "削除",
+        "move_up": "上へ移動",
+        "move_down": "下へ移動",
+        "duplicate": "複製"
+      },
+      "run": {
+        "record": "記録開始",
+        "stop_recording": "記録停止",
+        "run_robot": "Robot 実行",
+        "stop_robot": "Robot 停止"
+      },
+      "tools": {
+        "hotkey_settings": "ホットキー設定...",
+        "language": "言語"
+      },
+      "add": {
+        "click": "クリック",
+        "drag": "ドラッグ",
+        "shortcut": "ショートカット",
+        "menu": "メニュー",
+        "type": "入力",
+        "if": "IF",
+        "group": "[] グループ"
+      }
+    },
+    "statusbar": {
+      "stop_hotkey": "停止: {{hotkey}}"
+    },
+    "status": {
+      "run_tooltip": "実行状態",
+      "record_tooltip": "記録状態",
+      "record_idle": " 待機 ",
+      "recording": " 記録中 "
+    },
+    "scenario": {
+      "default_name": "Unity Editor Flow",
+      "default_fallback_name": "シナリオ"
+    },
+    "button": {
+      "record_start": "記録開始",
+      "record_stop": "記録停止",
+      "run_robot": "Robot 実行",
+      "stop_robot": "Robot 停止",
+      "hotkey_with_value": "停止キー: {{hotkey}}",
+      "file_menu": "ファイル",
+      "language_menu": "言語",
+      "add_step": "追加",
+      "delete": "",
+      "move_up": "",
+      "move_down": "",
+      "duplicate": "",
+      "apply_step": "ステップ変更を適用",
+      "export": "エクスポート",
+      "browse": "参照",
+      "variables": "変数",
+      "profiles": "プロファイル",
+      "execution_outputs": "実行/出力",
+      "validate": "検証",
+      "profile_diff": "プロファイル差分",
+      "params_template": "パラメータ雛形を挿入",
+      "refresh_diff": "差分を更新",
+      "add_override": "上書き追加",
+      "remove_override": "上書き削除",
+      "close": "閉じる",
+      "go_to_issue": "該当箇所へ移動",
+      "cancel": "キャンセル",
+      "apply": "適用",
+      "format": "整形",
+      "reload_model": "モデル再読込",
+      "save": "保存",
+      "add": "追加",
+      "delete_word": "削除",
+      "apply_current": "現在項目を適用",
+      "open_output_dir": "フォルダを開く",
+      "copy_issue": "選択項目をコピー",
+      "copy_all_issues": "全件コピー",
+      "copy_summary": "要約をコピー",
+      "copy_json": "JSONをコピー",
+      "open_diagnostics_dir": "診断フォルダを開く",
+      "open_subflow_logs_dir": "子フローログを開く"
+    },
+    "label": {
+      "steps": "ステップ",
+      "output_log": "出力ログ"
+    },
+    "tooltip": {
+      "delete_step": "ステップを削除",
+      "move_step_up": "ステップを上へ移動",
+      "move_step_down": "ステップを下へ移動",
+      "duplicate_step": "ステップを複製",
+      "steps_list": "ステップ一覧",
+      "stop_hotkey": "緊急停止ホットキーを設定します。",
+      "go_to_issue": "この検証エラーが示す UI 項目へフォーカスを移動します。",
+      "params_template": "アクション種別に対応する Params(JSON) の雛形を挿入します。",
+      "open_output_dir": "現在の出力フォルダをエクスプローラーで開きます。",
+      "subflow_timeout": "run_subflow/parallel 待機のタイムアウト。1..86400、空欄、${{変数}} を指定できます。",
+      "step_validation": "現在のステップが実行/エクスポート可能かを表示します。"
+    },
+    "log": {
+      "toggle": {
+        "tooltip": "出力ログの表示を折りたたみ/展開します。"
+      },
+      "search": "検索",
+      "record_error": "記録エラー: {{message}}",
+      "diagnostics_persist_failed": "[diagnostics] 記録診断ログの保存に失敗しました: {{path}}: {{error}}",
+      "recording_already_running": "記録は既に実行中です。",
+      "recording_not_running": "記録は実行されていません。",
+      "recording_started": "記録を開始しました。window_hint={{window_hint}}",
+      "recording_stopped": "記録を停止しました。{{count}} ステップ追加しました。",
+      "record_start_failed_attach": "記録開始に失敗しました: attach 対象ウィンドウが見つかりません。window_hint={{window_hint}}",
+      "saved_scenario": "シナリオを保存しました: {{path}}",
+      "loaded_scenario": "シナリオを読み込みました: {{path}}",
+      "load_failed": "読込に失敗しました: {{error}}",
+      "applied_full_json": "全体シナリオ JSON の変更を適用しました。",
+      "updated_variables": "Variables Editor から変数を更新しました。",
+      "updated_profiles": "Profiles Editor からプロファイルを更新しました。",
+      "validation_ok": "事前検証に成功しました。",
+      "validation_failed": "事前検証に失敗しました。",
+      "validation_issue": "[検証] {{code}} ({{location}}): {{message}}",
+      "updated_execution_outputs": "実行/出力設定をエディタから更新しました。",
+      "export_failed": "エクスポート失敗: {{error}}",
+      "exported_robot": "Robot を出力しました: {{path}}",
+      "exported_json": "JSON を出力しました: {{path}}",
+      "run_stop_recording_first": "Robot 実行前に記録を停止してください。",
+      "robot_already_running": "Robot は既に実行中です。",
+      "prepare_export": "シナリオ出力を準備しています...",
+      "run_export_failed": "実行用エクスポートに失敗しました: {{error}}",
+      "preflight_checks": "実行前チェック中...",
+      "running_robot_suite": "Robot を実行しています...",
+      "starting_robot_process": "Robot プロセスを開始しています...",
+      "attaching_unity_wait": "Unity に接続して初回アクション待機中...",
+      "robot_not_running": "Robot は実行されていません。",
+      "stopping_robot_suite": "Robot を停止しています... ({{hotkey}})",
+      "robot_run_failed": "Robot 実行に失敗しました: {{error}}",
+      "robot_exit": "robot exit={{code}}",
+      "run_diag_output_missing": "実行診断をスキップしました: output.xml が見つかりません: {{path}}",
+      "run_diag_parse_failed": "実行診断の解析に失敗しました: {{error}}",
+      "run_diag_saved": "実行診断を保存しました: {{path}}",
+      "run_diag_save_failed": "実行診断の保存に失敗しました: {{error}}",
+      "run_diag_summary": "実行診断サマリ: status={{status}}, keywords={{total}}, elapsed={{elapsed}}s",
+      "run_diag_slowest": "  最遅#{{index}}: {{name}} ({{status}}) {{elapsed}}s",
+      "run_diag_failed_keyword": "  失敗キーワード: {{name}} | メッセージ: {{message}}",
+      "run_diag_last_annotation": "  直前注釈: {{payload}}",
+      "run_diag_screenshot": "失敗時スクリーンショットを保存しました: {{path}}",
+      "run_diag_screenshot_failed": "失敗時スクリーンショットの取得に失敗しました。",
+      "params_template_inserted": "アクション {{action}} のパラメータ雛形を挿入しました",
+      "params_template_insert_cancelled": "パラメータ雛形の挿入をキャンセルしました。",
+      "opened_output_dir": "出力フォルダを開きました: {{path}}",
+      "open_output_dir_failed": "出力フォルダを開けませんでした: {{error}}",
+      "opened_diagnostics_dir": "診断フォルダを開きました: {{path}}",
+      "open_diagnostics_dir_failed": "診断フォルダを開けませんでした: {{error}}",
+      "opened_subflow_logs_dir": "子フローログフォルダを開きました: {{path}}",
+      "open_subflow_logs_dir_failed": "子フローログフォルダを開けませんでした: {{error}}",
+      "robot_stopped": "Robot を停止しました。",
+      "failed_register_hotkey": "停止ホットキー登録に失敗しました: {{error}}",
+      "stop_requested": "{{source}} で停止要求を受信しました。",
+      "hotkey_registered": "停止ホットキーを登録しました: {{hotkey}}",
+      "hotkey_fallback": "設定したホットキーが使えないため、代替キーを適用しました: {{hotkey}}",
+      "hotkey_updated": "停止ホットキーを更新しました: {{hotkey}}",
+      "settings_saved": "UI 設定を保存しました: {{path}}",
+      "settings_save_failed": "UI 設定の保存に失敗しました: {{error}}",
+      "settings_load_failed": "UI 設定の読込に失敗しました: {{error}}",
+      "failed_start_overlay": "オーバーレイの開始に失敗しました: {{error}}",
+      "auto_detected_project_path": "Unity プロジェクトパスを自動検出しました: {{path}}",
+      "bridge_package_meta_detected": "Unity bridge package script metadata を検出しました。",
+      "bridge_package_meta_missing": "Unity bridge package script metadata が見つからないため、legacy fallback bridge script モードを使用します。",
+      "ensure_bridge_package": "{{purpose}} 用に Unity bridge package を確認しています: {{path}}",
+      "bridge_setup_failed": "Unity bridge package のセットアップに失敗しました: {{error}}",
+      "bridge_dependency_updated": "このプロジェクトの Unity bridge UPM dependency を追加/更新しました。",
+      "bridge_dependency_present": "Unity bridge UPM dependency は既に存在します。",
+      "fallback_bridge_installed": "fallback bridge script をインストールしました: Assets/Editor/RobotFrameworkUnityBridge.cs",
+      "fallback_bridge_present": "fallback bridge script は既にインストール済みです。",
+      "fallback_install_failed": "fallback bridge のインストールに失敗しました: {{error}}",
+      "focused_target_window": "bridge 起動チェックのため対象 Unity ウィンドウをフォーカスしました。",
+      "refocused_target_window": "対象 Unity ウィンドウを再フォーカスし、bridge 準備確認を再試行します。",
+      "check_bridge_readiness": "Unity bridge の準備状態を確認中... (試行 {{attempt}}/{{total}})",
+      "bridge_readiness_timeout": "Unity bridge 準備確認がタイムアウトしました。",
+      "triggered_assets_refresh": "対象ウィンドウで Unity Assets Refresh (Ctrl+R) を実行しました。bridge を待機します...",
+      "bridge_ready_after_refresh": "リフレッシュ後に Unity bridge が準備完了しました。",
+      "could_not_trigger_refresh": "対象ウィンドウで Unity Assets Refresh ショートカットを実行できませんでした。",
+      "meta_missing_after_wait": "待機後も Unity bridge package script metadata が見つかりません。fallback bridge script を再インストールします...",
+      "fallback_bridge_exists": "fallback bridge script は既に存在します。",
+      "waiting_fallback_readiness": "fallback bridge の準備完了を待機しています...",
+      "bridge_ready_fallback": "Unity bridge が準備完了しました (fallback bridge)。",
+      "detected_compile_errors": "Editor.log で Unity のコンパイルエラーを検出しました:",
+      "bridge_ready": "Unity bridge が準備完了しました。"
+    },
+    "tab": {
+      "step": {
+        "_self": "ステップ",
+        "tooltip": "選択中ステップの項目を編集します。"
+      },
+      "scenario": {
+        "_self": "シナリオ",
+        "tooltip": "シナリオ設定を編集します。"
+      },
+      "export": {
+        "_self": "出力",
+        "tooltip": "出力設定を編集します。"
+      }
+    },
+    "field": {
+      "scenario_name": {
+        "placeholder": "シナリオ名"
+      },
+      "step_id": {
+        "label": "ステップID",
+        "placeholder": "step-1"
+      },
+      "step_title": {
+        "label": "タイトル",
+        "placeholder": "ステップタイトル"
+      },
+      "step_kind": {
+        "label": "種別"
+      },
+      "step_action": {
+        "label": "アクション",
+        "placeholder": "click / drag_drop / type_text ..."
+      },
+      "step_control": {
+        "label": "制御",
+        "placeholder": "if / for_each / while ..."
+      },
+      "step_description": {
+        "label": "説明",
+        "placeholder": "任意の説明"
+      },
+      "step_condition": {
+        "label": "条件",
+        "placeholder": "任意の条件式"
+      },
+      "step_disabled": "無効",
+      "step_continue_on_error": "エラー時も継続",
+      "step_target": {
+        "label": "ターゲット"
+      },
+      "annotations": {
+        "label": "注釈"
+      },
+      "params": {
+        "label": "パラメータ"
+      },
+      "step_validation": {
+        "label": "ステップ検証"
+      },
+      "scenario_id": {
+        "label": "シナリオID",
+        "placeholder": "scenario-id"
+      },
+      "target": {
+        "label": "対象"
+      },
+      "window_hint": {
+        "label": "ウィンドウヒント",
+        "placeholder": "Unity"
+      },
+      "execution_mode": {
+        "label": "実行モード"
+      },
+      "subflow_timeout": {
+        "label": "子フロー待機 (秒)",
+        "placeholder": "3600"
+      },
+      "subflow_timeout_validation": {
+        "label": "子フロー待機検証"
+      },
+      "active_profile": {
+        "label": "適用プロファイル"
+      },
+      "unity_project_path": {
+        "label": "Unity プロジェクトパス",
+        "placeholder": "Unity プロジェクトルートのパス"
+      },
+      "description": {
+        "label": "説明",
+        "placeholder": "任意のシナリオ説明"
+      },
+      "output_dir": {
+        "label": "出力先",
+        "placeholder": "出力ディレクトリ"
+      },
+      "export_name": {
+        "label": "出力名",
+        "placeholder": "出力名"
+      },
+      "variable_id": {
+        "label": "変数ID"
+      },
+      "variable_type": {
+        "label": "変数タイプ"
+      },
+      "variable_required": {
+        "label": "必須"
+      },
+      "variable_default": {
+        "label": "デフォルト値"
+      },
+      "profile_name": {
+        "label": "プロファイル名"
+      },
+      "profile_description": {
+        "label": "説明"
+      },
+      "profile_overrides": {
+        "label": "変数上書き"
+      },
+      "profile_override_key": {
+        "label": "変数"
+      },
+      "profile_override_value": {
+        "label": "値 (JSON またはテキスト)"
+      },
+      "profile_diff": {
+        "base": {
+          "label": "基準プロファイル"
+        },
+        "compare": {
+          "label": "比較プロファイル"
+        }
+      }
+    },
+    "validation": {
+      "step": {
+        "none": "ステップ未選択です。",
+        "ready": "実行/エクスポート可能です。",
+        "invalid": "無効: {{message}}"
+      },
+      "subflow_timeout": {
+        "default": "既定値: 3600秒。",
+        "placeholder": "変数: {{value}}。",
+        "value": "使用値: {{value}}秒。",
+        "invalid": "無効です。1..86400、空欄、${{変数}} を使用してください。",
+        "rejected": "入力は拒否されました。1..86400、空欄、${{変数}} を使用してください。"
+      },
+      "status": {
+        "ok": "検証エラーはありません。",
+        "ng": "検証エラーを検出しました。",
+        "ng_with_count": "検証エラー件数: {{count}}"
+      },
+      "issue": {
+        "item": "{{index}}. [{{code}}] {{message}}",
+        "none": "問題はありません。",
+        "none_clipboard": "検証エラーはありません。",
+        "select_prompt": "詳細を表示するには項目を選択してください。",
+        "none_detail": "問題なく検証が完了しました。",
+        "detail": "コード: {{code}}\n場所: {{location}}\n\nメッセージ:\n{{message}}"
+      }
+    },
+    "option": {
+      "target": {
+        "unity": "Unity",
+        "web": "Web",
+        "desktop": "デスクトップ",
+        "hybrid": "ハイブリッド"
+      },
+      "execution": {
+        "attach": "アタッチ",
+        "launch": "起動"
+      },
+      "profile": {
+        "none": "(なし)"
+      },
+      "kind": {
+        "action": "アクション",
+        "control": "制御",
+        "group": "グループ"
+      },
+      "help": {
+        "target": {
+          "unity": "Unity Editor を対象にステップを実行します。",
+          "web": "Web ブラウザを対象にステップを実行します。",
+          "desktop": "デスクトップアプリを対象にステップを実行します。",
+          "hybrid": "複数種別のアプリをまたいでステップを実行します。"
+        },
+        "execution": {
+          "attach": "既に開いている対象ウィンドウに接続して実行します。",
+          "launch": "実行前に Unity プロジェクトを起動します。"
+        },
+        "profile": {
+          "none": "変数のデフォルト値をそのまま使用します。",
+          "item": "プロファイル '{{profile}}' の上書きを使用します。",
+          "item_with_description": "プロファイル '{{profile}}' の上書きを使用します。{{description}}"
+        },
+        "kind": {
+          "action": "1つの操作ステップを実行します。",
+          "control": "条件分岐やループなどの制御フローを定義します。",
+          "group": "子ステップをグループ化します。"
+        },
+        "fallback": "選択肢: {{option}}"
+      }
+    },
+    "info": {
+      "run_diagnostics_unavailable": {
+        "title": "実行診断",
+        "message": "実行診断はまだありません。先に Robot を実行してください。"
+      },
+      "validation_navigation_unavailable": {
+        "title": "移動先が見つかりません",
+        "message": "このエラー位置を編集可能な UI 項目へ割り当てできませんでした: {{location}}"
+      }
+    },
+    "diagnostics": {
+      "title": "実行診断",
+      "diagnostics_dir": "診断ディレクトリ",
+      "subflow_logs_dir": "サブフローログディレクトリ",
+      "summary": "最終実行サマリー",
+      "raw_json": "生JSON",
+      "log_messages": "ログメッセージ",
+      "copy_summary": "サマリーをコピー",
+      "copy_json": "JSONをコピー",
+      "open": "開く",
+      "no_data": "診断データがありません",
+      "loading": "読み込み中...",
+      "copied": "コピーしました！"
+    },
+    "dialog": {
+      "run_diagnostics": {
+        "title": "実行診断",
+        "path": "診断ファイル: {{path}}",
+        "subflow_logs": {
+          "none": "子フローログが見つかりません。想定ディレクトリ: {{path}}",
+          "summary": "子フローログ: {{count}} ファイル (最新: {{latest}} / {{latest_time}})。ディレクトリ: {{path}}"
+        },
+        "summary_unavailable": "このファイルの実行診断サマリーは利用できません。"
+      },
+      "hotkey": {
+        "title": "停止ホットキー",
+        "label": "緊急停止に使うキーの組み合わせを押してください (例: Alt+Shift+F12)。",
+        "apply": "ホットキーを適用"
+      },
+      "hotkey_conflict": {
+        "title": "代替ホットキーを選択",
+        "message": "選択したホットキーを登録できませんでした: {{hotkey}}\n理由: {{error}}\n\n利用可能な代替キーを選択してください。"
+      },
+      "hotkey_candidate": {
+        "label": "代替キー候補",
+        "apply": "このキーを使用"
+      },
+      "full_json": {
+        "title": "シナリオ全体 JSON (v2)"
+      },
+      "variables": {
+        "title": "変数エディタ"
+      },
+      "profiles": {
+        "title": "プロファイルエディタ"
+      },
+      "execution_outputs": {
+        "title": "実行 / 出力エディタ",
+        "header": "実行 / 出力 JSON",
+        "execution": "execution",
+        "outputs": "outputs"
+      },
+      "validation": {
+        "title": "事前検証"
+      },
+      "profile_diff": {
+        "title": "プロファイル差分プレビュー"
+      }
+    },
+    "file_dialog": {
+      "save": {
+        "title": "シナリオを保存"
+      },
+      "load": {
+        "title": "シナリオを読込"
+      },
+      "select_unity_project": {
+        "title": "Unity プロジェクトルートを選択"
+      },
+      "filter": {
+        "scenario_json": "シナリオ JSON (*.scenario.json);;JSON (*.json)"
+      }
+    },
+    "stop_source": {
+      "global_hotkey": "グローバルホットキー",
+      "recorder_hotkey": "記録ホットキー",
+      "overlay_button": "オーバーレイ停止ボタン"
+    },
+    "purpose": {
+      "recording": "記録",
+      "run": "実行"
+    },
+    "error": {
+      "bridge_setup": {
+        "title": "Unity Bridge セットアップエラー"
+      },
+      "bridge_setup_dependency": {
+        "message": "Unity bridge UPM dependency の準備に失敗しました。\nPath: {{path}}\nError: {{error}}"
+      },
+      "bridge_setup_fallback": {
+        "message": "fallback Unity bridge script のインストールに失敗しました。\nPath: {{path}}\nError: {{error}}"
+      },
+      "bridge_not_ready": {
+        "title": "Unity Bridge 未準備",
+        "message": "Unity bridge はまだ準備できていません。\nUnity がパッケージの取り込みやスクリプトのコンパイル中の可能性があります。\n対象 Unity Editor を開く/フォーカスして {{retry_action}} を再試行してください。\n解消しない場合は Unity のコンパイルエラーを修正してください。{{compile_error_hint}}"
+      },
+      "bridge_compile_hint": "\n\n最近検出した Unity コンパイルエラー:\n- {{items}}",
+      "invalid_params_json": {
+        "title": "Params JSON が不正です"
+      },
+      "invalid_annotations_json": {
+        "title": "Annotations JSON が不正です"
+      },
+      "invalid_params_object": "Params は JSON オブジェクトである必要があります。",
+      "invalid_annotations_array": "Annotations は JSON 配列である必要があります。",
+      "attach_target_not_found": {
+        "title": "アタッチ対象が見つかりません",
+        "message": "attach モードの対象ウィンドウが見つかりませんでした。\nWindow Hint: {{window_hint}}\n対象ウィンドウを開いて Start Recording を再試行してください。"
+      },
+      "load": {
+        "title": "読込エラー"
+      },
+      "full_json_invalid": {
+        "title": "JSON が不正です"
+      },
+      "full_json_validation": {
+        "title": "検証エラー"
+      },
+      "variable_json_invalid": {
+        "title": "Variable JSON が不正です"
+      },
+      "variable_json_object": "Variable は JSON オブジェクトである必要があります。",
+      "variable_id_required": "Variable id は必須です。",
+      "variable_type_required": "Variable type は必須です。",
+      "profile_json_invalid": {
+        "title": "Profile JSON が不正です"
+      },
+      "profile_payload_object": "Profile payload は JSON オブジェクトである必要があります。",
+      "profile_name_required": "Profile name は必須です。",
+      "profile_field_object": "profile フィールドは JSON オブジェクトである必要があります。",
+      "execution_json_invalid": {
+        "title": "execution JSON が不正です"
+      },
+      "outputs_json_invalid": {
+        "title": "outputs JSON が不正です"
+      },
+      "execution_object": "execution はオブジェクトである必要があります。",
+      "outputs_object": "outputs はオブジェクトである必要があります。",
+      "export": {
+        "title": "エクスポートエラー"
+      },
+      "run": {
+        "title": "実行エラー"
+      },
+      "step_apply_invalid": {
+        "title": "ステップが不正です"
+      },
+      "params_template_unsupported": {
+        "title": "雛形を作成できません",
+        "message": "次のアクション用パラメータ雛形は未定義です: {{action}}"
+      },
+      "open_output_dir": {
+        "title": "出力フォルダを開けません",
+        "message": "出力フォルダを開けませんでした: {{path}}\n\n{{error}}"
+      },
+      "open_diagnostics_dir": {
+        "title": "診断フォルダを開けません",
+        "message": "診断フォルダを開けませんでした: {{path}}\n\n{{error}}"
+      },
+      "open_subflow_logs_dir": {
+        "title": "子フローログフォルダを開けません",
+        "message": "子フローログフォルダを開けませんでした: {{path}}\n\n{{error}}"
+      },
+      "validation_navigation": {
+        "title": "検証エラー移動に失敗しました"
+      },
+      "recording_in_progress": {
+        "title": "記録中です"
+      },
+      "hotkey_invalid": {
+        "title": "ホットキーが不正です"
+      },
+      "hotkey_register_failed": {
+        "title": "停止ホットキー登録に失敗しました",
+        "message": "停止ホットキーを登録できませんでした: {{hotkey}}\n\n代替キーも利用できませんでした。\nStop ボタンまたはオーバーレイ停止ボタンは利用できます。\n\n詳細:\n{{details}}"
+      }
+    },
+    "confirm": {
+      "params_template_overwrite": {
+        "title": "パラメータを上書きしますか",
+        "message": "Params(JSON) に既存の値があります。\nアクション '{{action}}' 用の雛形で上書きしますか?"
+      }
+    },
+    "warn": {
+      "hotkey_fallback": {
+        "title": "停止ホットキーを切り替えました",
+        "message": "設定した停止ホットキーを登録できませんでした。\n代替キーを適用しました: {{hotkey}}\n理由: {{error}}"
+      }
+    },
+    "action": {
+      "start_recording": "記録開始",
+      "run_robot": "Run Robot"
+    },
+    "list": {
+      "item": {
+        "variable": "{{index}}. {{id}} ({{type}})",
+        "profile": "{{index}}. {{name}}",
+        "help_entry": "{{title}} [{{widget_class}}]",
+        "step": "{{index}}. [{{kind}}] {{label}} - {{title}}"
+      }
+    },
+    "step": {
+      "label": {
+        "group": "group"
+      }
+    },
+    "step_list": {
+      "context": {
+        "move_up": "上に移動",
+        "move_down": "下に移動",
+        "duplicate": "複製",
+        "delete": "削除"
+      }
+    },
+    "step_editor": {
+      "confirm_overwrite_params": "現在のパラメータが上書きされます。続行しますか？"
+    }
+  },
+  "status": {
+    "phase": {
+      "idle": "待機",
+      "precheck": "事前チェック中",
+      "exporting": "シナリオをエクスポート中",
+      "starting_robot": "Robot 起動中",
+      "attaching_unity": "Unity 接続中",
+      "running": "実行中",
+      "stopping": "停止中..."
+    }
+  },
+  "overlay": {
+    "progress": {
+      "recording": "記録中",
+      "running": "実行中"
+    },
+    "stop_action": {
+      "run": "停止",
+      "recording": "記録停止"
+    },
+    "stop_button": "今すぐ停止",
+    "banner": "{{progress}}  |  {{hotkey}} で {{action}}"
+  }
+}

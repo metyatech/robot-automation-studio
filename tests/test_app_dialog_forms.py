@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from robot_automation_studio.app_dialogs import (
+from robot_automation_studio.server import (
     normalize_profile_form_payload,
     normalize_variable_form_payload,
 )

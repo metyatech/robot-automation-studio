@@ -1,0 +1,747 @@
+{
+  "locale": {
+    "en": {
+      "label": "English"
+    },
+    "ja": {
+      "label": "Japanese"
+    }
+  },
+  "app": {
+    "name": "Robot Automation Studio",
+    "window": {
+      "title": {
+        "_self": "Robot Automation Studio",
+        "recording": "Robot Automation Studio [RECORDING]"
+      },
+      "header_prefix": "Robot Automation Studio -"
+    },
+    "help": {
+      "tooltip": {
+        "fallback": "No help available for this component."
+      },
+      "header": "Hover controls for cursor-near tips. Press F1 for full guide.",
+      "dialog": {
+        "title": "GUI Help Guide",
+        "summary": "{{count}} UI components are documented.",
+        "shown": "{{shown}} / {{total}} components shown.",
+        "no_match": "No matching components.",
+        "details": "Title: {{title}}\nWidget Class: {{widget_class}}\nWidget ID: {{widget_id}}\n\nSummary:\n{{summary}}\n\nDetails:\n{{detail}}\n"
+      },
+      "menu": {
+        "file": {
+          "save": {
+            "summary": "Save current scenario file.",
+            "detail": "Write the current scenario model to a .scenario.json file."
+          },
+          "load": {
+            "summary": "Load scenario file.",
+            "detail": "Load a .scenario.json file into the editor and refresh the UI."
+          },
+          "full_json": {
+            "summary": "Open full JSON editor.",
+            "detail": "Edit the full v2 scenario JSON directly in one dialog."
+          },
+          "help": {
+            "summary": "Open full help guide.",
+            "detail": "Open searchable help for all registered UI controls."
+          },
+          "run_diagnostics": {
+            "summary": "Open latest run diagnostics.",
+            "detail": "Show the latest generated run diagnostics JSON in a dialog."
+          }
+        },
+        "add": {
+          "click": {
+            "summary": "Add click action step.",
+            "detail": "Insert an action step that clicks one target."
+          },
+          "drag": {
+            "summary": "Add drag/drop action step.",
+            "detail": "Insert an action step for drag-and-drop operations."
+          },
+          "shortcut": {
+            "summary": "Add keyboard shortcut step.",
+            "detail": "Insert an action step that sends shortcut keys."
+          },
+          "menu": {
+            "summary": "Add menu navigation step.",
+            "detail": "Insert an action step that opens app menus."
+          },
+          "type": {
+            "summary": "Add text input step.",
+            "detail": "Insert an action step that types text input."
+          },
+          "if": {
+            "summary": "Add control-flow step.",
+            "detail": "Insert a control step for conditions or loops."
+          },
+          "group": {
+            "summary": "Add group container step.",
+            "detail": "Insert a group step to organize child steps."
+          }
+        }
+      }
+    },
+    "menubar": {
+      "file": "File",
+      "edit": "Edit",
+      "run": "Run",
+      "tools": "Tools",
+      "help": "Help"
+    },
+    "menu": {
+      "file": {
+        "exit": "Exit",
+        "save": "Save",
+        "load": "Load",
+        "full_json": "Full JSON",
+        "help": "Help Guide (F1)",
+        "run_diagnostics": "Run Diagnostics"
+      },
+      "edit": {
+        "add_step": "Add Step",
+        "delete": "Delete",
+        "move_up": "Move Up",
+        "move_down": "Move Down",
+        "duplicate": "Duplicate"
+      },
+      "run": {
+        "record": "Record",
+        "stop_recording": "Stop Recording",
+        "run_robot": "Run Robot",
+        "stop_robot": "Stop Robot"
+      },
+      "tools": {
+        "hotkey_settings": "Hotkey Settings...",
+        "language": "Language"
+      },
+      "add": {
+        "click": "Click",
+        "drag": "Drag",
+        "shortcut": "Shortcut",
+        "menu": "Menu",
+        "type": "Type",
+        "if": "IF",
+        "group": "[] Group"
+      }
+    },
+    "statusbar": {
+      "stop_hotkey": "Stop: {{hotkey}}"
+    },
+    "status": {
+      "run_tooltip": "Run status",
+      "record_tooltip": "Recording status",
+      "record_idle": " IDLE ",
+      "recording": " REC "
+    },
+    "scenario": {
+      "default_name": "Unity Editor Flow",
+      "default_fallback_name": "Scenario"
+    },
+    "button": {
+      "record_start": "Record",
+      "record_stop": "Stop",
+      "run_robot": "Run Robot",
+      "stop_robot": "Stop Robot",
+      "hotkey_with_value": "Hotkey: {{hotkey}}",
+      "file_menu": "File",
+      "language_menu": "Language",
+      "add_step": "Add",
+      "delete": "",
+      "move_up": "",
+      "move_down": "",
+      "duplicate": "",
+      "apply_step": "Apply Step Changes",
+      "export": "Export",
+      "browse": "Browse",
+      "variables": "Variables",
+      "profiles": "Profiles",
+      "execution_outputs": "Execution/Outputs",
+      "validate": "Validate",
+      "profile_diff": "Profile Diff",
+      "params_template": "Insert Params Template",
+      "refresh_diff": "Refresh Diff",
+      "add_override": "Add Override",
+      "remove_override": "Remove Override",
+      "close": "Close",
+      "go_to_issue": "Go To Location",
+      "cancel": "Cancel",
+      "apply": "Apply",
+      "format": "Format",
+      "reload_model": "Reload Model",
+      "save": "Save",
+      "add": "Add",
+      "delete_word": "Delete",
+      "apply_current": "Apply Current",
+      "open_output_dir": "Open Dir",
+      "copy_issue": "Copy Issue",
+      "copy_all_issues": "Copy All",
+      "copy_summary": "Copy Summary",
+      "copy_json": "Copy JSON",
+      "open_diagnostics_dir": "Open Diagnostics Dir",
+      "open_subflow_logs_dir": "Open Subflow Logs"
+    },
+    "label": {
+      "steps": "Steps",
+      "output_log": "Output Log"
+    },
+    "tooltip": {
+      "delete_step": "Delete step",
+      "move_step_up": "Move step up",
+      "move_step_down": "Move step down",
+      "duplicate_step": "Duplicate step",
+      "steps_list": "Steps list",
+      "stop_hotkey": "Configure emergency stop hotkey.",
+      "go_to_issue": "Move focus to the UI field indicated by this validation issue.",
+      "params_template": "Insert action-specific params template into Params (JSON).",
+      "open_output_dir": "Open the current output directory in file explorer.",
+      "subflow_timeout": "Timeout for run_subflow/parallel waits. Use 1..86400, blank, or ${{variable}}.",
+      "step_validation": "Shows whether the current step is runnable/exportable."
+    },
+    "log": {
+      "toggle": {
+        "tooltip": "Collapse or expand Output Log."
+      },
+      "search": "Search",
+      "record_error": "Record error: {{message}}",
+      "diagnostics_persist_failed": "[diagnostics] Failed to persist record diagnostic to {{path}}: {{error}}",
+      "recording_already_running": "Recording is already running.",
+      "recording_not_running": "Recording is not running.",
+      "recording_started": "Recording started. window_hint={{window_hint}}",
+      "recording_stopped": "Recording stopped. Added {{count}} steps.",
+      "record_start_failed_attach": "Recording start failed: attach target window not found. window_hint={{window_hint}}",
+      "saved_scenario": "Saved scenario: {{path}}",
+      "loaded_scenario": "Loaded scenario: {{path}}",
+      "load_failed": "Load failed: {{error}}",
+      "applied_full_json": "Applied full scenario JSON editor changes.",
+      "updated_variables": "Updated variables from Variables Editor.",
+      "updated_profiles": "Updated profiles from Profiles Editor.",
+      "validation_ok": "Preflight validation passed.",
+      "validation_failed": "Preflight validation failed.",
+      "validation_issue": "[validation] {{code}} ({{location}}): {{message}}",
+      "updated_execution_outputs": "Updated execution/outputs from editor.",
+      "export_failed": "Export failed: {{error}}",
+      "exported_robot": "Exported robot: {{path}}",
+      "exported_json": "Exported json: {{path}}",
+      "run_stop_recording_first": "Stop recording before running Robot suite.",
+      "robot_already_running": "Robot suite is already running.",
+      "prepare_export": "Preparing scenario export...",
+      "run_export_failed": "Run export failed: {{error}}",
+      "preflight_checks": "Running preflight checks...",
+      "running_robot_suite": "Running Robot suite...",
+      "starting_robot_process": "Starting Robot process...",
+      "attaching_unity_wait": "Attaching to Unity and waiting for first actions...",
+      "robot_not_running": "Robot suite is not running.",
+      "stopping_robot_suite": "Stopping Robot suite... ({{hotkey}})",
+      "robot_run_failed": "Robot run failed: {{error}}",
+      "robot_exit": "robot exit={{code}}",
+      "run_diag_output_missing": "Run diagnostics skipped: output.xml not found: {{path}}",
+      "run_diag_parse_failed": "Run diagnostics parse failed: {{error}}",
+      "run_diag_saved": "Saved run diagnostics: {{path}}",
+      "run_diag_save_failed": "Failed to save run diagnostics: {{error}}",
+      "run_diag_summary": "Run diagnostics summary: status={{status}}, keywords={{total}}, elapsed={{elapsed}}s",
+      "run_diag_slowest": "  slowest#{{index}}: {{name}} ({{status}}) {{elapsed}}s",
+      "run_diag_failed_keyword": "  failed keyword: {{name}} | message: {{message}}",
+      "run_diag_last_annotation": "  last annotation: {{payload}}",
+      "run_diag_screenshot": "Captured failure screenshot: {{path}}",
+      "run_diag_screenshot_failed": "Failure screenshot capture failed.",
+      "params_template_inserted": "Inserted params template for action: {{action}}",
+      "params_template_insert_cancelled": "Cancelled params template insertion.",
+      "opened_output_dir": "Opened output directory: {{path}}",
+      "open_output_dir_failed": "Failed to open output directory: {{error}}",
+      "opened_diagnostics_dir": "Opened diagnostics directory: {{path}}",
+      "open_diagnostics_dir_failed": "Failed to open diagnostics directory: {{error}}",
+      "opened_subflow_logs_dir": "Opened subflow logs directory: {{path}}",
+      "open_subflow_logs_dir_failed": "Failed to open subflow logs directory: {{error}}",
+      "robot_stopped": "Robot suite stopped.",
+      "failed_register_hotkey": "Failed to register stop hotkey: {{error}}",
+      "stop_requested": "Stop requested via {{source}}.",
+      "hotkey_registered": "Stop hotkey registered: {{hotkey}}",
+      "hotkey_fallback": "Configured hotkey unavailable; fallback applied: {{hotkey}}",
+      "hotkey_updated": "Stop hotkey updated: {{hotkey}}",
+      "settings_saved": "Saved UI settings: {{path}}",
+      "settings_save_failed": "Failed to save UI settings: {{error}}",
+      "settings_load_failed": "Failed to load UI settings: {{error}}",
+      "failed_start_overlay": "Failed to start overlay: {{error}}",
+      "auto_detected_project_path": "Auto-detected Unity Project Path: {{path}}",
+      "bridge_package_meta_detected": "Unity bridge package script metadata detected.",
+      "bridge_package_meta_missing": "Unity bridge package script metadata is missing; using legacy fallback bridge script mode.",
+      "ensure_bridge_package": "Ensuring Unity bridge package for {{purpose}}: {{path}}",
+      "bridge_setup_failed": "Unity bridge package setup failed: {{error}}",
+      "bridge_dependency_updated": "Unity bridge UPM dependency added/updated for this project.",
+      "bridge_dependency_present": "Unity bridge UPM dependency already present.",
+      "fallback_bridge_installed": "Installed fallback bridge script: Assets/Editor/RobotFrameworkUnityBridge.cs",
+      "fallback_bridge_present": "Fallback bridge script already installed.",
+      "fallback_install_failed": "Fallback bridge installation failed: {{error}}",
+      "focused_target_window": "Focused target Unity window for bridge startup check.",
+      "refocused_target_window": "Refocused target Unity window and retrying bridge readiness.",
+      "check_bridge_readiness": "Checking Unity bridge readiness... (attempt {{attempt}}/{{total}})",
+      "bridge_readiness_timeout": "Unity bridge readiness check timed out.",
+      "triggered_assets_refresh": "Triggered Unity Assets Refresh (Ctrl+R) on target window. Waiting for bridge...",
+      "bridge_ready_after_refresh": "Unity bridge is ready after refresh.",
+      "could_not_trigger_refresh": "Could not trigger Unity Assets Refresh shortcut on target window.",
+      "meta_missing_after_wait": "Unity bridge package script metadata is still missing after wait. Re-installing fallback bridge script...",
+      "fallback_bridge_exists": "Fallback bridge script already exists.",
+      "waiting_fallback_readiness": "Waiting for fallback bridge readiness...",
+      "bridge_ready_fallback": "Unity bridge is ready (fallback bridge).",
+      "detected_compile_errors": "Detected Unity compile errors in Editor.log:",
+      "bridge_ready": "Unity bridge is ready."
+    },
+    "tab": {
+      "step": {
+        "_self": "Step",
+        "tooltip": "Edit selected step fields."
+      },
+      "scenario": {
+        "_self": "Scenario",
+        "tooltip": "Configure scenario settings."
+      },
+      "export": {
+        "_self": "Export",
+        "tooltip": "Configure export outputs."
+      }
+    },
+    "field": {
+      "scenario_name": {
+        "placeholder": "Scenario name"
+      },
+      "step_id": {
+        "label": "Step ID",
+        "placeholder": "step-1"
+      },
+      "step_title": {
+        "label": "Title",
+        "placeholder": "Step title"
+      },
+      "step_kind": {
+        "label": "Kind"
+      },
+      "step_action": {
+        "label": "Action",
+        "placeholder": "click / drag_drop / type_text ..."
+      },
+      "step_control": {
+        "label": "Control",
+        "placeholder": "if / for_each / while ..."
+      },
+      "step_description": {
+        "label": "Description",
+        "placeholder": "Optional description"
+      },
+      "step_condition": {
+        "label": "Condition",
+        "placeholder": "Optional condition expression"
+      },
+      "step_disabled": "Disabled",
+      "step_continue_on_error": "Continue On Error",
+      "step_target": {
+        "label": "Target"
+      },
+      "annotations": {
+        "label": "Annotations"
+      },
+      "params": {
+        "label": "Params"
+      },
+      "step_validation": {
+        "label": "Step Validation"
+      },
+      "scenario_id": {
+        "label": "Scenario ID",
+        "placeholder": "scenario-id"
+      },
+      "target": {
+        "label": "Target"
+      },
+      "window_hint": {
+        "label": "Window Hint",
+        "placeholder": "Unity"
+      },
+      "execution_mode": {
+        "label": "Execution Mode"
+      },
+      "subflow_timeout": {
+        "label": "Subflow Timeout (s)",
+        "placeholder": "3600"
+      },
+      "subflow_timeout_validation": {
+        "label": "Subflow Timeout Validation"
+      },
+      "active_profile": {
+        "label": "Active Profile"
+      },
+      "unity_project_path": {
+        "label": "Unity Project Path",
+        "placeholder": "Path to Unity project root"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Optional scenario description"
+      },
+      "output_dir": {
+        "label": "Output Dir",
+        "placeholder": "Output directory"
+      },
+      "export_name": {
+        "label": "Export Name",
+        "placeholder": "Export name"
+      },
+      "variable_id": {
+        "label": "Variable ID"
+      },
+      "variable_type": {
+        "label": "Variable Type"
+      },
+      "variable_required": {
+        "label": "Required"
+      },
+      "variable_default": {
+        "label": "Default Value"
+      },
+      "profile_name": {
+        "label": "Profile Name"
+      },
+      "profile_description": {
+        "label": "Description"
+      },
+      "profile_overrides": {
+        "label": "Variable Overrides"
+      },
+      "profile_override_key": {
+        "label": "Variable"
+      },
+      "profile_override_value": {
+        "label": "Value (JSON or text)"
+      },
+      "profile_diff": {
+        "base": {
+          "label": "Base Profile"
+        },
+        "compare": {
+          "label": "Compare Profile"
+        }
+      }
+    },
+    "validation": {
+      "step": {
+        "none": "No step selected.",
+        "ready": "Ready for export/run.",
+        "invalid": "Invalid: {{message}}"
+      },
+      "subflow_timeout": {
+        "default": "Default: 3600s.",
+        "placeholder": "Variable: {{value}}.",
+        "value": "Using: {{value}}s.",
+        "invalid": "Invalid. Use 1..86400, blank, or ${{variable}}.",
+        "rejected": "Rejected input. Use 1..86400, blank, or ${{variable}}."
+      },
+      "status": {
+        "ok": "No validation issues.",
+        "ng": "Validation issues detected.",
+        "ng_with_count": "Validation issues detected: {{count}}"
+      },
+      "issue": {
+        "item": "{{index}}. [{{code}}] {{message}}",
+        "none": "No issues.",
+        "none_clipboard": "No validation issues.",
+        "select_prompt": "Select an issue to view details.",
+        "none_detail": "Validation completed without issues.",
+        "detail": "Code: {{code}}\nLocation: {{location}}\n\nMessage:\n{{message}}"
+      }
+    },
+    "option": {
+      "target": {
+        "unity": "Unity",
+        "web": "Web",
+        "desktop": "Desktop",
+        "hybrid": "Hybrid"
+      },
+      "execution": {
+        "attach": "Attach",
+        "launch": "Launch"
+      },
+      "profile": {
+        "none": "(none)"
+      },
+      "kind": {
+        "action": "Action",
+        "control": "Control",
+        "group": "Group"
+      },
+      "help": {
+        "target": {
+          "unity": "Run steps against Unity Editor.",
+          "web": "Run steps against a web browser target.",
+          "desktop": "Run steps against a desktop app target.",
+          "hybrid": "Run steps across mixed app targets."
+        },
+        "execution": {
+          "attach": "Use an already-open target window.",
+          "launch": "Launch Unity project before running."
+        },
+        "profile": {
+          "none": "Use variable defaults (no profile override).",
+          "item": "Use profile '{{profile}}' overrides.",
+          "item_with_description": "Use profile '{{profile}}' overrides. {{description}}"
+        },
+        "kind": {
+          "action": "Execute one operation step.",
+          "control": "Control flow with conditions/loops.",
+          "group": "Organize nested child steps."
+        },
+        "fallback": "Select option: {{option}}."
+      }
+    },
+    "info": {
+      "run_diagnostics_unavailable": {
+        "title": "Run Diagnostics",
+        "message": "Run diagnostics are not available yet. Run Robot first."
+      },
+      "validation_navigation_unavailable": {
+        "title": "Navigation Not Available",
+        "message": "Could not map this issue location to an editable UI field: {{location}}"
+      }
+    },
+    "diagnostics": {
+      "title": "Run Diagnostics",
+      "diagnostics_dir": "Diagnostics Directory",
+      "subflow_logs_dir": "Subflow Logs Directory",
+      "summary": "Last Run Summary",
+      "raw_json": "Raw JSON",
+      "log_messages": "Log Messages",
+      "copy_summary": "Copy Summary",
+      "copy_json": "Copy JSON",
+      "open": "Open",
+      "no_data": "No diagnostics data available",
+      "loading": "Loading...",
+      "copied": "Copied!"
+    },
+    "dialog": {
+      "run_diagnostics": {
+        "title": "Run Diagnostics",
+        "path": "Diagnostics file: {{path}}",
+        "subflow_logs": {
+          "none": "No subflow logs found. Expected directory: {{path}}",
+          "summary": "Subflow logs: {{count}} files (latest: {{latest}} at {{latest_time}}). Directory: {{path}}"
+        },
+        "summary_unavailable": "Run diagnostics summary is unavailable for this file."
+      },
+      "hotkey": {
+        "title": "Stop Hotkey",
+        "label": "Press the key combination for emergency stop (example: Alt+Shift+F12).",
+        "apply": "Apply Hotkey"
+      },
+      "hotkey_conflict": {
+        "title": "Choose Fallback Hotkey",
+        "message": "The selected hotkey could not be registered: {{hotkey}}\nReason: {{error}}\n\nSelect an available fallback key."
+      },
+      "hotkey_candidate": {
+        "label": "Fallback candidates",
+        "apply": "Use Selected Key"
+      },
+      "full_json": {
+        "title": "Full Scenario JSON (v2)"
+      },
+      "variables": {
+        "title": "Variables Editor"
+      },
+      "profiles": {
+        "title": "Profiles Editor"
+      },
+      "execution_outputs": {
+        "title": "Execution / Outputs Editor",
+        "header": "Execution / Outputs JSON",
+        "execution": "execution",
+        "outputs": "outputs"
+      },
+      "validation": {
+        "title": "Preflight Validation"
+      },
+      "profile_diff": {
+        "title": "Profile Diff Preview"
+      }
+    },
+    "file_dialog": {
+      "save": {
+        "title": "Save Scenario"
+      },
+      "load": {
+        "title": "Load Scenario"
+      },
+      "select_unity_project": {
+        "title": "Select Unity Project Root"
+      },
+      "filter": {
+        "scenario_json": "Scenario JSON (*.scenario.json);;JSON (*.json)"
+      }
+    },
+    "stop_source": {
+      "global_hotkey": "global hotkey",
+      "recorder_hotkey": "recorder hotkey",
+      "overlay_button": "overlay stop button"
+    },
+    "purpose": {
+      "recording": "recording",
+      "run": "run"
+    },
+    "error": {
+      "bridge_setup": {
+        "title": "Unity Bridge Setup Error"
+      },
+      "bridge_setup_dependency": {
+        "message": "Failed to prepare Unity bridge UPM dependency.\nPath: {{path}}\nError: {{error}}"
+      },
+      "bridge_setup_fallback": {
+        "message": "Failed to install fallback Unity bridge script.\nPath: {{path}}\nError: {{error}}"
+      },
+      "bridge_not_ready": {
+        "title": "Unity Bridge Not Ready",
+        "message": "Unity bridge is not ready yet.\nUnity may still be importing packages or compiling scripts.\nOpen/focus the target Unity Editor and retry {{retry_action}}.\nIf this persists, fix Unity compile errors first.{{compile_error_hint}}"
+      },
+      "bridge_compile_hint": "\n\nDetected recent Unity compile errors:\n- {{items}}",
+      "invalid_params_json": {
+        "title": "Invalid Params JSON"
+      },
+      "invalid_annotations_json": {
+        "title": "Invalid Annotations JSON"
+      },
+      "invalid_params_object": "Params must be a JSON object.",
+      "invalid_annotations_array": "Annotations must be a JSON array.",
+      "attach_target_not_found": {
+        "title": "Attach Target Not Found",
+        "message": "Could not find a visible target window for attach mode.\nWindow Hint: {{window_hint}}\nOpen the target window and try Start Recording again."
+      },
+      "load": {
+        "title": "Load Error"
+      },
+      "full_json_invalid": {
+        "title": "Invalid JSON"
+      },
+      "full_json_validation": {
+        "title": "Validation Error"
+      },
+      "variable_json_invalid": {
+        "title": "Invalid Variable JSON"
+      },
+      "variable_json_object": "Variable must be a JSON object.",
+      "variable_id_required": "Variable id is required.",
+      "variable_type_required": "Variable type is required.",
+      "profile_json_invalid": {
+        "title": "Invalid Profile JSON"
+      },
+      "profile_payload_object": "Profile payload must be a JSON object.",
+      "profile_name_required": "Profile name is required.",
+      "profile_field_object": "profile field must be a JSON object.",
+      "execution_json_invalid": {
+        "title": "Invalid execution JSON"
+      },
+      "outputs_json_invalid": {
+        "title": "Invalid outputs JSON"
+      },
+      "execution_object": "execution must be object.",
+      "outputs_object": "outputs must be object.",
+      "export": {
+        "title": "Export Error"
+      },
+      "run": {
+        "title": "Run Error"
+      },
+      "step_apply_invalid": {
+        "title": "Invalid Step"
+      },
+      "params_template_unsupported": {
+        "title": "Template Not Available",
+        "message": "No params template is defined for action: {{action}}"
+      },
+      "open_output_dir": {
+        "title": "Open Output Directory Error",
+        "message": "Failed to open output directory: {{path}}\n\n{{error}}"
+      },
+      "open_diagnostics_dir": {
+        "title": "Open Diagnostics Directory Error",
+        "message": "Failed to open diagnostics directory: {{path}}\n\n{{error}}"
+      },
+      "open_subflow_logs_dir": {
+        "title": "Open Subflow Logs Directory Error",
+        "message": "Failed to open subflow logs directory: {{path}}\n\n{{error}}"
+      },
+      "validation_navigation": {
+        "title": "Validation Navigation Error"
+      },
+      "recording_in_progress": {
+        "title": "Recording In Progress"
+      },
+      "hotkey_invalid": {
+        "title": "Invalid Hotkey"
+      },
+      "hotkey_register_failed": {
+        "title": "Stop Hotkey Registration Failed",
+        "message": "Failed to register stop hotkey: {{hotkey}}\n\nFallback keys were also unavailable.\nYou can still stop from Stop button or overlay stop button.\n\nDetails:\n{{details}}"
+      }
+    },
+    "confirm": {
+      "params_template_overwrite": {
+        "title": "Overwrite Params",
+        "message": "Params (JSON) already contains values.\nOverwrite with the template for action '{{action}}'?"
+      }
+    },
+    "warn": {
+      "hotkey_fallback": {
+        "title": "Stop Hotkey Changed",
+        "message": "Configured stop hotkey could not be registered.\nApplied fallback: {{hotkey}}\nReason: {{error}}"
+      }
+    },
+    "action": {
+      "start_recording": "Start Recording",
+      "run_robot": "Run Robot"
+    },
+    "list": {
+      "item": {
+        "variable": "{{index}}. {{id}} ({{type}})",
+        "profile": "{{index}}. {{name}}",
+        "help_entry": "{{title}} [{{widget_class}}]",
+        "step": "{{index}}. [{{kind}}] {{label}} - {{title}}"
+      }
+    },
+    "step": {
+      "label": {
+        "group": "group"
+      }
+    },
+    "step_list": {
+      "context": {
+        "move_up": "Move Up",
+        "move_down": "Move Down",
+        "duplicate": "Duplicate",
+        "delete": "Delete"
+      }
+    },
+    "step_editor": {
+      "confirm_overwrite_params": "Current params will be overwritten. Continue?"
+    }
+  },
+  "status": {
+    "phase": {
+      "idle": "Idle",
+      "precheck": "Preflight checks",
+      "exporting": "Exporting scenario",
+      "starting_robot": "Starting Robot",
+      "attaching_unity": "Attaching to Unity",
+      "running": "Running",
+      "stopping": "Stopping..."
+    }
+  },
+  "overlay": {
+    "progress": {
+      "recording": "Recording",
+      "running": "Running"
+    },
+    "stop_action": {
+      "run": "stop",
+      "recording": "stop recording"
+    },
+    "stop_button": "Stop Now",
+    "banner": "{{progress}}  |  Press {{hotkey}} to {{action}}"
+  }
+}
