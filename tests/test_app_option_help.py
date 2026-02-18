@@ -34,9 +34,9 @@ def test_file_menu_actions_have_per_action_tooltips() -> None:
     studio = StudioApp(initial_locale="en")
     try:
         actions = _menu_actions_by_text(studio, "file")
-        assert actions["💾 Save"].toolTip() == "Save current scenario file."
-        assert actions["📂 Load"].toolTip() == "Load scenario file."
-        assert actions["{} Full JSON"].toolTip() == "Open full JSON editor."
+        assert actions["Save"].toolTip() == "Save current scenario file."
+        assert actions["Load"].toolTip() == "Load scenario file."
+        assert actions["Full JSON"].toolTip() == "Open full JSON editor."
         assert actions["Help Guide (F1)"].toolTip() == "Open full help guide."
         assert actions["Run Diagnostics"].toolTip() == "Open latest run diagnostics."
     finally:
@@ -48,11 +48,11 @@ def test_add_step_menu_actions_have_per_action_tooltips() -> None:
     studio = StudioApp(initial_locale="en")
     try:
         actions = _menu_actions_by_text(studio, "add_step")
-        assert actions["🖱 Click"].toolTip() == "Add click action step."
-        assert actions["↔ Drag"].toolTip() == "Add drag/drop action step."
-        assert actions["⌨ Shortcut"].toolTip() == "Add keyboard shortcut step."
-        assert actions["≡ Menu"].toolTip() == "Add menu navigation step."
-        assert actions["✎ Type"].toolTip() == "Add text input step."
+        assert actions["Click"].toolTip() == "Add click action step."
+        assert actions["Drag"].toolTip() == "Add drag/drop action step."
+        assert actions["Shortcut"].toolTip() == "Add keyboard shortcut step."
+        assert actions["Menu"].toolTip() == "Add menu navigation step."
+        assert actions["Type"].toolTip() == "Add text input step."
         assert actions["IF"].toolTip() == "Add control-flow step."
         assert actions["[] Group"].toolTip() == "Add group container step."
     finally:

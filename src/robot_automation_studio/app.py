@@ -118,7 +118,6 @@ _BTN_BG = "#45475a"
 _BTN_HOVER = "#585b70"
 _LOG_BG = "#1a1a2e"
 _PYWINAUTO_PREPARED = False
-_COMBO_ARROW_PATH: str | None = None
 
 
 def _import_pywinauto_with_warning_filters(importer) -> None:
@@ -273,165 +272,16 @@ def _is_effectively_empty_json_payload(raw_text: str) -> bool:
     return False
 
 
-def _ensure_combo_arrow_icon() -> str:
-    """Create a triangle arrow icon for QComboBox and return its file path."""
-    global _COMBO_ARROW_PATH
-    if _COMBO_ARROW_PATH is not None:
-        return _COMBO_ARROW_PATH
-    import tempfile
-
-    from PySide6.QtCore import QPointF
-    from PySide6.QtGui import QColor, QPainter, QPixmap
-
-    size = 10
-    pixmap = QPixmap(size, size)
-    pixmap.fill(QColor(0, 0, 0, 0))
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.setBrush(QColor(_FG))
-    painter.setPen(Qt.PenStyle.NoPen)
-    painter.drawPolygon([QPointF(1, 2), QPointF(9, 2), QPointF(5, 8)])
-    painter.end()
-    path = os.path.join(tempfile.gettempdir(), "ras_combo_arrow.png")
-    pixmap.save(path)
-    _COMBO_ARROW_PATH = path.replace("\\", "/")
-    return _COMBO_ARROW_PATH
+def _set_widget_property(widget: QWidget, prop: str, value: str) -> None:
+    """Set a dynamic property and re-polish the widget for QSS matching."""
+    widget.setProperty(prop, value)
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
 
 
 def _build_stylesheet() -> str:
-    """Build the application stylesheet (must be called after QApplication init)."""
-    arrow_path = _ensure_combo_arrow_icon()
+    """Build app-specific stylesheet overrides (applied on top of qdarktheme)."""
     return f"""
-QMainWindow, QWidget {{
-    background: {_BG};
-    color: {_FG};
-    font-family: "Segoe UI";
-    font-size: 10pt;
-}}
-
-QPushButton {{
-    background: {_BTN_BG};
-    color: {_FG};
-    border: none;
-    border-radius: 4px;
-    padding: 4px 8px;
-}}
-
-QPushButton:hover {{
-    background: {_BTN_HOVER};
-}}
-
-QPushButton:disabled {{
-    background: {_BG_LIGHT};
-    color: {_FG_DIM};
-}}
-
-QLineEdit, QComboBox {{
-    background: {_BG_MID};
-    color: {_FG};
-    border: 1px solid {_BG_LIGHT};
-    border-radius: 3px;
-    padding: 4px;
-}}
-
-QLineEdit:focus, QComboBox:focus {{
-    border: 1px solid {_ACCENT_BLUE};
-}}
-
-QComboBox::drop-down {{
-    subcontrol-position: center right;
-    subcontrol-origin: padding;
-    width: 20px;
-    border: none;
-}}
-
-QComboBox::down-arrow {{
-    image: url({arrow_path});
-    width: 10px;
-    height: 10px;
-}}
-
-QComboBox QAbstractItemView {{
-    background: {_BG_MID};
-    color: {_FG};
-    selection-background-color: {_ACCENT_BLUE};
-    selection-color: {_BG};
-}}
-
-QPlainTextEdit {{
-    background: {_BG_MID};
-    color: {_FG};
-    border: 1px solid {_BG_LIGHT};
-    border-radius: 3px;
-}}
-
-QListWidget {{
-    background: {_BG_MID};
-    color: {_FG};
-    border: 1px solid {_BG_LIGHT};
-    border-radius: 3px;
-}}
-
-QListWidget::item:selected {{
-    background: {_ACCENT_BLUE};
-    color: {_BG};
-}}
-
-QCheckBox {{
-    color: {_FG};
-    spacing: 6px;
-}}
-
-QCheckBox::indicator {{
-    width: 16px;
-    height: 16px;
-    border: 1px solid {_BG_LIGHT};
-    border-radius: 3px;
-    background: {_BG_MID};
-}}
-
-QCheckBox::indicator:checked {{
-    background: {_ACCENT_BLUE};
-}}
-
-QSplitter::handle {{
-    background: {_BG_LIGHT};
-    width: 6px;
-    height: 6px;
-}}
-
-QScrollBar:vertical {{
-    background: {_BG_MID};
-    width: 12px;
-    border: none;
-}}
-
-QScrollBar::handle:vertical {{
-    background: {_BTN_BG};
-    border-radius: 4px;
-    min-height: 20px;
-}}
-
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-    height: 0px;
-}}
-
-QScrollBar:horizontal {{
-    background: {_BG_MID};
-    height: 12px;
-    border: none;
-}}
-
-QScrollBar::handle:horizontal {{
-    background: {_BTN_BG};
-    border-radius: 4px;
-    min-width: 20px;
-}}
-
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
-    width: 0px;
-}}
-
 QWidget#HeaderBar {{
     background: {_LOG_BG};
     border-bottom: 1px solid {_BG_LIGHT};
@@ -460,88 +310,6 @@ QLabel#HeaderHelpLabel {{
     color: {_FG_DIM};
     font-size: 9pt;
     padding-left: 4px;
-}}
-
-QTabWidget::pane {{
-    border: 1px solid {_BG_LIGHT};
-    border-radius: 4px;
-    background: {_BG};
-}}
-
-QTabBar::tab {{
-    background: {_BG_MID};
-    color: {_FG_DIM};
-    padding: 8px 16px;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-}}
-
-QTabBar::tab:selected {{
-    background: {_BG};
-    color: {_ACCENT_BLUE};
-    border-bottom: 2px solid {_ACCENT_BLUE};
-}}
-
-QTabBar::tab:hover:!selected {{
-    background: {_BG_LIGHT};
-    color: {_FG};
-}}
-
-QToolButton {{
-    background: {_BTN_BG};
-    color: {_FG};
-    border: none;
-    border-radius: 4px;
-    padding: 4px 8px;
-}}
-
-QToolButton:hover {{
-    background: {_BTN_HOVER};
-}}
-
-QToolButton#AddStepButton {{
-    background: #2d3d5a;
-    color: {_ACCENT_BLUE};
-}}
-
-QToolButton#AddStepButton:hover {{
-    background: #3a4d7a;
-}}
-
-QMenu {{
-    background: {_BG_MID};
-    color: {_FG};
-    border: 1px solid {_BTN_BG};
-    border-radius: 4px;
-    padding: 4px;
-}}
-
-QMenu::item {{
-    padding: 6px 20px 6px 12px;
-    border-radius: 3px;
-}}
-
-QMenu::item:selected {{
-    background: {_BTN_BG};
-}}
-
-QMenu::separator {{
-    height: 1px;
-    background: {_BTN_BG};
-    margin: 4px 8px;
-}}
-
-QToolButton#LogToggleButton {{
-    background: transparent;
-}}
-
-QToolButton#LogToggleButton:hover {{
-    background: {_BG_LIGHT};
-}}
-
-QWidget#LogHeader {{
-    background: {_LOG_BG};
-    border-top: 1px solid {_BG_LIGHT};
 }}
 
 QLabel#PanelTitle {{
@@ -577,12 +345,36 @@ QPushButton#ApplyButton:hover {{
     background: #3a5a9a;
 }}
 
+QToolButton#AddStepButton {{
+    background: #2d3d5a;
+    color: {_ACCENT_BLUE};
+}}
+
+QToolButton#AddStepButton:hover {{
+    background: #3a4d7a;
+}}
+
 QLabel#StatusPill {{
     background: {_BG_LIGHT};
     color: {_FG_DIM};
     padding: 4px 10px;
     font-weight: bold;
     border-radius: 10px;
+}}
+
+QLabel#StatusPill[runPhase="idle"] {{
+    background: {_BG_LIGHT};
+    color: {_FG_DIM};
+}}
+
+QLabel#StatusPill[runPhase="stopping"] {{
+    background: #5a2d2d;
+    color: {_ACCENT_RED};
+}}
+
+QLabel#StatusPill[runPhase="active"] {{
+    background: #4a3d1a;
+    color: {_ACCENT_YELLOW};
 }}
 
 QLabel#RecIndicator {{
@@ -592,8 +384,31 @@ QLabel#RecIndicator {{
     font-weight: bold;
 }}
 
+QLabel#RecIndicator[recState="idle"] {{
+    background: {_BG_LIGHT};
+    color: {_FG_DIM};
+}}
+
+QLabel#RecIndicator[recState="recording"] {{
+    background: {_ACCENT_RED};
+    color: {_BG};
+}}
+
 QPlainTextEdit#LogText {{
     background: {_LOG_BG};
+}}
+
+QToolButton#LogToggleButton {{
+    background: transparent;
+}}
+
+QToolButton#LogToggleButton:hover {{
+    background: {_BG_LIGHT};
+}}
+
+QWidget#LogHeader {{
+    background: {_LOG_BG};
+    border-top: 1px solid {_BG_LIGHT};
 }}
 
 QToolButton#FileMenuButton {{
@@ -602,6 +417,22 @@ QToolButton#FileMenuButton {{
 
 QToolButton#FileMenuButton:hover {{
     background: {_BG_LIGHT};
+}}
+
+QFrame#HeaderVLine {{
+    background: {_BG_LIGHT};
+}}
+
+QLabel[validationState="none"] {{
+    color: {_FG_DIM};
+}}
+
+QLabel[validationState="valid"] {{
+    color: {_ACCENT_GREEN};
+}}
+
+QLabel[validationState="invalid"] {{
+    color: {_ACCENT_RED};
 }}
 """
 
@@ -623,6 +454,13 @@ class StudioApp(QMainWindow):
         file_json_action: QAction
         file_help_action: QAction
         file_run_diagnostics_action: QAction
+        add_click_action: QAction
+        add_drag_action: QAction
+        add_shortcut_action: QAction
+        add_menu_action: QAction
+        add_type_action: QAction
+        add_if_action: QAction
+        add_group_action: QAction
         hotkey_button: QPushButton
         language_combo: QComboBox
         steps_label: QLabel
@@ -980,7 +818,7 @@ class StudioApp(QMainWindow):
         self._persist_ui_settings()
 
     def _build_ui(self) -> None:
-        app_ui.build_ui(self, bg_light=_BG_LIGHT)
+        app_ui.build_ui(self)
 
     def _apply_localized_texts(self) -> None:
         app_ui.apply_localized_texts(self)
@@ -1092,7 +930,7 @@ class StudioApp(QMainWindow):
             self.step_validation_label.setText(
                 f"{label_prefix}: {self._t('app.validation.step.none')}"
             )
-            self.step_validation_label.setStyleSheet(f"color: {_FG_DIM};")
+            _set_widget_property(self.step_validation_label, "validationState", "none")
             return
 
         try:
@@ -1101,7 +939,7 @@ class StudioApp(QMainWindow):
             self.step_validation_label.setText(
                 f"{label_prefix}: {self._t('app.validation.step.invalid', message=str(error))}"
             )
-            self.step_validation_label.setStyleSheet(f"color: {_ACCENT_RED};")
+            _set_widget_property(self.step_validation_label, "validationState", "invalid")
             return
 
         if not isinstance(params, dict):
@@ -1109,7 +947,7 @@ class StudioApp(QMainWindow):
             self.step_validation_label.setText(
                 f"{label_prefix}: {self._t('app.validation.step.invalid', message=invalid_message)}"
             )
-            self.step_validation_label.setStyleSheet(f"color: {_ACCENT_RED};")
+            _set_widget_property(self.step_validation_label, "validationState", "invalid")
             return
 
         candidate = deepcopy(self.scenario.steps[self.selected_index])
@@ -1135,13 +973,13 @@ class StudioApp(QMainWindow):
             self.step_validation_label.setText(
                 f"{label_prefix}: {self._t('app.validation.step.invalid', message=str(error))}"
             )
-            self.step_validation_label.setStyleSheet(f"color: {_ACCENT_RED};")
+            _set_widget_property(self.step_validation_label, "validationState", "invalid")
             return
 
         self.step_validation_label.setText(
             f"{label_prefix}: {self._t('app.validation.step.ready')}"
         )
-        self.step_validation_label.setStyleSheet(f"color: {_ACCENT_GREEN};")
+        _set_widget_property(self.step_validation_label, "validationState", "valid")
 
     @Slot()
     def _refresh_subflow_timeout_validation_hint(self) -> None:
@@ -1152,7 +990,7 @@ class StudioApp(QMainWindow):
         normalized = str(raw_text or "").strip()
         if normalized == "":
             message = self._t("app.validation.subflow_timeout.default")
-            color = _FG_DIM
+            state = "none"
         else:
             try:
                 parsed = parse_subflow_timeout_seconds(
@@ -1163,7 +1001,7 @@ class StudioApp(QMainWindow):
             except ValueError as error:
                 _ = error
                 message = self._t("app.validation.subflow_timeout.invalid")
-                color = _ACCENT_RED
+                state = "invalid"
             else:
                 if parsed is None:
                     message = self._t(
@@ -1172,9 +1010,9 @@ class StudioApp(QMainWindow):
                     )
                 else:
                     message = self._t("app.validation.subflow_timeout.value", value=parsed)
-                color = _ACCENT_GREEN
+                state = "valid"
         self.subflow_timeout_validation_label.setText(f"{label_prefix}: {message}")
-        self.subflow_timeout_validation_label.setStyleSheet(f"color: {color};")
+        _set_widget_property(self.subflow_timeout_validation_label, "validationState", state)
 
     @Slot()
     def _on_subflow_timeout_input_rejected(self) -> None:
@@ -1183,7 +1021,7 @@ class StudioApp(QMainWindow):
         label_prefix = self._t("app.field.subflow_timeout_validation.label")
         message = self._t("app.validation.subflow_timeout.rejected")
         self.subflow_timeout_validation_label.setText(f"{label_prefix}: {message}")
-        self.subflow_timeout_validation_label.setStyleSheet(f"color: {_ACCENT_RED};")
+        _set_widget_property(self.subflow_timeout_validation_label, "validationState", "invalid")
 
     def _sync_scenario_header(self) -> None:
         self.scenario.name = self.name_edit.text().strip() or self._t(
@@ -1267,18 +1105,12 @@ class StudioApp(QMainWindow):
     def _update_status_bar_color(self) -> None:
         phase = self._run_phase
         if phase == "idle":
-            bg = _BG_LIGHT
-            fg = _FG_DIM
+            state = "idle"
         elif phase == "stopping":
-            bg = "#5a2d2d"
-            fg = _ACCENT_RED
+            state = "stopping"
         else:
-            bg = "#4a3d1a"
-            fg = _ACCENT_YELLOW
-        self._status_pill.setStyleSheet(
-            f"background: {bg}; color: {fg}; padding: 4px 14px; "
-            f"font-weight: bold; border-radius: 10px;"
-        )
+            state = "active"
+        _set_widget_property(self._status_pill, "runPhase", state)
 
     def _render_robot_status(self) -> None:
         spinner = SPINNER_FRAMES[self._status_spinner_index]
@@ -1940,9 +1772,7 @@ class StudioApp(QMainWindow):
         self.recorder.start(window_hint=window_hint)
         self._start_stop_hotkey()
         self._start_overlay(mode="recording", progress_text=self._t("overlay.progress.recording"))
-        self._rec_indicator.setStyleSheet(
-            f"background: {_ACCENT_RED}; color: {_BG}; padding: 2px 8px; font-weight: bold;"
-        )
+        _set_widget_property(self._rec_indicator, "recState", "recording")
         self._rec_indicator.setText(self._t("app.status.recording"))
         self.setWindowTitle(self._t("app.window.title.recording"))
         self.log(self._t("app.log.recording_started", window_hint=window_hint))
@@ -1972,9 +1802,7 @@ class StudioApp(QMainWindow):
         if not self._is_robot_running():
             self._stop_overlay()
             self._stop_stop_hotkey()
-        self._rec_indicator.setStyleSheet(
-            f"background: {_BG_LIGHT}; color: {_FG_DIM}; padding: 2px 8px; font-weight: bold;"
-        )
+        _set_widget_property(self._rec_indicator, "recState", "idle")
         self._rec_indicator.setText(self._t("app.status.record_idle"))
         self.setWindowTitle(self._t("app.window.title"))
         self.log(self._t("app.log.recording_stopped", count=len(steps)))
@@ -2720,7 +2548,9 @@ class StudioApp(QMainWindow):
 
 def main() -> None:
     app = QApplication(sys.argv)
-    app.setStyleSheet(_build_stylesheet())
+    import qdarktheme
+
+    app.setStyleSheet(qdarktheme.load_stylesheet("dark") + _build_stylesheet())
     window = StudioApp()
     window.show()
     sys.exit(app.exec())

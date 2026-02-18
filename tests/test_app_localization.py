@@ -22,7 +22,7 @@ def test_app_switches_to_japanese_locale() -> None:
 
         studio.language_combo.setCurrentIndex(ja_index)
 
-        assert studio.run_button.text() == "▶ Robot 実行"
+        assert studio.run_button.text() == "Robot 実行"
         assert studio.main_tabs.tabText(studio.step_tab_index) == "ステップ"
         assert studio.target_label.text() == "対象"
         assert studio.kind_combo.itemData(0, Qt.ItemDataRole.UserRole) == "action"
@@ -38,7 +38,7 @@ def test_app_uses_explicit_english_locale() -> None:
     _ensure_qapp()
     studio = StudioApp(initial_locale="en")
     try:
-        assert studio.run_button.text() == "▶ Run Robot"
+        assert studio.run_button.text() == "Run Robot"
         assert studio.main_tabs.tabText(studio.step_tab_index) == "Step"
         assert studio.target_label.text() == "Target"
     finally:
@@ -50,7 +50,7 @@ def test_app_uses_env_locale_when_initial_locale_is_not_provided(monkeypatch) ->
     monkeypatch.setenv("ROBOT_AUTOMATION_STUDIO_LOCALE", "ja")
     studio = StudioApp()
     try:
-        assert studio.run_button.text() == "▶ Robot 実行"
+        assert studio.run_button.text() == "Robot 実行"
         assert studio.main_tabs.tabText(studio.step_tab_index) == "ステップ"
         assert studio.target_label.text() == "対象"
     finally:

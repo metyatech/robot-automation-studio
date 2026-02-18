@@ -34,21 +34,21 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "app.status.run_tooltip": {"en": "Run status", "ja": "実行状態"},
     "app.status.record_tooltip": {"en": "Recording status", "ja": "記録状態"},
     "app.status.record_idle": {"en": " IDLE ", "ja": " 待機 "},
-    "app.status.recording": {"en": " ● REC ", "ja": " ● 記録中 "},
+    "app.status.recording": {"en": " REC ", "ja": " 記録中 "},
     "app.scenario.default_name": {"en": "Unity Editor Flow", "ja": "Unity Editor Flow"},
     "app.scenario.default_fallback_name": {"en": "Scenario", "ja": "シナリオ"},
-    "app.button.record_start": {"en": "● Record", "ja": "● 記録開始"},
-    "app.button.record_stop": {"en": "■ Stop", "ja": "■ 記録停止"},
-    "app.button.run_robot": {"en": "▶ Run Robot", "ja": "▶ Robot 実行"},
+    "app.button.record_start": {"en": "Record", "ja": "記録開始"},
+    "app.button.record_stop": {"en": "Stop", "ja": "記録停止"},
+    "app.button.run_robot": {"en": "Run Robot", "ja": "Robot 実行"},
     "app.button.stop_robot": {"en": "Stop Robot", "ja": "Robot 停止"},
     "app.button.hotkey_with_value": {"en": "Hotkey: {hotkey}", "ja": "停止キー: {hotkey}"},
-    "app.button.file_menu": {"en": "File ▾", "ja": "ファイル ▾"},
+    "app.button.file_menu": {"en": "File", "ja": "ファイル"},
     "app.button.language_menu": {"en": "Language", "ja": "言語"},
-    "app.button.add_step": {"en": "+ Add ▾", "ja": "+ 追加 ▾"},
-    "app.button.delete": {"en": "✕", "ja": "✕"},
-    "app.button.move_up": {"en": "▲", "ja": "▲"},
-    "app.button.move_down": {"en": "▼", "ja": "▼"},
-    "app.button.duplicate": {"en": "⎘", "ja": "⎘"},
+    "app.button.add_step": {"en": "Add", "ja": "追加"},
+    "app.button.delete": {"en": "", "ja": ""},
+    "app.button.move_up": {"en": "", "ja": ""},
+    "app.button.move_down": {"en": "", "ja": ""},
+    "app.button.duplicate": {"en": "", "ja": ""},
     "app.button.apply_step": {"en": "Apply Step Changes", "ja": "ステップ変更を適用"},
     "app.button.export": {"en": "Export", "ja": "エクスポート"},
     "app.button.browse": {"en": "Browse", "ja": "参照"},
@@ -256,19 +256,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Compare Profile",
         "ja": "比較プロファイル",
     },
-    "app.menu.file.save": {"en": "💾 Save", "ja": "💾 保存"},
-    "app.menu.file.load": {"en": "📂 Load", "ja": "📂 読込"},
-    "app.menu.file.full_json": {"en": "{} Full JSON", "ja": "{} 全体 JSON"},
+    "app.menu.file.save": {"en": "Save", "ja": "保存"},
+    "app.menu.file.load": {"en": "Load", "ja": "読込"},
+    "app.menu.file.full_json": {"en": "Full JSON", "ja": "全体 JSON"},
     "app.menu.file.help": {"en": "Help Guide (F1)", "ja": "ヘルプガイド (F1)"},
     "app.menu.file.run_diagnostics": {
         "en": "Run Diagnostics",
         "ja": "実行診断",
     },
-    "app.menu.add.click": {"en": "🖱 Click", "ja": "🖱 クリック"},
-    "app.menu.add.drag": {"en": "↔ Drag", "ja": "↔ ドラッグ"},
-    "app.menu.add.shortcut": {"en": "⌨ Shortcut", "ja": "⌨ ショートカット"},
-    "app.menu.add.menu": {"en": "≡ Menu", "ja": "≡ メニュー"},
-    "app.menu.add.type": {"en": "✎ Type", "ja": "✎ 入力"},
+    "app.menu.add.click": {"en": "Click", "ja": "クリック"},
+    "app.menu.add.drag": {"en": "Drag", "ja": "ドラッグ"},
+    "app.menu.add.shortcut": {"en": "Shortcut", "ja": "ショートカット"},
+    "app.menu.add.menu": {"en": "Menu", "ja": "メニュー"},
+    "app.menu.add.type": {"en": "Type", "ja": "入力"},
     "app.menu.add.if": {"en": "IF", "ja": "IF"},
     "app.menu.add.group": {"en": "[] Group", "ja": "[] グループ"},
     "app.option.target.unity": {"en": "Unity", "ja": "Unity"},
@@ -1179,7 +1179,10 @@ def translate(key: str, *, locale: str | None = None, **kwargs: object) -> str:
     if entry is None:
         template = key
     else:
-        template = entry.get(normalized_locale) or entry.get(DEFAULT_LOCALE) or key
+        val = entry.get(normalized_locale)
+        if val is None:
+            val = entry.get(DEFAULT_LOCALE)
+        template = val if val is not None else key
     try:
         return template.format(**kwargs)
     except Exception:

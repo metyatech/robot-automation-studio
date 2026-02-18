@@ -72,15 +72,15 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Preview diff.",
         "Compare resolved scenario values between two profiles.",
     ),
-    "● Start": (
+    "Record": (
         "Start recording.",
         "Begins capture for the current target window and appends recognized steps.",
     ),
-    "■ Stop": (
+    "Stop": (
         "Stop recording.",
         "Ends recording and appends captured steps into the scenario list.",
     ),
-    "▶ Run Robot": (
+    "Run Robot": (
         "Run scenario.",
         "Exports first, then starts Robot execution and writes run artifacts.",
     ),
@@ -88,31 +88,31 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Stop robot run.",
         "Stops the running Robot process immediately. You can also use Alt+Shift+F12.",
     ),
-    "File ▾": (
+    "File": (
         "Open file menu.",
         "Provides Save, Load, Full JSON editor, and Help Guide shortcuts.",
     ),
-    "+ Add ▾": (
+    "Add": (
         "Add a step.",
         "Add Click, Drag, Shortcut, Menu, Type, IF, or Group steps.",
     ),
-    "🖱 Click": (
+    "Click": (
         "Add click step.",
         "Insert a click action step manually at the end of the step list.",
     ),
-    "↔ Drag": (
+    "Drag": (
         "Add drag step.",
         "Insert a drag/drop action step manually.",
     ),
-    "⌨ Shortcut": (
+    "Shortcut": (
         "Add shortcut step.",
         "Insert a keyboard shortcut action step manually.",
     ),
-    "≡ Menu": (
+    "Menu": (
         "Add menu step.",
         "Insert a top-menu navigation action step manually.",
     ),
-    "✎ Type": (
+    "Type": (
         "Add type step.",
         "Insert a text input action step manually.",
     ),
@@ -124,31 +124,31 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
         "Add group step.",
         "Insert a group container to organize nested steps.",
     ),
-    "✕ Delete": (
+    "Delete": (
         "Delete step.",
         "Removes the currently selected step from the scenario.",
     ),
-    "▲ Up": (
+    "Up": (
         "Move step up.",
         "Changes step order by moving the selected step one position earlier.",
     ),
-    "▼ Down": (
+    "Down": (
         "Move step down.",
         "Changes step order by moving the selected step one position later.",
     ),
-    "⎘ Duplicate": (
+    "Duplicate": (
         "Duplicate step.",
         "Creates a copy of the selected step and inserts it nearby.",
     ),
-    "💾 Save": (
+    "Save": (
         "Save scenario file.",
         "Writes the current scenario model to a .scenario.json file.",
     ),
-    "📂 Load": (
+    "Load": (
         "Load scenario file.",
         "Loads a .scenario.json file into the editor.",
     ),
-    "{} Full JSON": (
+    "Full JSON": (
         "Edit full JSON.",
         "Edit the entire v2 scenario object in one JSON document.",
     ),
@@ -235,10 +235,6 @@ _KNOWN_TEXT_HELP: dict[str, tuple[str, str]] = {
     "Open Diagnostics Dir": (
         "Open diagnostics folder.",
         "Open run diagnostics folder in your file explorer.",
-    ),
-    "Run Robot": (
-        "Run scenario.",
-        "Exports first, then starts Robot execution and writes run artifacts.",
     ),
     "Output Log": (
         "View output log.",
@@ -501,15 +497,15 @@ _KNOWN_TEXT_HELP_JA: dict[str, tuple[str, str]] = {
         "プロファイル差分を表示します。",
         "2つのプロファイル間で解決後シナリオの差分を確認します。",
     ),
-    "● 記録開始": (
+    "記録開始": (
         "記録を開始します。",
         "現在の対象ウィンドウの操作記録を開始します。",
     ),
-    "■ 記録停止": (
+    "記録停止": (
         "記録を停止します。",
         "記録した操作をステップとしてシナリオに追加します。",
     ),
-    "▶ Robot 実行": (
+    "Robot 実行": (
         "シナリオを実行します。",
         "エクスポート後に Robot 実行を開始します。",
     ),
@@ -517,11 +513,11 @@ _KNOWN_TEXT_HELP_JA: dict[str, tuple[str, str]] = {
         "Robot 実行を停止します。",
         "実行中の Robot プロセスを即時停止します。",
     ),
-    "ファイル ▾": (
+    "ファイル": (
         "ファイルメニューを開きます。",
         "保存、読込、全体 JSON、ヘルプガイドを開きます。",
     ),
-    "+ 追加 ▾": (
+    "追加": (
         "ステップを追加します。",
         "Click、Drag、Shortcut、Menu、Type、IF、Group を追加します。",
     ),

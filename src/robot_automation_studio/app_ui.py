@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+import qtawesome as qta
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QValidator
 from PySide6.QtWidgets import (
@@ -68,7 +69,7 @@ class _SubflowTimeoutValidator(QValidator):
         return bool(_PLACEHOLDER_BODY_RE.fullmatch(body))
 
 
-def build_ui(self, *, bg_light: str) -> None:
+def build_ui(self) -> None:
     central = QWidget()
     self.setCentralWidget(central)
     main_layout = QVBoxLayout(central)
@@ -103,8 +104,8 @@ def build_ui(self, *, bg_light: str) -> None:
     header_layout.addWidget(self.record_stop_button)
 
     vline1 = QFrame()
+    vline1.setObjectName("HeaderVLine")
     vline1.setFrameShape(QFrame.Shape.VLine)
-    vline1.setStyleSheet(f"background: {bg_light};")
     header_layout.addWidget(vline1)
 
     self.run_button = QPushButton()
@@ -125,8 +126,8 @@ def build_ui(self, *, bg_light: str) -> None:
     header_layout.addWidget(self._status_pill)
 
     vline2 = QFrame()
+    vline2.setObjectName("HeaderVLine")
     vline2.setFrameShape(QFrame.Shape.VLine)
-    vline2.setStyleSheet(f"background: {bg_light};")
     header_layout.addWidget(vline2)
 
     self.help_status_label = QLabel()
@@ -529,6 +530,41 @@ def build_ui(self, *, bg_light: str) -> None:
     main_splitter.setSizes([620, 180])
 
     main_layout.addWidget(main_splitter, 1)
+
+    # --- Icons (qtawesome) ---
+    _icon_fg = "#cdd6f4"
+    _icon_green = "#a6e3a1"
+    _icon_red = "#f38ba8"
+    _icon_blue = "#89b4fa"
+
+    self.record_button.setIcon(qta.icon("mdi6.record-circle", color=_icon_green))
+    self.record_stop_button.setIcon(qta.icon("mdi6.stop", color=_icon_red))
+    self.run_button.setIcon(qta.icon("mdi6.play", color=_icon_green))
+    self.stop_robot_button.setIcon(qta.icon("mdi6.stop", color=_icon_red))
+
+    self.delete_step_button.setIcon(qta.icon("mdi6.close", color=_icon_fg))
+    self.move_up_button.setIcon(qta.icon("mdi6.arrow-up", color=_icon_fg))
+    self.move_down_button.setIcon(qta.icon("mdi6.arrow-down", color=_icon_fg))
+    self.duplicate_step_button.setIcon(qta.icon("mdi6.content-copy", color=_icon_fg))
+
+    self.file_save_action.setIcon(qta.icon("mdi6.content-save", color=_icon_fg))
+    self.file_load_action.setIcon(qta.icon("mdi6.folder-open", color=_icon_fg))
+    self.file_json_action.setIcon(qta.icon("mdi6.code-json", color=_icon_fg))
+    self.file_help_action.setIcon(qta.icon("mdi6.help-circle-outline", color=_icon_fg))
+    self.file_run_diagnostics_action.setIcon(qta.icon("mdi6.chart-box-outline", color=_icon_fg))
+
+    self.add_click_action.setIcon(qta.icon("mdi6.cursor-default-click", color=_icon_fg))
+    self.add_drag_action.setIcon(qta.icon("mdi6.cursor-move", color=_icon_fg))
+    self.add_shortcut_action.setIcon(qta.icon("mdi6.keyboard", color=_icon_fg))
+    self.add_menu_action.setIcon(qta.icon("mdi6.menu", color=_icon_fg))
+    self.add_type_action.setIcon(qta.icon("mdi6.form-textbox", color=_icon_fg))
+    self.add_if_action.setIcon(qta.icon("mdi6.call-split", color=_icon_fg))
+    self.add_group_action.setIcon(qta.icon("mdi6.view-list", color=_icon_fg))
+
+    self.file_menu_button.setIcon(qta.icon("mdi6.file-document-outline", color=_icon_fg))
+    self.file_menu_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+    self.add_step_button.setIcon(qta.icon("mdi6.plus", color=_icon_blue))
+    self.add_step_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
 
     self.on_execution_mode_changed()
     self._update_step_kind_fields_visibility()
