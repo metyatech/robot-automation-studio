@@ -1254,6 +1254,24 @@ def main() -> None:
                         webbrowser.open(f"http://{args.host}:{port}")
                     break
 
+    # Check if the port is already in use before starting
+    import socket
+
+    if args.port != 0:
+        test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            test_sock.bind((args.host, args.port))
+            test_sock.close()
+        except OSError:
+            print(
+                f"ERROR: Port {args.port} is already in use. "
+                f"Another server may be running.\n"
+                f"  Stop it first, or use a different port: "
+                f"--port {args.port + 1}",
+                flush=True,
+            )
+            raise SystemExit(1) from None
+
     config = uvicorn.Config(
         app,
         host=args.host,
