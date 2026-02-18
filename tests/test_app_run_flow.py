@@ -155,6 +155,7 @@ def test_run_robot_suite_logs_run_diagnostics_summary(monkeypatch, tmp_path: Pat
             "robot_automation_studio.app.wait_robot_process",
             lambda process: RunResult(return_code=0, stdout="", stderr=""),
         )
+        studio.output_dir_edit.setText(str(tmp_path))
         run_output = tmp_path / "run" / "output.xml"
         run_output.parent.mkdir(parents=True, exist_ok=True)
         run_output.write_text(

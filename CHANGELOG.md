@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed a race condition/path mismatch in `test_run_robot_suite_logs_run_diagnostics_summary` where the output directory was not correctly set for the studio instance.
+- Added automated visual accessibility checks for text and non-text boundary contrast ratios (WCAG 2.1 AA compliance).
+- Improved UI component visibility in dark theme by adding high-contrast borders to buttons, inputs, and containers to satisfy 3:1 boundary contrast requirements.
 - Migrated scenario model from `1.0.0` to `2.0.0` (exclusive support).
 - Added v2-aware step model (`kind` / `action` / `control`) and conversion from recorded events.
 - Updated Robot exporter to consume v2 payloads and fail fast on unsupported step kinds/actions.
