@@ -23,7 +23,6 @@ from PySide6.QtGui import (
     QCloseEvent,
     QDesktopServices,
     QKeySequence,
-    QShortcut,
     QTextCursor,
 )
 from PySide6.QtWidgets import (
@@ -117,6 +116,7 @@ _ACCENT_YELLOW = "#f9e2af"
 _BTN_BG = "#45475a"
 _BTN_HOVER = "#585b70"
 _LOG_BG = "#1a1a2e"
+_BORDER = "#3b3b5c"
 _PYWINAUTO_PREPARED = False
 
 
@@ -282,13 +282,6 @@ def _set_widget_property(widget: QWidget, prop: str, value: str) -> None:
 def _build_stylesheet() -> str:
     """Build app-specific stylesheet overrides (applied on top of qdarktheme)."""
     return f"""
-QWidget#HeaderBar {{
-    background: {_LOG_BG};
-    border-bottom: 1px solid {_BG_LIGHT};
-    min-height: 44px;
-    max-height: 44px;
-}}
-
 QLineEdit#ScenarioNameEdit {{
     background: transparent;
     border: 1px solid transparent;
@@ -306,7 +299,7 @@ QLineEdit#ScenarioNameEdit:focus {{
     border: 1px solid {_ACCENT_BLUE};
 }}
 
-QLabel#HeaderHelpLabel {{
+QLabel#StatusBarHelpLabel {{
     color: {_FG_DIM};
     font-size: 9pt;
     padding-left: 4px;
@@ -411,18 +404,6 @@ QWidget#LogHeader {{
     border-top: 1px solid {_BG_LIGHT};
 }}
 
-QToolButton#FileMenuButton {{
-    background: transparent;
-}}
-
-QToolButton#FileMenuButton:hover {{
-    background: {_BG_LIGHT};
-}}
-
-QFrame#HeaderVLine {{
-    background: {_BG_LIGHT};
-}}
-
 QLabel[validationState="none"] {{
     color: {_FG_DIM};
 }}
@@ -434,12 +415,381 @@ QLabel[validationState="valid"] {{
 QLabel[validationState="invalid"] {{
     color: {_ACCENT_RED};
 }}
+
+QPushButton {{
+    border: 1px solid {_BORDER};
+    border-radius: 6px;
+    padding: 5px 16px;
+    min-height: 24px;
+}}
+
+QPushButton:hover {{
+    border-color: {_ACCENT_BLUE};
+}}
+
+QPushButton:disabled {{
+    color: #6c7086;
+    border-color: {_BG_LIGHT};
+}}
+
+QLineEdit, QSpinBox, QDoubleSpinBox {{
+    background-color: {_BG_MID};
+    border: 1px solid {_BORDER};
+    border-radius: 4px;
+    padding: 4px 8px;
+    selection-background-color: {_ACCENT_BLUE};
+    selection-color: {_BG};
+}}
+
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
+    border: 1px solid {_ACCENT_BLUE};
+}}
+
+QLineEdit:disabled, QSpinBox:disabled {{
+    background-color: {_BG};
+    color: #6c7086;
+}}
+
+QTextEdit, QPlainTextEdit {{
+    border: 1px solid {_BORDER};
+    border-radius: 4px;
+    padding: 4px;
+    selection-background-color: {_ACCENT_BLUE};
+    selection-color: {_BG};
+}}
+
+QTextEdit:focus, QPlainTextEdit:focus {{
+    border: 1px solid {_ACCENT_BLUE};
+}}
+
+QCheckBox::indicator, QRadioButton::indicator {{
+    width: 16px;
+    height: 16px;
+    border: 1px solid {_BORDER};
+    background-color: {_BG_MID};
+    border-radius: 3px;
+}}
+
+QCheckBox::indicator:checked, QRadioButton::indicator:checked {{
+    background-color: {_ACCENT_BLUE};
+    border-color: {_ACCENT_BLUE};
+}}
+
+QCheckBox::indicator:hover, QRadioButton::indicator:hover {{
+    border-color: {_ACCENT_BLUE};
+}}
+
+QWidget#LeftPanel {{
+    background-color: {_BG_MID};
+    border-right: 1px solid {_BORDER};
+}}
+
+QTabWidget::pane {{
+    background-color: {_BG_MID};
+    border: 1px solid {_BORDER};
+    border-radius: 4px;
+    top: -1px;
+}}
+
+QTabBar {{
+    background: transparent;
+}}
+
+QTabBar::tab {{
+    background-color: transparent;
+    color: {_FG_DIM};
+    padding: 8px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    min-width: 80px;
+}}
+
+QTabBar::tab:hover {{
+    color: {_FG};
+    background-color: rgba(137, 180, 250, 0.08);
+    border-bottom: 2px solid {_BORDER};
+}}
+
+QTabBar::tab:selected {{
+    color: {_ACCENT_BLUE};
+    border-bottom: 2px solid {_ACCENT_BLUE};
+    background-color: transparent;
+}}
+
+QToolBar {{
+    background-color: {_BG_MID};
+    border: none;
+    border-bottom: 1px solid {_BORDER};
+    padding: 2px 4px;
+    spacing: 2px;
+}}
+
+QToolBar::separator {{
+    width: 1px;
+    background-color: {_BORDER};
+    margin: 4px 6px;
+}}
+
+QScrollBar:vertical {{
+    background: transparent;
+    width: 8px;
+    margin: 0;
+    border: none;
+}}
+
+QScrollBar::handle:vertical {{
+    background-color: {_BORDER};
+    border-radius: 4px;
+    min-height: 30px;
+}}
+
+QScrollBar::handle:vertical:hover {{
+    background-color: {_FG_DIM};
+}}
+
+QScrollBar::handle:vertical:pressed {{
+    background-color: {_ACCENT_BLUE};
+}}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    background: transparent;
+    height: 0px;
+    border: none;
+}}
+
+QScrollBar:horizontal {{
+    background: transparent;
+    height: 8px;
+    margin: 0;
+    border: none;
+}}
+
+QScrollBar::handle:horizontal {{
+    background-color: {_BORDER};
+    border-radius: 4px;
+    min-width: 30px;
+}}
+
+QScrollBar::handle:horizontal:hover {{
+    background-color: {_FG_DIM};
+}}
+
+QScrollBar::handle:horizontal:pressed {{
+    background-color: {_ACCENT_BLUE};
+}}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+    background: transparent;
+    width: 0px;
+    border: none;
+}}
+
+QSplitter::handle {{
+    background-color: {_BORDER};
+}}
+
+QSplitter::handle:horizontal {{
+    width: 2px;
+    margin: 0 1px;
+}}
+
+QSplitter::handle:vertical {{
+    height: 2px;
+    margin: 1px 0;
+}}
+
+QSplitter::handle:hover {{
+    background-color: {_ACCENT_BLUE};
+}}
+
+QStatusBar {{
+    background-color: {_BG};
+    border-top: 1px solid {_BORDER};
+}}
+
+QStatusBar::item {{
+    border: none;
+}}
+
+QComboBox {{
+    background-color: {_BG_MID};
+    border: 1px solid {_BORDER};
+    border-radius: 4px;
+    padding: 4px 8px;
+    padding-right: 24px;
+    min-height: 22px;
+}}
+
+QComboBox:hover {{
+    border-color: {_ACCENT_BLUE};
+}}
+
+QComboBox:focus {{
+    border-color: {_ACCENT_BLUE};
+}}
+
+QComboBox:disabled {{
+    background-color: {_BG};
+    color: #6c7086;
+}}
+
+QComboBox::drop-down {{
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 20px;
+    border: none;
+    border-left: 1px solid {_BORDER};
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}}
+
+QComboBox QAbstractItemView {{
+    background-color: {_BG_MID};
+    border: 1px solid {_BORDER};
+    border-radius: 4px;
+    padding: 4px 0;
+    selection-background-color: rgba(137, 180, 250, 0.2);
+    selection-color: {_FG};
+    outline: none;
+}}
+
+QComboBox QAbstractItemView::item {{
+    padding: 5px 10px;
+    min-height: 24px;
+}}
+
+QComboBox QAbstractItemView::item:hover {{
+    background-color: rgba(137, 180, 250, 0.12);
+}}
+
+QToolTip {{
+    background-color: {_BG_LIGHT};
+    color: {_FG};
+    border: 1px solid {_BORDER};
+    border-radius: 4px;
+    padding: 4px 8px;
+}}
+
+QMenuBar {{
+    background-color: {_BG_MID};
+    border-bottom: 1px solid {_BORDER};
+    padding: 2px 0;
+}}
+
+QMenuBar::item {{
+    background: transparent;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin: 1px 2px;
+}}
+
+QMenuBar::item:hover, QMenuBar::item:selected {{
+    background-color: {_BG_LIGHT};
+}}
+
+QMenu {{
+    background-color: {_BG_MID};
+    border: 1px solid {_BORDER};
+    border-radius: 6px;
+    padding: 4px 0;
+}}
+
+QMenu::item {{
+    padding: 6px 28px 6px 12px;
+}}
+
+QMenu::item:selected {{
+    background-color: rgba(137, 180, 250, 0.15);
+}}
+
+QMenu::item:disabled {{
+    color: #6c7086;
+}}
+
+QMenu::separator {{
+    height: 1px;
+    background-color: {_BORDER};
+    margin: 4px 8px;
+}}
+
+QHeaderView::section {{
+    background-color: {_BG_MID};
+    color: {_FG_DIM};
+    font-weight: bold;
+    padding: 6px 8px;
+    border: none;
+    border-right: 1px solid {_BORDER};
+    border-bottom: 1px solid {_BORDER};
+}}
+
+QHeaderView::section:hover {{
+    background-color: {_BG_LIGHT};
+    color: {_FG};
+}}
+
+QGroupBox {{
+    background-color: {_BG_MID};
+    border: 1px solid {_BORDER};
+    border-radius: 6px;
+    margin-top: 14px;
+    padding: 16px 8px 8px 8px;
+    font-weight: bold;
+}}
+
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 2px 8px;
+    left: 12px;
+    color: {_ACCENT_BLUE};
+}}
+
+QListWidget {{
+    border: 1px solid {_BORDER};
+    border-radius: 4px;
+    outline: none;
+}}
+
+QListWidget::item {{
+    padding: 4px 6px;
+}}
+
+QListWidget::item:hover {{
+    background-color: rgba(137, 180, 250, 0.08);
+}}
+
+QListWidget::item:selected {{
+    background-color: rgba(137, 180, 250, 0.2);
+}}
 """
 
 
 class StudioApp(QMainWindow):
     if TYPE_CHECKING:
-        title_label: QLabel
+        from PySide6.QtWidgets import QMenu as _QMenu
+        from PySide6.QtWidgets import QToolBar as _QToolBar
+
+        file_menu: _QMenu
+        edit_menu: _QMenu
+        run_menu: _QMenu
+        tools_menu: _QMenu
+        help_menu: _QMenu
+        main_toolbar: _QToolBar
+        _hotkey_status_label: QLabel
+        file_exit_action: QAction
+        edit_add_step_menu: _QMenu
+        edit_delete_action: QAction
+        edit_move_up_action: QAction
+        edit_move_down_action: QAction
+        edit_duplicate_action: QAction
+        run_record_action: QAction
+        run_stop_recording_action: QAction
+        run_robot_action: QAction
+        run_stop_robot_action: QAction
+        tools_hotkey_action: QAction
+        tools_language_menu: _QMenu
         name_edit: QLineEdit
         record_button: QPushButton
         record_stop_button: QPushButton
@@ -448,7 +798,6 @@ class StudioApp(QMainWindow):
         _status_pill: QLabel
         help_status_label: QLabel
         _rec_indicator: QLabel
-        file_menu_button: QToolButton
         file_save_action: QAction
         file_load_action: QAction
         file_json_action: QAction
@@ -461,7 +810,6 @@ class StudioApp(QMainWindow):
         add_type_action: QAction
         add_if_action: QAction
         add_group_action: QAction
-        hotkey_button: QPushButton
         language_combo: QComboBox
         steps_label: QLabel
         add_step_button: QToolButton
@@ -618,9 +966,6 @@ class StudioApp(QMainWindow):
         self._apply_loaded_ui_settings()
         self._rebuild_help_entries()
 
-        f1_shortcut = QShortcut(QKeySequence("F1"), self)
-        f1_shortcut.activated.connect(self.open_help_guide)
-
         self.refresh_steps()
         if self._settings_load_error is not None:
             self.log(self._t("app.log.settings_load_failed", error=self._settings_load_error))
@@ -744,9 +1089,11 @@ class StudioApp(QMainWindow):
     def _set_stop_hotkey_spec(self, spec: HotkeySpec, *, persist: bool = False) -> None:
         self._stop_hotkey_spec = spec
         self.recorder.set_stop_hotkey(spec.main_key, set(spec.required_modifiers))
-        if hasattr(self, "hotkey_button"):
-            self.hotkey_button.setText("\u22f9 " + spec.label)
-            self.hotkey_button.setToolTip(
+        if hasattr(self, "_hotkey_status_label"):
+            self._hotkey_status_label.setText(
+                self._t("app.statusbar.stop_hotkey", hotkey=spec.label)
+            )
+            self._hotkey_status_label.setToolTip(
                 self._t("app.button.hotkey_with_value", hotkey=spec.label)
                 + "\n"
                 + self._t("app.tooltip.stop_hotkey")
@@ -816,6 +1163,11 @@ class StudioApp(QMainWindow):
         if self._help_dialog is not None:
             self._close_help_dialog()
         self._persist_ui_settings()
+
+    def _set_locale_from_menu(self, locale_code: str) -> None:
+        idx = self.language_combo.findData(locale_code, Qt.ItemDataRole.UserRole)
+        if idx >= 0:
+            self.language_combo.setCurrentIndex(idx)
 
     def _build_ui(self) -> None:
         app_ui.build_ui(self)

@@ -16,9 +16,11 @@ def _ensure_qapp() -> QApplication:
 
 def _menu_actions_by_text(studio: StudioApp, menu_type: str) -> dict[str, QAction]:
     if menu_type == "file":
-        menu = studio.file_menu_button.menu()
+        menu = studio.file_menu
     elif menu_type == "add_step":
         menu = studio.add_step_button.menu()
+    elif menu_type == "help":
+        menu = studio.help_menu
     else:
         raise ValueError(f"Unknown menu type: {menu_type}")
     assert menu is not None
@@ -37,6 +39,15 @@ def test_file_menu_actions_have_per_action_tooltips() -> None:
         assert actions["Save"].toolTip() == "Save current scenario file."
         assert actions["Load"].toolTip() == "Load scenario file."
         assert actions["Full JSON"].toolTip() == "Open full JSON editor."
+    finally:
+        studio.close()
+
+
+def test_help_menu_actions_have_per_action_tooltips() -> None:
+    _ensure_qapp()
+    studio = StudioApp(initial_locale="en")
+    try:
+        actions = _menu_actions_by_text(studio, "help")
         assert actions["Help Guide (F1)"].toolTip() == "Open full help guide."
         assert actions["Run Diagnostics"].toolTip() == "Open latest run diagnostics."
     finally:

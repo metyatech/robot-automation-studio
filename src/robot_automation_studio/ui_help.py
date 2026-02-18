@@ -327,10 +327,6 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
         "Set scenario name.",
         "Human-readable scenario title used in exported Robot and scenario outputs.",
     ),
-    "FileMenuButton": (
-        "Open file menu.",
-        "Provides Save, Load, Full JSON editor, and Help Guide shortcuts.",
-    ),
     "AddStepButton": (
         "Add a step.",
         "Add Click, Drag, Shortcut, Menu, Type, IF, or Group steps.",
@@ -399,12 +395,9 @@ _KNOWN_WIDGET_ID_HELP: dict[str, tuple[str, str]] = {
         "Choose language.",
         "Switch UI language between English and Japanese.",
     ),
-    "HotkeyButton": (
-        "Set stop hotkey.",
-        (
-            "Open a dialog and press key combination directly "
-            "to configure emergency stop for record/run."
-        ),
+    "HotkeyStatusLabel": (
+        "Stop hotkey indicator.",
+        "Shows the current emergency stop hotkey. Use Tools > Hotkey Settings to change.",
     ),
     "VariablesButton": (
         "Edit variables.",
@@ -636,10 +629,6 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
         "シナリオ名を設定します。",
         "エクスポートされる Robot とシナリオ出力で使う表示名です。",
     ),
-    "FileMenuButton": (
-        "ファイルメニューを開きます。",
-        "保存、読込、全体 JSON、ヘルプガイドを開きます。",
-    ),
     "AddStepButton": (
         "ステップを追加します。",
         "Click、Drag、Shortcut、Menu、Type、IF、Group を追加します。",
@@ -708,9 +697,9 @@ _KNOWN_WIDGET_ID_HELP_JA: dict[str, tuple[str, str]] = {
         "表示言語を選択します。",
         "English / 日本語 の UI 表示を切り替えます。",
     ),
-    "HotkeyButton": (
-        "停止ホットキーを設定します。",
-        "ダイアログを開き、押したキーの組み合わせで記録/実行の緊急停止キーを設定します。",
+    "HotkeyStatusLabel": (
+        "停止ホットキーの表示です。",
+        "現在の緊急停止ホットキーを表示します。ツール > ホットキー設定 で変更できます。",
     ),
     "VariablesButton": (
         "変数を編集します。",

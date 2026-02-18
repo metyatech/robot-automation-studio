@@ -70,7 +70,6 @@ def test_toolbar_buttons_have_icons() -> None:
     _ensure_qapp()
     studio = StudioApp(initial_locale="en")
     try:
-        assert not studio.file_menu_button.icon().isNull()
         assert not studio.add_step_button.icon().isNull()
     finally:
         studio.close()

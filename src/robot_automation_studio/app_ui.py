@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 
 import qtawesome as qta
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QValidator
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QFont, QKeySequence, QValidator
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -70,105 +70,117 @@ class _SubflowTimeoutValidator(QValidator):
 
 
 def build_ui(self) -> None:
-    central = QWidget()
-    self.setCentralWidget(central)
-    main_layout = QVBoxLayout(central)
-    main_layout.setContentsMargins(0, 0, 0, 0)
-    main_layout.setSpacing(0)
+    # --- QMenuBar ---
+    menu_bar = self.menuBar()
 
-    header_bar = QWidget()
-    header_bar.setObjectName("HeaderBar")
-    header_bar.setFixedHeight(44)
-    header_layout = QHBoxLayout(header_bar)
-    header_layout.setContentsMargins(8, 0, 8, 0)
-    header_layout.setSpacing(6)
+    self.file_menu = menu_bar.addMenu("")
+    self.file_save_action = self.file_menu.addAction("")
+    self.file_save_action.triggered.connect(self.save_json)
+    self.file_load_action = self.file_menu.addAction("")
+    self.file_load_action.triggered.connect(self.load_json)
+    self.file_menu.addSeparator()
+    self.file_json_action = self.file_menu.addAction("")
+    self.file_json_action.triggered.connect(self.open_full_json_editor)
+    self.file_menu.addSeparator()
+    self.file_exit_action = self.file_menu.addAction("")
+    self.file_exit_action.triggered.connect(self.close)
 
-    self.title_label = QLabel()
-    self.title_label.setObjectName("PanelTitle")
-    header_layout.addWidget(self.title_label)
+    self.edit_menu = menu_bar.addMenu("")
+    self.edit_add_step_menu = self.edit_menu.addMenu("")
+    self.add_click_action = self.edit_add_step_menu.addAction("")
+    self.add_click_action.triggered.connect(self.add_click)
+    self.add_drag_action = self.edit_add_step_menu.addAction("")
+    self.add_drag_action.triggered.connect(self.add_drag)
+    self.add_shortcut_action = self.edit_add_step_menu.addAction("")
+    self.add_shortcut_action.triggered.connect(self.add_shortcut)
+    self.add_menu_action = self.edit_add_step_menu.addAction("")
+    self.add_menu_action.triggered.connect(self.add_menu)
+    self.add_type_action = self.edit_add_step_menu.addAction("")
+    self.add_type_action.triggered.connect(self.add_type)
+    self.edit_add_step_menu.addSeparator()
+    self.add_if_action = self.edit_add_step_menu.addAction("")
+    self.add_if_action.triggered.connect(self.add_control)
+    self.add_group_action = self.edit_add_step_menu.addAction("")
+    self.add_group_action.triggered.connect(self.add_group)
+    self.edit_menu.addSeparator()
+    self.edit_delete_action = self.edit_menu.addAction("")
+    self.edit_delete_action.triggered.connect(self.delete_selected)
+    self.edit_move_up_action = self.edit_menu.addAction("")
+    self.edit_move_up_action.triggered.connect(self.move_up)
+    self.edit_move_down_action = self.edit_menu.addAction("")
+    self.edit_move_down_action.triggered.connect(self.move_down)
+    self.edit_duplicate_action = self.edit_menu.addAction("")
+    self.edit_duplicate_action.triggered.connect(self.duplicate_selected)
+
+    self.run_menu = menu_bar.addMenu("")
+    self.run_record_action = self.run_menu.addAction("")
+    self.run_record_action.triggered.connect(self.start_recording)
+    self.run_stop_recording_action = self.run_menu.addAction("")
+    self.run_stop_recording_action.triggered.connect(self.stop_recording)
+    self.run_menu.addSeparator()
+    self.run_robot_action = self.run_menu.addAction("")
+    self.run_robot_action.triggered.connect(self.run_robot_suite)
+    self.run_stop_robot_action = self.run_menu.addAction("")
+    self.run_stop_robot_action.triggered.connect(self.stop_robot_suite)
+
+    self.tools_menu = menu_bar.addMenu("")
+    self.tools_hotkey_action = self.tools_menu.addAction("")
+    self.tools_hotkey_action.triggered.connect(self.open_hotkey_dialog)
+    self.tools_menu.addSeparator()
+    self.tools_language_menu = self.tools_menu.addMenu("")
+    self._tools_lang_en_action = self.tools_language_menu.addAction("English")
+    self._tools_lang_en_action.triggered.connect(lambda: self._set_locale_from_menu("en"))
+    self._tools_lang_ja_action = self.tools_language_menu.addAction("Japanese")
+    self._tools_lang_ja_action.triggered.connect(lambda: self._set_locale_from_menu("ja"))
+
+    self.help_menu = menu_bar.addMenu("")
+    self.file_help_action = self.help_menu.addAction("")
+    self.file_help_action.triggered.connect(self.open_help_guide)
+    self.file_help_action.setShortcut(QKeySequence("F1"))
+    self.file_run_diagnostics_action = self.help_menu.addAction("")
+    self.file_run_diagnostics_action.triggered.connect(self.open_run_diagnostics)
+
+    # --- QToolBar ---
+    self.main_toolbar = self.addToolBar("Main")
+    self.main_toolbar.setMovable(False)
+    self.main_toolbar.setFloatable(False)
+    self.main_toolbar.setIconSize(QSize(20, 20))
 
     self.name_edit = QLineEdit(self.scenario.name)
     self.name_edit.setObjectName("ScenarioNameEdit")
     self.name_edit.setMinimumWidth(120)
     self.name_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-    header_layout.addWidget(self.name_edit, 1)
+    self.main_toolbar.addWidget(self.name_edit)
+    self.main_toolbar.addSeparator()
 
     self.record_button = QPushButton()
     self.record_button.setObjectName("RecordButton")
     self.record_button.clicked.connect(self.start_recording)
-    header_layout.addWidget(self.record_button)
+    self.main_toolbar.addWidget(self.record_button)
 
     self.record_stop_button = QPushButton()
     self.record_stop_button.setObjectName("StopButton")
     self.record_stop_button.clicked.connect(self.stop_recording)
-    header_layout.addWidget(self.record_stop_button)
-
-    vline1 = QFrame()
-    vline1.setObjectName("HeaderVLine")
-    vline1.setFrameShape(QFrame.Shape.VLine)
-    header_layout.addWidget(vline1)
+    self.main_toolbar.addWidget(self.record_stop_button)
+    self.main_toolbar.addSeparator()
 
     self.run_button = QPushButton()
     self.run_button.setObjectName("RecordButton")
     self.run_button.clicked.connect(self.run_robot_suite)
-    header_layout.addWidget(self.run_button)
+    self.main_toolbar.addWidget(self.run_button)
 
     self.stop_robot_button = QPushButton()
     self.stop_robot_button.setObjectName("StopButton")
     self.stop_robot_button.setEnabled(False)
     self.stop_robot_button.clicked.connect(self.stop_robot_suite)
-    header_layout.addWidget(self.stop_robot_button)
+    self.main_toolbar.addWidget(self.stop_robot_button)
 
-    self._status_pill = QLabel(
-        format_run_status("idle", SPINNER_FRAMES[0], locale=self._translator.locale)
-    )
-    self._status_pill.setObjectName("StatusPill")
-    header_layout.addWidget(self._status_pill)
-
-    vline2 = QFrame()
-    vline2.setObjectName("HeaderVLine")
-    vline2.setFrameShape(QFrame.Shape.VLine)
-    header_layout.addWidget(vline2)
-
-    self.help_status_label = QLabel()
-    self.help_status_label.setObjectName("HeaderHelpLabel")
-    self.help_status_label.setMinimumWidth(0)
-    self.help_status_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-    header_layout.addWidget(self.help_status_label, 1)
-
-    self._rec_indicator = QLabel()
-    self._rec_indicator.setObjectName("RecIndicator")
-    header_layout.addWidget(self._rec_indicator)
-
-    self.file_menu_button = QToolButton()
-    self.file_menu_button.setObjectName("FileMenuButton")
-    self.file_menu_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-    file_menu = QMenu(self.file_menu_button)
-    self.file_save_action = file_menu.addAction("")
-    self.file_save_action.triggered.connect(self.save_json)
-    self.file_load_action = file_menu.addAction("")
-    self.file_load_action.triggered.connect(self.load_json)
-    file_menu.addSeparator()
-    self.file_json_action = file_menu.addAction("")
-    self.file_json_action.triggered.connect(self.open_full_json_editor)
-    self.file_help_action = file_menu.addAction("")
-    self.file_help_action.triggered.connect(self.open_help_guide)
-    self.file_run_diagnostics_action = file_menu.addAction("")
-    self.file_run_diagnostics_action.triggered.connect(self.open_run_diagnostics)
-    self.file_menu_button.setMenu(file_menu)
-    header_layout.addWidget(self.file_menu_button)
-
-    self.hotkey_button = QPushButton()
-    self.hotkey_button.setObjectName("HotkeyButton")
-    self.hotkey_button.clicked.connect(self.open_hotkey_dialog)
-    header_layout.addWidget(self.hotkey_button)
-
-    self.language_combo = QComboBox()
-    self.language_combo.setObjectName("LanguageCombo")
-    self.language_combo.currentIndexChanged.connect(self._on_locale_changed)
-    header_layout.addWidget(self.language_combo)
-
-    main_layout.addWidget(header_bar)
+    # --- Central widget ---
+    central = QWidget()
+    self.setCentralWidget(central)
+    main_layout = QVBoxLayout(central)
+    main_layout.setContentsMargins(0, 0, 0, 0)
+    main_layout.setSpacing(0)
 
     main_splitter = QSplitter(Qt.Orientation.Vertical)
     main_splitter.setObjectName("MainSplitter")
@@ -176,6 +188,7 @@ def build_ui(self) -> None:
     horizontal_splitter = QSplitter(Qt.Orientation.Horizontal)
 
     left_panel = QWidget()
+    left_panel.setObjectName("LeftPanel")
     left_panel.setMinimumWidth(200)
     left_panel_layout = QVBoxLayout(left_panel)
     left_panel_layout.setContentsMargins(8, 8, 8, 8)
@@ -191,21 +204,14 @@ def build_ui(self) -> None:
     self.add_step_button.setObjectName("AddStepButton")
     self.add_step_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
     add_step_menu = QMenu(self.add_step_button)
-    self.add_click_action = add_step_menu.addAction("")
-    self.add_click_action.triggered.connect(self.add_click)
-    self.add_drag_action = add_step_menu.addAction("")
-    self.add_drag_action.triggered.connect(self.add_drag)
-    self.add_shortcut_action = add_step_menu.addAction("")
-    self.add_shortcut_action.triggered.connect(self.add_shortcut)
-    self.add_menu_action = add_step_menu.addAction("")
-    self.add_menu_action.triggered.connect(self.add_menu)
-    self.add_type_action = add_step_menu.addAction("")
-    self.add_type_action.triggered.connect(self.add_type)
+    add_step_menu.addAction(self.add_click_action)
+    add_step_menu.addAction(self.add_drag_action)
+    add_step_menu.addAction(self.add_shortcut_action)
+    add_step_menu.addAction(self.add_menu_action)
+    add_step_menu.addAction(self.add_type_action)
     add_step_menu.addSeparator()
-    self.add_if_action = add_step_menu.addAction("")
-    self.add_if_action.triggered.connect(self.add_control)
-    self.add_group_action = add_step_menu.addAction("")
-    self.add_group_action.triggered.connect(self.add_group)
+    add_step_menu.addAction(self.add_if_action)
+    add_step_menu.addAction(self.add_group_action)
     self.add_step_button.setMenu(add_step_menu)
     step_toolbar.addWidget(self.add_step_button)
 
@@ -531,6 +537,34 @@ def build_ui(self) -> None:
 
     main_layout.addWidget(main_splitter, 1)
 
+    # --- QStatusBar ---
+    status_bar = self.statusBar()
+
+    self.help_status_label = QLabel()
+    self.help_status_label.setObjectName("StatusBarHelpLabel")
+    self.help_status_label.setMinimumWidth(0)
+    self.help_status_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+    status_bar.addWidget(self.help_status_label, 1)
+
+    self._hotkey_status_label = QLabel()
+    self._hotkey_status_label.setObjectName("HotkeyStatusLabel")
+    status_bar.addPermanentWidget(self._hotkey_status_label)
+
+    self._rec_indicator = QLabel()
+    self._rec_indicator.setObjectName("RecIndicator")
+    status_bar.addPermanentWidget(self._rec_indicator)
+
+    self._status_pill = QLabel(
+        format_run_status("idle", SPINNER_FRAMES[0], locale=self._translator.locale)
+    )
+    self._status_pill.setObjectName("StatusPill")
+    status_bar.addPermanentWidget(self._status_pill)
+
+    self.language_combo = QComboBox()
+    self.language_combo.setObjectName("LanguageCombo")
+    self.language_combo.currentIndexChanged.connect(self._on_locale_changed)
+    status_bar.addPermanentWidget(self.language_combo)
+
     # --- Icons (qtawesome) ---
     _icon_fg = "#cdd6f4"
     _icon_green = "#a6e3a1"
@@ -550,8 +584,21 @@ def build_ui(self) -> None:
     self.file_save_action.setIcon(qta.icon("mdi6.content-save", color=_icon_fg))
     self.file_load_action.setIcon(qta.icon("mdi6.folder-open", color=_icon_fg))
     self.file_json_action.setIcon(qta.icon("mdi6.code-json", color=_icon_fg))
+    self.file_exit_action.setIcon(qta.icon("mdi6.close", color=_icon_fg))
     self.file_help_action.setIcon(qta.icon("mdi6.help-circle-outline", color=_icon_fg))
     self.file_run_diagnostics_action.setIcon(qta.icon("mdi6.chart-box-outline", color=_icon_fg))
+
+    self.edit_delete_action.setIcon(qta.icon("mdi6.close", color=_icon_fg))
+    self.edit_move_up_action.setIcon(qta.icon("mdi6.arrow-up", color=_icon_fg))
+    self.edit_move_down_action.setIcon(qta.icon("mdi6.arrow-down", color=_icon_fg))
+    self.edit_duplicate_action.setIcon(qta.icon("mdi6.content-copy", color=_icon_fg))
+
+    self.run_record_action.setIcon(qta.icon("mdi6.record-circle", color=_icon_green))
+    self.run_stop_recording_action.setIcon(qta.icon("mdi6.stop", color=_icon_red))
+    self.run_robot_action.setIcon(qta.icon("mdi6.play", color=_icon_green))
+    self.run_stop_robot_action.setIcon(qta.icon("mdi6.stop", color=_icon_red))
+
+    self.tools_hotkey_action.setIcon(qta.icon("mdi6.keyboard-settings", color=_icon_fg))
 
     self.add_click_action.setIcon(qta.icon("mdi6.cursor-default-click", color=_icon_fg))
     self.add_drag_action.setIcon(qta.icon("mdi6.cursor-move", color=_icon_fg))
@@ -561,8 +608,6 @@ def build_ui(self) -> None:
     self.add_if_action.setIcon(qta.icon("mdi6.call-split", color=_icon_fg))
     self.add_group_action.setIcon(qta.icon("mdi6.view-list", color=_icon_fg))
 
-    self.file_menu_button.setIcon(qta.icon("mdi6.file-document-outline", color=_icon_fg))
-    self.file_menu_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
     self.add_step_button.setIcon(qta.icon("mdi6.plus", color=_icon_blue))
     self.add_step_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
 
@@ -576,9 +621,43 @@ def apply_localized_texts(self) -> None:
         if self.recorder.is_recording
         else self._t("app.window.title")
     )
-    self.title_label.setText(self._t("app.window.header_prefix"))
     self.name_edit.setPlaceholderText(self._t("app.field.scenario_name.placeholder"))
 
+    # --- QMenuBar titles ---
+    self.file_menu.setTitle(self._t("app.menubar.file"))
+    self.edit_menu.setTitle(self._t("app.menubar.edit"))
+    self.run_menu.setTitle(self._t("app.menubar.run"))
+    self.tools_menu.setTitle(self._t("app.menubar.tools"))
+    self.help_menu.setTitle(self._t("app.menubar.help"))
+
+    # --- File menu actions ---
+    self.file_save_action.setText(self._t("app.menu.file.save"))
+    self.file_load_action.setText(self._t("app.menu.file.load"))
+    self.file_json_action.setText(self._t("app.menu.file.full_json"))
+    self.file_exit_action.setText(self._t("app.menu.file.exit"))
+
+    # --- Edit menu actions ---
+    self.edit_add_step_menu.setTitle(self._t("app.menu.edit.add_step"))
+    self.edit_delete_action.setText(self._t("app.menu.edit.delete"))
+    self.edit_move_up_action.setText(self._t("app.menu.edit.move_up"))
+    self.edit_move_down_action.setText(self._t("app.menu.edit.move_down"))
+    self.edit_duplicate_action.setText(self._t("app.menu.edit.duplicate"))
+
+    # --- Run menu actions ---
+    self.run_record_action.setText(self._t("app.menu.run.record"))
+    self.run_stop_recording_action.setText(self._t("app.menu.run.stop_recording"))
+    self.run_robot_action.setText(self._t("app.menu.run.run_robot"))
+    self.run_stop_robot_action.setText(self._t("app.menu.run.stop_robot"))
+
+    # --- Tools menu actions ---
+    self.tools_hotkey_action.setText(self._t("app.menu.tools.hotkey_settings"))
+    self.tools_language_menu.setTitle(self._t("app.menu.tools.language"))
+
+    # --- Help menu actions ---
+    self.file_help_action.setText(self._t("app.menu.file.help"))
+    self.file_run_diagnostics_action.setText(self._t("app.menu.file.run_diagnostics"))
+
+    # --- Toolbar buttons ---
     self.record_button.setText(self._t("app.button.record_start"))
     self.record_stop_button.setText(self._t("app.button.record_stop"))
     self.run_button.setText(self._t("app.button.run_robot"))
@@ -592,8 +671,18 @@ def apply_localized_texts(self) -> None:
         _fm = _btn.fontMetrics()
         _btn.setMinimumWidth(_fm.horizontalAdvance(_btn.text()) + 20)
         _btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-    self._status_pill.setToolTip(self._t("app.status.run_tooltip"))
+
+    # --- Status bar ---
     self.help_status_label.setText(self._t("app.help.header"))
+    self._hotkey_status_label.setText(
+        self._t("app.statusbar.stop_hotkey", hotkey=self._stop_hotkey_spec.label)
+    )
+    self._hotkey_status_label.setToolTip(
+        self._t("app.button.hotkey_with_value", hotkey=self._stop_hotkey_spec.label)
+        + "\n"
+        + self._t("app.tooltip.stop_hotkey")
+    )
+    self._status_pill.setToolTip(self._t("app.status.run_tooltip"))
     self._rec_indicator.setToolTip(self._t("app.status.record_tooltip"))
     self._rec_indicator.setText(
         self._t("app.status.recording")
@@ -601,18 +690,7 @@ def apply_localized_texts(self) -> None:
         else self._t("app.status.record_idle")
     )
 
-    self.file_menu_button.setText(self._t("app.button.file_menu"))
-    self.file_save_action.setText(self._t("app.menu.file.save"))
-    self.file_load_action.setText(self._t("app.menu.file.load"))
-    self.file_json_action.setText(self._t("app.menu.file.full_json"))
-    self.file_help_action.setText(self._t("app.menu.file.help"))
-    self.file_run_diagnostics_action.setText(self._t("app.menu.file.run_diagnostics"))
-    self.hotkey_button.setText("\u22f9 " + self._stop_hotkey_spec.label)
-    self.hotkey_button.setToolTip(
-        self._t("app.button.hotkey_with_value", hotkey=self._stop_hotkey_spec.label)
-        + "\n"
-        + self._t("app.tooltip.stop_hotkey")
-    )
+    # --- Menu action help ---
     self._set_action_help(
         self.file_save_action,
         "app.help.menu.file.save.summary",
