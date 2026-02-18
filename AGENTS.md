@@ -96,6 +96,20 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/autonomous-operations.md
 - Prefer asynchronous, low-friction control channels (GitHub Issues/PR comments) unless a repository mandates another.
 - Design autonomous workflows for high volume: queue requests, set concurrency limits, and auto-throttle to prevent overload.
 
+Source: github:metyatech/agent-rules@HEAD/rules/global/cli-standards.md
+
+# CLI standards
+
+- Provide --help/-h with clear usage, options, and examples; include required parameters in examples.
+- Provide --version (use -V); reserve -v for --verbose.
+- Support stdin/stdout piping; allow output redirection (e.g., --output for file creation).
+- Offer machine-readable output (e.g., --json) when emitting structured data.
+- For modifying/deleting actions, provide --dry-run and an explicit bypass (--yes/--force).
+- Provide controllable logging (--quiet, --verbose, or --trace).
+- Use deterministic exit codes (0 success, non-zero failure) and avoid silent fallbacks.
+- For JSON configuration, define/update a JSON Schema and validate config on load.
+- For interactive CLI prompts, provide required context before asking; for yes/no prompts, Enter means "Yes" and "n" means "No".
+
 Source: github:metyatech/agent-rules@HEAD/rules/global/command-execution.md
 
 # Workflow and command execution
@@ -396,6 +410,40 @@ For AC definition, verification evidence, regression tests, and final reporting 
 - Validate config and external inputs at boundaries; fail with actionable guidance.
 - Log minimally but with diagnostic context; never log secrets or personal data.
 - Remove temporary debugging/instrumentation before the final patch.
+
+Source: github:metyatech/agent-rules@HEAD/rules/global/release-and-publication.md
+
+# Release and publication
+
+## Packaging and distribution
+
+- Include LICENSE in published artifacts (copyright holder: metyatech).
+- Do not ship build/test artifacts or local configs; ensure a clean environment can use the product via README steps.
+- Define a SemVer policy and document what counts as a breaking change.
+
+## Public repository metadata
+
+- For public repos, set GitHub Description, Topics, and Homepage.
+- Ensure required repo files exist: .github/workflows/ci.yml, issue templates, PR template, SECURITY.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CHANGELOG.md.
+- Configure CI to run the repo's standard lint/test/build commands.
+
+## Versioning and release flow
+
+- Update version metadata when release content changes; keep package version and Git tag consistent.
+- Create and push a release tag; create a GitHub Release based on CHANGELOG.
+- If asked to choose a version, decide it yourself.
+- When bumping a version, create the GitHub Release and publish the package in the same update.
+- For npm publishing, ask the user to run npm publish (do not execute it directly).
+- Before publishing, run required prep commands (e.g., npm install, npm test, npm pack --dry-run) and only proceed when ready.
+- If authentication fails during publish, ask the user to complete the publish step.
+- Run dependency security checks before release, address critical issues, and report results.
+- After publishing, update any locally installed copy to the latest release.
+
+## Published artifact requirements
+
+- Populate package metadata (name, description, repository, issues, homepage, engines).
+- Validate executable entrypoints and required shebangs so installed commands work.
+- If a repo represents a single tool/product, publish a single package (bundle related scripts).
 
 Source: github:metyatech/agent-rules@HEAD/rules/global/skill-authoring.md
 
