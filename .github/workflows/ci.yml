@@ -14,7 +14,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install
-        run: python -m pip install -e ".[dev]"
+        run: python -m pip install -e ".[dev,overlay]"
       - name: Verify
         shell: pwsh
         run: ./scripts/verify.ps1
