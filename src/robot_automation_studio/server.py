@@ -1049,8 +1049,7 @@ class StudioSession:
                         lines = [f"Status: {status}"]
                         if total:
                             lines.append(
-                                f"Keywords: {total} total,"
-                                f" {passed} passed, {failed} failed"
+                                f"Keywords: {total} total, {passed} passed, {failed} failed"
                             )
                         if elapsed is not None:
                             lines.append(f"Duration: {elapsed}s")
