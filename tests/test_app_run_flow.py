@@ -176,6 +176,7 @@ def test_run_robot_suite_logs_run_diagnostics_summary(monkeypatch, tmp_path: Pat
             encoding="utf-8",
         )
 
+        studio.output_dir_edit.setText(str(tmp_path))
         studio.run_robot_suite()
 
         assert studio._run_thread is not None
