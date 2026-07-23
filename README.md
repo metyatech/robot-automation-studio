@@ -165,7 +165,6 @@ cd tauri-app && npx tauri build
 | `ruff format .` | Auto-format Python sources |
 | `pyright` | Type-check Python sources |
 | `pytest tests/` | Run Python tests |
-| `pip-audit -r requirements-audit.txt` | Dependency vulnerability scan |
 
 ### TypeScript / Frontend
 
@@ -267,12 +266,6 @@ powershell -ExecutionPolicy Bypass -File scripts/install-precommit.ps1
   `Assets/Editor/RobotFrameworkUnityBridge.cs` if present.
 - Without the bridge, hierarchy row clicks cannot be resolved and recording logs
   an error.
-
-## Security Checks in CI
-
-- Dependency vulnerability scan: `pip-audit` in `scripts/verify.ps1` and CI
-- Static security analysis: CodeQL workflow (`.github/workflows/codeql.yml`)
-- Secret scanning: Gitleaks workflow (`.github/workflows/secret-scan.yml`)
 
 To enforce required checks on `main`, run:
 
